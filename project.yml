@@ -1,0 +1,46 @@
+name: TaskMenu
+options:
+  bundleIdPrefix: com.taskmenu
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  TaskMenu:
+    type: application
+    platform: macOS
+    sources:
+      - path: TaskMenu
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.taskmenu.TaskMenu
+        INFOPLIST_FILE: TaskMenu/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TaskMenu/Resources/TaskMenu.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        COMBINE_HIDPI_IMAGES: YES
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        PRODUCT_NAME: TaskMenu
+    entitlements:
+      path: TaskMenu/Resources/TaskMenu.entitlements
+  TaskMenuTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: TaskMenuTests
+    dependencies:
+      - target: TaskMenu
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.taskmenu.TaskMenuTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TaskMenu.app/Contents/MacOS/TaskMenu"
+        BUNDLE_LOADER: "$(TEST_HOST)"
