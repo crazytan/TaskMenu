@@ -150,7 +150,7 @@ final class GoogleAuthService: Sendable {
         accessToken = try? keychain.readString(key: Constants.Keychain.accessTokenKey)
         refreshToken = try? keychain.readString(key: Constants.Keychain.refreshTokenKey)
         if let expStr = try? keychain.readString(key: Constants.Keychain.expirationKey),
-           let interval = Double(expStr ?? "") {
+           let interval = Double(expStr) {
             tokenExpiration = Date(timeIntervalSince1970: interval)
         }
     }

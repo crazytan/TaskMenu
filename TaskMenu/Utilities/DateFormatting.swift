@@ -13,14 +13,14 @@ enum DateFormatting: Sendable {
         return f
     }()
 
-    nonisolated(unsafe) private static let dateOnlyFormatter: DateFormatter = {
+    private static let dateOnlyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd'T'00:00:00.000'Z'"
         f.timeZone = TimeZone(identifier: "UTC")
         return f
     }()
 
-    nonisolated(unsafe) private static let displayFormatter: DateFormatter = {
+    private static let displayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .none
