@@ -126,4 +126,104 @@ final class GoogleTasksAPITests: XCTestCase {
         XCTAssertEqual(decoded.title, "Test")
         XCTAssertEqual(decoded.status, .needsAction)
     }
+
+    // MARK: - TaskStatus Raw Values
+
+    func testTaskStatusRawValues() {
+        XCTAssertEqual(TaskItem.TaskStatus.needsAction.rawValue, "needsAction")
+        XCTAssertEqual(TaskItem.TaskStatus.completed.rawValue, "completed")
+    }
+
+    // MARK: - dueDate Computed Property
+
+    func testDueDateGetReturnsDateWhenDueIsSet() throws {
+        let json = """
+        {"id": "t1", "title": "Test", "status": "needsAction", "due": "2026-06-15T00:00:00.000Z"}
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(TaskItem.self, from: json)
+        XCTAssertNotNil(task.dueDate)
+    }
+
+    func testDueDateGetReturnsNilWhenNoDue() throws {
+        let json = """
+        {"id": "t1", "title": "Test", "status": "needsAction"}
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(TaskItem.self, from: json)
+        XCTAssertNil(task.dueDate)
+    }
+
+    func testDueDateSetUpdatesRFC3339String() throws {
+        let json = """
+        {"id": "t1", "title": "Test", "status": "needsAction"}
+        """.data(using: .utf8)!
+
+        var task = try JSONDecoder().decode(TaskItem.self, from: json)
+        let date = DateFormatting.parseRFC3339("2026-12-25T00:00:00.000Z")!
+        task.dueDate = date
+        XCTAssertNotNil(task.due)
+        XCTAssertTrue(task.due!.contains("2026-12-25"))
+    }
+
+    func testDueDateSetToNilClearsDue() throws {
+        let json = """
+        {"id": "t1", "title": "Test", "status": "needsAction", "due": "2026-06-15T00:00:00.000Z"}
+        """.data(using: .utf8)!
+
+        var task = try JSONDecoder().decode(TaskItem.self, from: json)
+        task.dueDate = nil
+        XCTAssertNil(task.due)
+    }
+
+    // MARK: - Minimal Field Decoding
+
+    func testDecodeTaskWithOnlyRequiredFields() throws {
+        let json = """
+        {"id": "minimal", "title": "", "status": "needsAction"}
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(TaskItem.self, from: json)
+        XCTAssertEqual(task.id, "minimal")
+        XCTAssertNil(task.notes)
+        XCTAssertNil(task.due)
+        XCTAssertNil(task.selfLink)
+        XCTAssertNil(task.parent)
+        XCTAssertNil(task.position)
+        XCTAssertNil(task.updated)
+    }
+
+    func testDecodeTaskListWithOnlyRequiredFields() throws {
+        let json = """
+        {"id": "list-minimal", "title": "Untitled"}
+        """.data(using: .utf8)!
+
+        let list = try JSONDecoder().decode(TaskList.self, from: json)
+        XCTAssertEqual(list.id, "list-minimal")
+        XCTAssertNil(list.selfLink)
+        XCTAssertNil(list.updated)
+    }
+
+    // MARK: - Empty Collection
+
+    func testDecodeEmptyTaskListCollection() throws {
+        let json = """
+        {"kind": "tasks#taskLists"}
+        """.data(using: .utf8)!
+
+        let collection = try JSONDecoder().decode(TaskListCollection.self, from: json)
+        XCTAssertNil(collection.items)
+    }
+
+    // MARK: - TaskItem with Parent
+
+    func testDecodeTaskWithParent() throws {
+        let json = """
+        {"id": "child1", "title": "Sub-task", "status": "needsAction", "parent": "parent1", "position": "00000002"}
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(TaskItem.self, from: json)
+        XCTAssertEqual(task.parent, "parent1")
+        XCTAssertEqual(task.position, "00000002")
+    }
 }
