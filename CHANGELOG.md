@@ -1,5 +1,15 @@
 # Changelog
 
+## TODO
+
+- macOS widgets (WidgetKit)
+- Global keyboard shortcut (Cmd+Shift+T)
+- Due date notifications
+- Multiple Google accounts
+- Drag-and-drop reordering
+- Subtask support (indent/outdent)
+- Search/filter tasks
+
 ## v0.1.0 (2026-03-08)
 
 Initial release — menu bar app for Google Tasks.
