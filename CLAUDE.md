@@ -133,3 +133,4 @@ When adding new functionality, add corresponding unit tests. Tests should be iso
 - Do not add SPM dependencies without strong justification
 - Do not add a dock icon or main window — this is a menu-bar-only app
 - Do not use force unwraps (`!`) on data from network or external sources
+
