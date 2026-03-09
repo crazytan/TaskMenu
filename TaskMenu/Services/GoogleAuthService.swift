@@ -95,6 +95,7 @@ final class GoogleAuthService: Sendable {
         let params = [
             "code": code,
             "client_id": Constants.googleClientId,
+            "client_secret": Constants.googleClientSecret,
             "code_verifier": codeVerifier,
             "grant_type": "authorization_code",
             "redirect_uri": redirectURI,
@@ -118,6 +119,7 @@ final class GoogleAuthService: Sendable {
         let params = [
             "refresh_token": refreshToken,
             "client_id": Constants.googleClientId,
+            "client_secret": Constants.googleClientSecret,
             "grant_type": "refresh_token",
         ]
         request.httpBody = params.urlEncodedString().data(using: .utf8)
@@ -178,15 +180,13 @@ final class GoogleAuthService: Sendable {
 
     private func startLocalServerAndAuth(url: URL, port: UInt16, redirectURI: String) async throws -> String {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-            let serverSocket = createLocalServer(port: port) { queryString in
+            guard createLocalServer(port: port, completion: { queryString in
                 if let code = URLComponents(string: "?\(queryString)")?.queryItems?.first(where: { $0.name == "code" })?.value {
                     continuation.resume(returning: code)
                 } else {
                     continuation.resume(throwing: APIError.unauthorized)
                 }
-            }
-
-            guard serverSocket != nil else {
+            }) else {
                 continuation.resume(throwing: APIError.networkError(URLError(.cannotConnectToHost)))
                 return
             }
@@ -195,9 +195,10 @@ final class GoogleAuthService: Sendable {
         }
     }
 
-    private nonisolated func createLocalServer(port: UInt16, completion: @escaping @Sendable (String) -> Void) -> CFSocket? {
+    @discardableResult
+    private nonisolated func createLocalServer(port: UInt16, completion: @escaping @Sendable (String) -> Void) -> Bool {
         let fd = socket(AF_INET, SOCK_STREAM, 0)
-        guard fd >= 0 else { return nil }
+        guard fd >= 0 else { return false }
 
         var reuse: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
@@ -215,7 +216,7 @@ final class GoogleAuthService: Sendable {
 
         guard bindResult == 0 else {
             close(fd)
-            return nil
+            return false
         }
 
         listen(fd, 1)
@@ -262,7 +263,7 @@ final class GoogleAuthService: Sendable {
             close(fd)
         }
 
-        return nil // We manage the fd manually
+        return true
     }
 }
 

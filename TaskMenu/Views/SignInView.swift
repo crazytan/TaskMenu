@@ -18,7 +18,7 @@ struct SignInView: View {
                 .multilineTextAlignment(.center)
 
             Button(action: {
-                Task { await appState.signIn() }
+                appState.signIn()
             }) {
                 Label("Sign in with Google", systemImage: "person.badge.key.fill")
                     .frame(maxWidth: .infinity)

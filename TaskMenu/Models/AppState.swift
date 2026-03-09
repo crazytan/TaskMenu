@@ -24,13 +24,18 @@ final class AppState {
         self.isSignedIn = authService.isSignedIn
     }
 
-    func signIn() async {
-        do {
-            try await authService.signIn()
-            isSignedIn = true
-            await loadTaskLists()
-        } catch {
-            errorMessage = "Sign in failed: \(error.localizedDescription)"
+    private var signInTask: Task<Void, Never>?
+
+    func signIn() {
+        signInTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await authService.signIn()
+                self.isSignedIn = true
+                await self.loadTaskLists()
+            } catch {
+                self.errorMessage = "Sign in failed: \(error.localizedDescription)"
+            }
         }
     }
 
