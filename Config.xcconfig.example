@@ -1,0 +1,6 @@
+// TaskMenu OAuth Configuration
+// Copy this file to Config.xcconfig and fill in your values.
+// Get credentials from Google Cloud Console: https://console.cloud.google.com/apis/credentials
+
+GOOGLE_CLIENT_ID = your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET = your-client-secret
