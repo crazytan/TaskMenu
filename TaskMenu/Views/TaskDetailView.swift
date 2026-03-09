@@ -6,7 +6,7 @@ struct TaskDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Edit Task")
                     .font(.headline)
@@ -23,12 +23,14 @@ struct TaskDetailView: View {
 
             TextField("Title", text: $task.title)
                 .textFieldStyle(.roundedBorder)
+                .font(.body)
 
             TextField("Notes", text: Binding(
                 get: { task.notes ?? "" },
                 set: { task.notes = $0.isEmpty ? nil : $0 }
             ), axis: .vertical)
             .textFieldStyle(.roundedBorder)
+            .font(.callout)
             .lineLimit(3...6)
 
             DatePicker(
@@ -39,6 +41,9 @@ struct TaskDetailView: View {
                 ),
                 displayedComponents: .date
             )
+            .controlSize(.small)
+
+            Divider()
 
             HStack {
                 if task.dueDate != nil {
@@ -47,6 +52,7 @@ struct TaskDetailView: View {
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .controlSize(.small)
                 }
                 Spacer()
                 Button(role: .destructive) {

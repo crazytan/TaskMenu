@@ -9,16 +9,19 @@ struct QuickAddView: View {
         HStack(spacing: 8) {
             Image(systemName: "plus.circle.fill")
                 .foregroundStyle(.blue)
+                .font(.system(size: 16))
 
             TextField("Add a task...", text: $newTaskTitle)
                 .textFieldStyle(.plain)
+                .font(.callout)
                 .focused($isFocused)
                 .onSubmit {
                     addTask()
                 }
         }
-        .padding(10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func addTask() {

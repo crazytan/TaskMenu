@@ -16,6 +16,7 @@ struct SettingsView: View {
             Divider()
 
             Toggle("Launch at login", isOn: $launchAtLogin)
+                .controlSize(.small)
                 .onChange(of: launchAtLogin) { _, newValue in
                     setLaunchAtLogin(newValue)
                 }
@@ -25,17 +26,21 @@ struct SettingsView: View {
             HStack {
                 Text("TaskMenu v0.1.0")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Sign Out") {
-                    appState.signOut()
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        appState.signOut()
+                    }
                 }
+                .controlSize(.small)
                 .foregroundStyle(.red)
             }
 
             Button("Quit TaskMenu") {
                 NSApplication.shared.terminate(nil)
             }
+            .controlSize(.small)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 4)
         }

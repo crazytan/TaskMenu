@@ -2,11 +2,12 @@ import SwiftUI
 
 struct SignInView: View {
     @Bindable var appState: AppState
+    @State private var appeared = false
 
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "checklist")
-                .font(.system(size: 40))
+                .font(.system(size: 40, weight: .thin))
                 .foregroundStyle(.secondary)
 
             Text("TaskMenu")
@@ -28,5 +29,12 @@ struct SignInView: View {
         }
         .padding(24)
         .frame(width: 320)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 8)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.35)) {
+                appeared = true
+            }
+        }
     }
 }

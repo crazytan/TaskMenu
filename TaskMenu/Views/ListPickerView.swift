@@ -23,8 +23,8 @@ struct ListPickerView: View {
                     Text(appState.selectedList?.title ?? "Tasks")
                         .font(.headline)
                     Image(systemName: "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.tertiary)
                 }
             }
             .menuStyle(.borderlessButton)

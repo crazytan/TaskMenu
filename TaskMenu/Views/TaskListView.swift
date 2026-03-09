@@ -22,17 +22,26 @@ struct TaskListView: View {
                     Task { await appState.loadTasks() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .medium))
+                        .rotationEffect(.degrees(appState.isLoading ? 360 : 0))
+                        .animation(
+                            appState.isLoading
+                                ? .linear(duration: 1).repeatForever(autoreverses: false)
+                                : .default,
+                            value: appState.isLoading
+                        )
                 }
                 .buttonStyle(.borderless)
+                .controlSize(.small)
                 .disabled(appState.isLoading)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 14)
             .padding(.top, 12)
             .padding(.bottom, 8)
 
             // Quick add
             QuickAddView(appState: appState)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 10)
                 .padding(.bottom, 8)
 
             Divider()
@@ -41,16 +50,21 @@ struct TaskListView: View {
             if appState.isLoading && appState.tasks.isEmpty {
                 Spacer()
                 ProgressView()
-                    .padding()
+                    .controlSize(.small)
+                    .transition(.opacity)
                 Spacer()
             } else if appState.tasks.isEmpty {
                 Spacer()
-                VStack(spacing: 8) {
-                    Image(systemName: "tray")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
+                VStack(spacing: 10) {
+                    Image(systemName: "checklist.unchecked")
+                        .font(.system(size: 36, weight: .thin))
+                        .foregroundStyle(.tertiary)
                     Text("No tasks yet")
+                        .font(.callout)
                         .foregroundStyle(.secondary)
+                    Text("Add one above to get started")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
                 .padding()
                 Spacer()
@@ -63,8 +77,12 @@ struct TaskListView: View {
                                 onToggle: { Task { await appState.toggleTask(task) } },
                                 onDelete: { Task { await appState.deleteTask(task) } }
                             )
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 10)
                             .onTapGesture { selectedTask = task }
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .top).combined(with: .opacity),
+                                removal: .move(edge: .trailing).combined(with: .opacity)
+                            ))
                         }
 
                         if !completedTasks.isEmpty {
@@ -75,13 +93,17 @@ struct TaskListView: View {
                                         onToggle: { Task { await appState.toggleTask(task) } },
                                         onDelete: { Task { await appState.deleteTask(task) } }
                                     )
+                                    .transition(.opacity)
                                 }
                             }
-                            .padding(.horizontal, 16)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
                             .padding(.top, 8)
                         }
                     }
                     .padding(.vertical, 4)
+                    .animation(.easeInOut(duration: 0.25), value: appState.tasks.map(\.id))
                 }
             }
         }
