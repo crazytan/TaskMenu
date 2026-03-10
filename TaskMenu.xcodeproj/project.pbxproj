@@ -18,6 +18,7 @@
 		76E308FD16F5E910DE7D81E6 /* GoogleTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */; };
 		78E76881CED717FBB2187185 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C3377E75BA19027E464EAEB8 /* Assets.xcassets */; };
 		7A424E7FDBAFD974B955448D /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD51E43AB6E5559C98303A3 /* TaskItem.swift */; };
+		986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */; };
 		9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12212B7B62ECCDD28979CA54 /* Constants.swift */; };
 		9BE1233CADF8C3BFFC734F1D /* ListPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A7998A82BE9D4729E85B13 /* ListPickerView.swift */; };
 		C169507407838BDD4C665CF1 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */; };
@@ -27,6 +28,7 @@
 		DE51E84794E46D07C1401DE6 /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633899C51990EF71D24F5C89 /* TaskList.swift */; };
 		E53F1F56DBC73CF159E93516 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7270F80F12239828D873B133 /* SignInView.swift */; };
 		E7D0145136EE024CB87D7963 /* TaskListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612D4C039654B488ADC17151 /* TaskListView.swift */; };
+		FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3614C7335BB0200D28F074 /* AppStateTests.swift */; };
 		FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
@@ -58,9 +60,11 @@
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
 		7270F80F12239828D873B133 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		8F3614C7335BB0200D28F074 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
 		A8F4164166B2474EB88443EC /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		B01BFC3843C941C89C85576B /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
 		C3377E75BA19027E464EAEB8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthServiceTests.swift; sourceTree = "<group>"; };
 		C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPITests.swift; sourceTree = "<group>"; };
 		CED98B3B1A1223A88415EB92 /* TaskDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailView.swift; sourceTree = "<group>"; };
 		D7A7998A82BE9D4729E85B13 /* ListPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPickerView.swift; sourceTree = "<group>"; };
@@ -158,7 +162,9 @@
 		C53DB1319E1111ADB350C841 /* TaskMenuTests */ = {
 			isa = PBXGroup;
 			children = (
+				8F3614C7335BB0200D28F074 /* AppStateTests.swift */,
 				500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */,
+				C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */,
 				C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */,
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
 			);
@@ -224,6 +230,7 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					54F3465CB5E85F801680719A = {
+						DevelopmentTeam = ZW5U6862Q8;
 						ProvisioningStyle = Manual;
 					};
 				};
@@ -288,7 +295,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */,
 				11E28771324DA02B74C9983F /* DateFormattingTests.swift in Sources */,
+				986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */,
 				69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */,
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,
 			);
@@ -310,9 +319,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = 47081BEFF0F575643E99369B44CBAC87BBCC85E6;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZW5U6862Q8;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -470,9 +480,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = 47081BEFF0F575643E99369B44CBAC87BBCC85E6;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZW5U6862Q8;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

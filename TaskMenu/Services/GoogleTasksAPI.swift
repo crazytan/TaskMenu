@@ -28,15 +28,26 @@ actor GoogleTasksAPI {
 
     // MARK: - Tasks
 
-    func listTasks(listId: String, showCompleted: Bool = true, showHidden: Bool = false) async throws -> [TaskItem] {
-        var queryItems = [URLQueryItem]()
-        queryItems.append(URLQueryItem(name: "showCompleted", value: String(showCompleted)))
-        queryItems.append(URLQueryItem(name: "showHidden", value: String(showHidden)))
-        queryItems.append(URLQueryItem(name: "maxResults", value: "100"))
+    func listTasks(listId: String, showCompleted: Bool = true, showHidden: Bool = true) async throws -> [TaskItem] {
+        var allItems: [TaskItem] = []
+        var pageToken: String?
 
-        let data = try await request(path: "/lists/\(listId)/tasks", queryItems: queryItems)
-        let response = try decode(TaskItemList.self, from: data)
-        return response.items ?? []
+        repeat {
+            var queryItems = [URLQueryItem]()
+            queryItems.append(URLQueryItem(name: "showCompleted", value: String(showCompleted)))
+            queryItems.append(URLQueryItem(name: "showHidden", value: String(showHidden)))
+            queryItems.append(URLQueryItem(name: "maxResults", value: "100"))
+            if let pageToken {
+                queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
+            }
+
+            let data = try await request(path: "/lists/\(listId)/tasks", queryItems: queryItems)
+            let response = try decode(TaskItemList.self, from: data)
+            allItems.append(contentsOf: response.items ?? [])
+            pageToken = response.nextPageToken
+        } while pageToken != nil
+
+        return allItems
     }
 
     func createTask(listId: String, title: String, notes: String? = nil, due: String? = nil) async throws -> TaskItem {

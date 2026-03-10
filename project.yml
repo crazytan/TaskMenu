@@ -30,8 +30,9 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         COMBINE_HIDPI_IMAGES: YES
-        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_IDENTITY: "47081BEFF0F575643E99369B44CBAC87BBCC85E6" # Apple Development: Jia Tan
         CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ZW5U6862Q8
         PRODUCT_NAME: TaskMenu
     entitlements:
       path: TaskMenu/Resources/TaskMenu.entitlements

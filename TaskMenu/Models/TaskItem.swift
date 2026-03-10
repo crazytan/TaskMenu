@@ -36,4 +36,5 @@ struct TaskItemList: Codable, Sendable {
     let kind: String?
     let etag: String?
     let items: [TaskItem]?
+    let nextPageToken: String?
 }
