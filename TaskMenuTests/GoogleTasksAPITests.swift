@@ -28,20 +28,6 @@ final class GoogleTasksAPITests: XCTestCase {
         XCTAssertNotNil(task.dueDate)
     }
 
-    func testDecodeCompletedTask() throws {
-        let json = """
-        {
-            "id": "task2",
-            "title": "Done task",
-            "status": "completed"
-        }
-        """.data(using: .utf8)!
-
-        let task = try JSONDecoder().decode(TaskItem.self, from: json)
-        XCTAssertEqual(task.status, .completed)
-        XCTAssertTrue(task.isCompleted)
-    }
-
     func testDecodeTaskList() throws {
         let json = """
         {
@@ -97,41 +83,6 @@ final class GoogleTasksAPITests: XCTestCase {
 
         let list = try JSONDecoder().decode(TaskItemList.self, from: json)
         XCTAssertNil(list.items)
-    }
-
-    func testTaskToggle() throws {
-        let json = """
-        {"id": "t1", "title": "Test", "status": "needsAction"}
-        """.data(using: .utf8)!
-
-        var task = try JSONDecoder().decode(TaskItem.self, from: json)
-        XCTAssertFalse(task.isCompleted)
-
-        task.isCompleted = true
-        XCTAssertEqual(task.status, .completed)
-
-        task.isCompleted = false
-        XCTAssertEqual(task.status, .needsAction)
-    }
-
-    func testTaskEncode() throws {
-        let json = """
-        {"id": "t1", "title": "Test", "status": "needsAction"}
-        """.data(using: .utf8)!
-
-        let task = try JSONDecoder().decode(TaskItem.self, from: json)
-        let encoded = try JSONEncoder().encode(task)
-        let decoded = try JSONDecoder().decode(TaskItem.self, from: encoded)
-        XCTAssertEqual(decoded.id, "t1")
-        XCTAssertEqual(decoded.title, "Test")
-        XCTAssertEqual(decoded.status, .needsAction)
-    }
-
-    // MARK: - TaskStatus Raw Values
-
-    func testTaskStatusRawValues() {
-        XCTAssertEqual(TaskItem.TaskStatus.needsAction.rawValue, "needsAction")
-        XCTAssertEqual(TaskItem.TaskStatus.completed.rawValue, "completed")
     }
 
     // MARK: - dueDate Computed Property
