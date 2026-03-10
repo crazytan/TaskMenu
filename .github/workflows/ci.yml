@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Config.xcconfig with dummy values
+        run: |
+          cat > Config.xcconfig <<EOF
+          GOOGLE_CLIENT_ID = dummy-client-id.apps.googleusercontent.com
+          GOOGLE_CLIENT_SECRET = dummy-client-secret
+          EOF
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build
+        run: xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu -destination "platform=macOS"
+
+      - name: Test
+        run: xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenuTests -destination "platform=macOS"

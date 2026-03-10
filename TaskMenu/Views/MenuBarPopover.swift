@@ -10,19 +10,11 @@ struct MenuBarPopover: View {
                 SignInView(appState: appState)
                     .transition(.opacity)
             } else if showSettings {
-                SettingsView(appState: appState)
-                    .overlay(alignment: .topLeading) {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showSettings = false
-                            }
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 13, weight: .medium))
+                SettingsView(appState: appState, onBack: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showSettings = false
                         }
-                        .buttonStyle(.borderless)
-                        .padding(12)
-                    }
+                    })
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
                 TaskListView(appState: appState)

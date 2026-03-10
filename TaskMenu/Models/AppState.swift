@@ -18,6 +18,11 @@ final class AppState {
     private let authService: GoogleAuthService
     private let api: GoogleTasksAPI
 
+    /// Whether completed tasks have been fetched for the current list
+    private var completedTasksFetched = false
+    /// In-memory cache of completed tasks for the current list
+    private var completedTasksCache: [TaskItem] = []
+
     init(authService: GoogleAuthService = GoogleAuthService(), api: GoogleTasksAPI? = nil) {
         self.authService = authService
         self.api = api ?? GoogleTasksAPI(authService: authService)
@@ -45,6 +50,8 @@ final class AppState {
         taskLists = []
         tasks = []
         selectedListId = nil
+        completedTasksFetched = false
+        completedTasksCache = []
     }
 
     func loadTaskLists() async {
@@ -55,18 +62,43 @@ final class AppState {
             if selectedListId == nil, let first = taskLists.first {
                 selectedListId = first.id
             }
-            await loadTasks()
+            await refreshTasks()
         } catch {
             handleError(error)
         }
     }
 
+    /// Loads active tasks (always fresh) and completed tasks (from cache if available).
     func loadTasks() async {
         guard let listId = selectedListId else { return }
         isLoading = true
         defer { isLoading = false }
         do {
-            tasks = try await api.listTasks(listId: listId)
+            let activeTasks = try await api.listTasks(listId: listId, showCompleted: false, showHidden: false)
+            if completedTasksFetched {
+                tasks = activeTasks + completedTasksCache
+            } else {
+                let completed = try await api.listTasks(listId: listId, showCompleted: true, showHidden: true)
+                    .filter { $0.isCompleted }
+                completedTasksCache = completed
+                completedTasksFetched = true
+                tasks = activeTasks + completed
+            }
+        } catch {
+            handleError(error)
+        }
+    }
+
+    /// Explicit refresh: fetches both active and completed tasks fresh from server.
+    func refreshTasks() async {
+        guard let listId = selectedListId else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let allTasks = try await api.listTasks(listId: listId)
+            completedTasksCache = allTasks.filter { $0.isCompleted }
+            completedTasksFetched = true
+            tasks = allTasks
         } catch {
             handleError(error)
         }
@@ -91,6 +123,12 @@ final class AppState {
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[index] = result
             }
+            // Update completed tasks cache
+            if result.isCompleted {
+                completedTasksCache.append(result)
+            } else {
+                completedTasksCache.removeAll { $0.id == result.id }
+            }
         } catch {
             handleError(error)
         }
@@ -103,6 +141,12 @@ final class AppState {
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[index] = result
             }
+            // Keep cache in sync
+            if result.isCompleted {
+                if let idx = completedTasksCache.firstIndex(where: { $0.id == result.id }) {
+                    completedTasksCache[idx] = result
+                }
+            }
         } catch {
             handleError(error)
         }
@@ -113,6 +157,7 @@ final class AppState {
         do {
             try await api.deleteTask(listId: listId, taskId: task.id)
             tasks.removeAll { $0.id == task.id }
+            completedTasksCache.removeAll { $0.id == task.id }
         } catch {
             handleError(error)
         }
@@ -120,6 +165,8 @@ final class AppState {
 
     func selectList(_ listId: String) async {
         selectedListId = listId
+        completedTasksFetched = false
+        completedTasksCache = []
         await loadTasks()
     }
 

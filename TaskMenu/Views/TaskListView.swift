@@ -3,6 +3,8 @@ import SwiftUI
 struct TaskListView: View {
     @Bindable var appState: AppState
     @State private var selectedTask: TaskItem?
+    @State private var showCompleted = false
+    @State private var refreshRotation: Double = 0
 
     var incompleteTasks: [TaskItem] {
         appState.tasks.filter { !$0.isCompleted }
@@ -13,23 +15,36 @@ struct TaskListView: View {
     }
 
     var body: some View {
+        if let task = selectedTask {
+            TaskDetailView(appState: appState, task: task, onDismiss: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedTask = nil
+                }
+            })
+            .transition(.move(edge: .trailing).combined(with: .opacity))
+        } else {
+            taskListContent
+                .transition(.move(edge: .leading).combined(with: .opacity))
+        }
+    }
+
+    private var taskListContent: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
                 ListPickerView(appState: appState)
                 Spacer()
                 Button {
-                    Task { await appState.loadTasks() }
+                    Task { await appState.refreshTasks() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 13, weight: .medium))
-                        .rotationEffect(.degrees(appState.isLoading ? 360 : 0))
-                        .animation(
-                            appState.isLoading
-                                ? .linear(duration: 1).repeatForever(autoreverses: false)
-                                : .default,
-                            value: appState.isLoading
-                        )
+                        .rotationEffect(.degrees(refreshRotation))
+                        .onChange(of: appState.isLoading) { _, isLoading in
+                            if isLoading {
+                                startSpinning()
+                            }
+                        }
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
@@ -78,7 +93,11 @@ struct TaskListView: View {
                                 onDelete: { Task { await appState.deleteTask(task) } }
                             )
                             .padding(.horizontal, 10)
-                            .onTapGesture { selectedTask = task }
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTask = task
+                                }
+                            }
                             .transition(.asymmetric(
                                 insertion: .move(edge: .top).combined(with: .opacity),
                                 removal: .move(edge: .trailing).combined(with: .opacity)
@@ -86,20 +105,37 @@ struct TaskListView: View {
                         }
 
                         if !completedTasks.isEmpty {
-                            DisclosureGroup("Completed (\(completedTasks.count))") {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showCompleted.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption2)
+                                        .rotationEffect(.degrees(showCompleted ? 90 : 0))
+                                    Text("Completed (\(completedTasks.count))")
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.top, 8)
+
+                            if showCompleted {
                                 ForEach(completedTasks) { task in
                                     TaskRowView(
                                         task: task,
                                         onToggle: { Task { await appState.toggleTask(task) } },
                                         onDelete: { Task { await appState.deleteTask(task) } }
                                     )
+                                    .padding(.horizontal, 10)
                                     .transition(.opacity)
                                 }
                             }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 14)
-                            .padding(.top, 8)
                         }
                     }
                     .padding(.vertical, 4)
@@ -107,8 +143,19 @@ struct TaskListView: View {
                 }
             }
         }
-        .sheet(item: $selectedTask) { task in
-            TaskDetailView(appState: appState, task: task)
+    }
+
+    private func startSpinning() {
+        // Continuously add 360° rotations while loading
+        func spin() {
+            guard appState.isLoading else { return }
+            withAnimation(.linear(duration: 1)) {
+                refreshRotation += 360
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                spin()
+            }
         }
+        spin()
     }
 }

@@ -7,9 +7,14 @@ struct QuickAddView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "plus.circle.fill")
-                .foregroundStyle(.blue)
-                .font(.system(size: 16))
+            Button {
+                addTask()
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(.blue)
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
 
             TextField("Add a task...", text: $newTaskTitle)
                 .textFieldStyle(.plain)

@@ -3,18 +3,26 @@ import SwiftUI
 struct TaskDetailView: View {
     @Bindable var appState: AppState
     @State var task: TaskItem
-    @Environment(\.dismiss) private var dismiss
+    var onDismiss: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+
                 Text("Edit Task")
                     .font(.headline)
                 Spacer()
                 Button("Done") {
                     Task {
                         await appState.updateTask(task)
-                        dismiss()
+                        onDismiss()
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -41,6 +49,7 @@ struct TaskDetailView: View {
                 ),
                 displayedComponents: .date
             )
+            .datePickerStyle(.stepperField)
             .controlSize(.small)
 
             Divider()
@@ -58,7 +67,7 @@ struct TaskDetailView: View {
                 Button(role: .destructive) {
                     Task {
                         await appState.deleteTask(task)
-                        dismiss()
+                        onDismiss()
                     }
                 } label: {
                     Label("Delete", systemImage: "trash")
