@@ -10,7 +10,6 @@ final class AppStateBehaviorTests: XCTestCase {
     private var state: AppState!
 
     override func setUp() async throws {
-        try await super.setUp()
         MockURLProtocol.reset()
 
         keychain = KeychainService(service: "com.taskmenu.behavior.\(UUID().uuidString)")
@@ -29,7 +28,6 @@ final class AppStateBehaviorTests: XCTestCase {
     override func tearDown() async throws {
         MockURLProtocol.reset()
         try? keychain.deleteAll()
-        try await super.tearDown()
     }
 
     // MARK: - Helpers
