@@ -25,4 +25,8 @@ enum Constants {
         static let refreshTokenKey = "refresh_token"
         static let expirationKey = "token_expiration"
     }
+
+    enum UserDefaults {
+        static let globalShortcutEnabledKey = "globalShortcutEnabled"
+    }
 }

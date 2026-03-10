@@ -36,6 +36,9 @@ struct SettingsView: View {
                     setLaunchAtLogin(newValue)
                 }
 
+            Toggle("Global shortcut (Cmd+Shift+T)", isOn: $appState.globalShortcutEnabled)
+                .controlSize(.small)
+
             Divider()
 
             // About

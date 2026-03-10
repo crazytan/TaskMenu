@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @MainActor
@@ -10,6 +11,15 @@ final class AppState {
     var taskLists: [TaskList] = []
     var selectedListId: String?
     var tasks: [TaskItem] = []
+    var globalShortcutEnabled: Bool {
+        didSet {
+            userDefaults.set(
+                globalShortcutEnabled,
+                forKey: Constants.UserDefaults.globalShortcutEnabledKey
+            )
+            shortcutMonitor.setEnabled(globalShortcutEnabled)
+        }
+    }
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
@@ -17,19 +27,43 @@ final class AppState {
 
     private let authService: GoogleAuthService
     private let api: GoogleTasksAPI
+    private let userDefaults: UserDefaults
+    private let shortcutMonitor: GlobalShortcutMonitoring
 
     /// Whether completed tasks have been fetched for the current list
     private var completedTasksFetched = false
     /// In-memory cache of completed tasks for the current list
     private var completedTasksCache: [TaskItem] = []
 
-    init(authService: GoogleAuthService = GoogleAuthService(), api: GoogleTasksAPI? = nil) {
+    init(
+        authService: GoogleAuthService = GoogleAuthService(),
+        api: GoogleTasksAPI? = nil,
+        userDefaults: UserDefaults = .standard,
+        shortcutMonitor: GlobalShortcutMonitoring? = nil
+    ) {
         self.authService = authService
         self.api = api ?? GoogleTasksAPI(authService: authService)
+        self.userDefaults = userDefaults
+        self.shortcutMonitor = shortcutMonitor ?? GlobalShortcutMonitor()
+        self.globalShortcutEnabled = userDefaults.object(
+            forKey: Constants.UserDefaults.globalShortcutEnabledKey
+        ) as? Bool ?? true
         self.isSignedIn = authService.isSignedIn
+
+        self.shortcutMonitor.setHandler { [weak self] in
+            self?.toggleMenuBarPopover()
+        }
+        self.shortcutMonitor.setEnabled(globalShortcutEnabled)
     }
 
     private var signInTask: Task<Void, Never>?
+
+    deinit {
+        MainActor.assumeIsolated {
+            signInTask?.cancel()
+            shortcutMonitor.invalidate()
+        }
+    }
 
     func signIn() {
         signInTask = Task { [weak self] in
@@ -199,5 +233,61 @@ final class AppState {
         } else {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func toggleMenuBarPopover() {
+        let wasVisible = isMenuBarPopoverVisible
+
+        if !wasVisible {
+            NSApp.activate()
+        }
+
+        findMenuBarButton()?.performClick(nil)
+
+        if !wasVisible {
+            Task { @MainActor in
+                self.findVisibleMenuBarPopoverWindow()?.makeKeyAndOrderFront(nil)
+            }
+        }
+    }
+
+    private var isMenuBarPopoverVisible: Bool {
+        findVisibleMenuBarPopoverWindow() != nil
+    }
+
+    private func findVisibleMenuBarPopoverWindow() -> NSWindow? {
+        NSApp.windows.first(where: { Self.isMenuBarPopoverWindow($0) && $0.isVisible })
+    }
+
+    private func findMenuBarButton() -> NSStatusBarButton? {
+        for window in NSApp.windows where Self.isStatusBarWindow(window) {
+            if let button = findMenuBarButton(in: window.contentView) {
+                return button
+            }
+        }
+        return nil
+    }
+
+    private func findMenuBarButton(in view: NSView?) -> NSStatusBarButton? {
+        guard let view else { return nil }
+        if let button = view as? NSStatusBarButton {
+            return button
+        }
+
+        for subview in view.subviews {
+            if let button = findMenuBarButton(in: subview) {
+                return button
+            }
+        }
+
+        return nil
+    }
+
+    nonisolated private static func isMenuBarPopoverWindow(_ window: NSWindow) -> Bool {
+        String(describing: type(of: window)).hasPrefix("MenuBarExtraWindow")
+    }
+
+    nonisolated private static func isStatusBarWindow(_ window: NSWindow) -> Bool {
+        String(describing: type(of: window)) == "NSStatusBarWindow"
     }
 }

@@ -8,11 +8,18 @@ import XCTest
 final class AppStateBehaviorTests: XCTestCase {
     private var keychain: InMemoryKeychainService!
     private var state: AppState!
+    private var userDefaults: UserDefaults!
+    private var userDefaultsSuiteName: String!
+    private var shortcutMonitor: TestGlobalShortcutMonitor!
 
     override func setUp() async throws {
         MockURLProtocol.reset()
 
         keychain = InMemoryKeychainService()
+        userDefaultsSuiteName = "com.taskmenu.tests.appstate.behavior.\(UUID().uuidString)"
+        userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
+        userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
+        shortcutMonitor = TestGlobalShortcutMonitor()
         // Pre-load valid tokens so validAccessToken() returns immediately
         try? keychain.save(key: Constants.Keychain.accessTokenKey, string: "test-access-token")
         try? keychain.save(key: Constants.Keychain.refreshTokenKey, string: "test-refresh-token")
@@ -22,12 +29,23 @@ final class AppStateBehaviorTests: XCTestCase {
         let session = MockURLProtocol.mockSession()
         let authService = GoogleAuthService(keychain: keychain, session: session)
         let api = GoogleTasksAPI(authService: authService, session: session)
-        state = AppState(authService: authService, api: api)
+        state = AppState(
+            authService: authService,
+            api: api,
+            userDefaults: userDefaults,
+            shortcutMonitor: shortcutMonitor
+        )
     }
 
     override func tearDown() async throws {
         MockURLProtocol.reset()
         try? keychain.deleteAll()
+        if let userDefaultsSuiteName {
+            userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
+        }
+        userDefaults = nil
+        userDefaultsSuiteName = nil
+        shortcutMonitor = nil
     }
 
     // MARK: - Helpers
