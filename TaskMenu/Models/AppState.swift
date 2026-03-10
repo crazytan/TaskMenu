@@ -242,6 +242,31 @@ final class AppState {
         }
     }
 
+    func moveTask(_ task: TaskItem, toActiveIndex destinationIndex: Int) async {
+        guard let listId = selectedListId else { return }
+        guard let moveContext = makeMoveContext(for: task.id, destinationIndex: destinationIndex) else {
+            return
+        }
+
+        let originalTasks = tasks
+        tasks = moveContext.reorderedTasks
+
+        do {
+            let movedTask = try await api.moveTask(
+                listId: listId,
+                taskId: task.id,
+                previousId: moveContext.previousTaskID,
+                parentId: task.parent
+            )
+            if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
+                tasks[index] = movedTask
+            }
+        } catch {
+            tasks = originalTasks
+            handleError(error)
+        }
+    }
+
     func selectList(_ listId: String) async {
         selectedListId = listId
         completedTasksFetched = false
@@ -278,6 +303,34 @@ final class AppState {
     private func syncDueDateNotificationsIfNeeded() async {
         guard dueDateNotificationsEnabled, let selectedList else { return }
         await dueDateNotificationService.syncNotifications(for: tasks, in: selectedList)
+    }
+
+    private func makeMoveContext(for taskID: String, destinationIndex: Int) -> TaskMoveContext? {
+        let activeTasks = tasks.filter { !$0.isCompleted }
+        guard let sourceIndex = activeTasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+
+        let clampedDestinationIndex = min(max(destinationIndex, 0), activeTasks.count)
+        var reorderedActiveTasks = activeTasks
+        reorderedActiveTasks.move(
+            fromOffsets: IndexSet(integer: sourceIndex),
+            toOffset: clampedDestinationIndex
+        )
+
+        guard reorderedActiveTasks.map(\.id) != activeTasks.map(\.id) else {
+            return nil
+        }
+
+        guard let movedTaskIndex = reorderedActiveTasks.firstIndex(where: { $0.id == taskID }) else {
+            return nil
+        }
+
+        let previousTaskID = movedTaskIndex > 0 ? reorderedActiveTasks[movedTaskIndex - 1].id : nil
+        let completedTasks = tasks.filter { $0.isCompleted }
+
+        return TaskMoveContext(
+            reorderedTasks: reorderedActiveTasks + completedTasks,
+            previousTaskID: previousTaskID
+        )
     }
 
     private func toggleMenuBarPopover() {
@@ -335,4 +388,9 @@ final class AppState {
     nonisolated private static func isStatusBarWindow(_ window: NSWindow) -> Bool {
         String(describing: type(of: window)) == "NSStatusBarWindow"
     }
+}
+
+private struct TaskMoveContext {
+    let reorderedTasks: [TaskItem]
+    let previousTaskID: String?
 }

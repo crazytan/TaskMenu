@@ -54,8 +54,24 @@ final class AppStateBehaviorTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeTask(id: String = "t1", title: String = "Test", status: TaskItem.TaskStatus = .needsAction) -> TaskItem {
-        TaskItem(id: id, title: title, notes: nil, status: status, due: nil, selfLink: nil, parent: nil, position: nil, updated: nil)
+    private func makeTask(
+        id: String = "t1",
+        title: String = "Test",
+        status: TaskItem.TaskStatus = .needsAction,
+        parent: String? = nil,
+        position: String? = nil
+    ) -> TaskItem {
+        TaskItem(
+            id: id,
+            title: title,
+            notes: nil,
+            status: status,
+            due: nil,
+            selfLink: nil,
+            parent: parent,
+            position: position,
+            updated: nil
+        )
     }
 
     private func stubResponse(statusCode: Int = 200, json: String) {
@@ -440,6 +456,68 @@ final class AppStateBehaviorTests: XCTestCase {
         await state.updateTask(task)
 
         XCTAssertEqual(state.tasks[0].title, "Updated Title")
+    }
+
+    // MARK: - moveTask
+
+    func testMoveTaskReordersActiveTasksAndPersistsMoveRequest() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "t1", title: "One", parent: "parent1"),
+            makeTask(id: "t2", title: "Two", parent: "parent1"),
+            makeTask(id: "t3", title: "Three", parent: "parent1"),
+            makeTask(id: "t4", title: "Done", status: .completed),
+        ]
+
+        stubResponse(json: #"{"id":"t1","title":"One","status":"needsAction","parent":"parent1","position":"00000002"}"#)
+
+        await state.moveTask(state.tasks[0], toActiveIndex: 2)
+
+        XCTAssertEqual(state.tasks.map(\.id), ["t2", "t1", "t3", "t4"])
+        XCTAssertEqual(state.tasks[1].position, "00000002")
+
+        let lastRequest = MockURLProtocol.requestLog.last!
+        XCTAssertEqual(lastRequest.httpMethod, "POST")
+        let url = lastRequest.url!.absoluteString
+        XCTAssertTrue(url.contains("/lists/list1/tasks/t1/move"))
+        XCTAssertTrue(url.contains("previous=t2"))
+        XCTAssertTrue(url.contains("parent=parent1"))
+    }
+
+    func testMoveTaskToFirstPositionOmitsPreviousQueryParam() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "t1", title: "One"),
+            makeTask(id: "t2", title: "Two"),
+            makeTask(id: "t3", title: "Three"),
+        ]
+
+        stubResponse(json: #"{"id":"t3","title":"Three","status":"needsAction","position":"00000000"}"#)
+
+        await state.moveTask(state.tasks[2], toActiveIndex: 0)
+
+        XCTAssertEqual(state.tasks.map(\.id), ["t3", "t1", "t2"])
+
+        let components = URLComponents(url: MockURLProtocol.requestLog.last!.url!, resolvingAgainstBaseURL: false)
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "previous" }))
+    }
+
+    func testMoveTaskRevertsOrderOnFailure() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "t1", title: "One"),
+            makeTask(id: "t2", title: "Two"),
+            makeTask(id: "t3", title: "Three"),
+            makeTask(id: "t4", title: "Done", status: .completed),
+        ]
+
+        stubResponse(statusCode: 500, json: #"{"error":"Move failed"}"#)
+
+        await state.moveTask(state.tasks[1], toActiveIndex: 3)
+
+        XCTAssertEqual(state.tasks.map(\.id), ["t1", "t2", "t3", "t4"])
+        XCTAssertNotNil(state.errorMessage)
+        XCTAssertTrue(state.errorMessage!.contains("500"))
     }
 
     // MARK: - loadTaskLists

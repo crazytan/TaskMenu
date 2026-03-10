@@ -5,6 +5,7 @@ struct TaskListView: View {
     @State private var selectedTask: TaskItem?
     @State private var showCompleted = false
     @State private var refreshRotation: Double = 0
+    @State private var activeTaskRowHeights: [String: CGFloat] = [:]
 
     var incompleteTasks: [TaskItem] {
         appState.tasks.filter { !$0.isCompleted }
@@ -87,21 +88,11 @@ struct TaskListView: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(incompleteTasks) { task in
-                            TaskRowView(
-                                task: task,
-                                onToggle: { Task { await appState.toggleTask(task) } },
-                                onDelete: { Task { await appState.deleteTask(task) } }
-                            )
-                            .padding(.horizontal, 10)
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedTask = task
-                                }
-                            }
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .top).combined(with: .opacity),
-                                removal: .move(edge: .trailing).combined(with: .opacity)
-                            ))
+                            activeTaskRow(for: task)
+                        }
+
+                        if incompleteTasks.count > 1 {
+                            activeTaskEndDropZone
                         }
 
                         if !completedTasks.isEmpty {
@@ -143,6 +134,67 @@ struct TaskListView: View {
                 }
             }
         }
+    }
+
+    private func activeTaskRow(for task: TaskItem) -> some View {
+        TaskRowView(
+            task: task,
+            onToggle: { Task { await appState.toggleTask(task) } },
+            onDelete: { Task { await appState.deleteTask(task) } }
+        )
+        .padding(.horizontal, 10)
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTask = task
+            }
+        }
+        .transition(.asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .move(edge: .trailing).combined(with: .opacity)
+        ))
+        .onGeometryChange(for: CGFloat.self) { geometry in
+            geometry.size.height
+        } action: { height in
+            activeTaskRowHeights[task.id] = height
+        }
+        .draggable(task.id)
+        .dropDestination(for: String.self) { items, location in
+            handleDrop(of: items, onto: task, location: location)
+        }
+    }
+
+    private var activeTaskEndDropZone: some View {
+        Color.clear
+            .frame(height: 16)
+            .contentShape(Rectangle())
+            .dropDestination(for: String.self) { items, _ in
+                handleDropToEnd(of: items)
+            }
+    }
+
+    private func handleDrop(of taskIDs: [String], onto targetTask: TaskItem, location: CGPoint) -> Bool {
+        guard let draggedTaskID = taskIDs.first else { return false }
+        guard let targetIndex = incompleteTasks.firstIndex(where: { $0.id == targetTask.id }) else {
+            return false
+        }
+
+        let rowHeight = activeTaskRowHeights[targetTask.id] ?? 0
+        let destinationIndex = rowHeight > 0 && location.y > rowHeight / 2 ? targetIndex + 1 : targetIndex
+        return moveTask(withID: draggedTaskID, toActiveIndex: destinationIndex)
+    }
+
+    private func handleDropToEnd(of taskIDs: [String]) -> Bool {
+        guard let draggedTaskID = taskIDs.first else { return false }
+        return moveTask(withID: draggedTaskID, toActiveIndex: incompleteTasks.count)
+    }
+
+    private func moveTask(withID taskID: String, toActiveIndex destinationIndex: Int) -> Bool {
+        guard let task = incompleteTasks.first(where: { $0.id == taskID }) else { return false }
+
+        Task { @MainActor in
+            await appState.moveTask(task, toActiveIndex: destinationIndex)
+        }
+        return true
     }
 
     private func startSpinning() {
