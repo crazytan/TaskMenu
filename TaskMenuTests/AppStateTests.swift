@@ -6,12 +6,14 @@ final class AppStateTests: XCTestCase {
     private var keychain: InMemoryKeychainService!
     private var userDefaults: UserDefaults!
     private var userDefaultsSuiteName: String!
+    private var dueDateNotificationService: TestDueDateNotificationService!
 
     override func setUp() async throws {
         keychain = InMemoryKeychainService()
         userDefaultsSuiteName = "com.taskmenu.tests.appstate.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
+        dueDateNotificationService = TestDueDateNotificationService()
     }
 
     override func tearDown() async throws {
@@ -21,16 +23,19 @@ final class AppStateTests: XCTestCase {
         }
         userDefaults = nil
         userDefaultsSuiteName = nil
+        dueDateNotificationService = nil
     }
 
     private func makeState(
         authService: GoogleAuthService,
-        shortcutMonitor: TestGlobalShortcutMonitor = TestGlobalShortcutMonitor()
+        shortcutMonitor: TestGlobalShortcutMonitor = TestGlobalShortcutMonitor(),
+        dueDateNotificationService: TestDueDateNotificationService? = nil
     ) -> AppState {
         AppState(
             authService: authService,
             userDefaults: userDefaults,
-            shortcutMonitor: shortcutMonitor
+            shortcutMonitor: shortcutMonitor,
+            dueDateNotificationService: dueDateNotificationService ?? self.dueDateNotificationService
         )
     }
 
@@ -47,6 +52,7 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertNil(state.selectedListId)
         XCTAssertTrue(state.globalShortcutEnabled)
+        XCTAssertTrue(state.dueDateNotificationsEnabled)
     }
 
     func testInitialStateReflectsSignedInStatus() throws {
@@ -68,6 +74,14 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(monitor.handlerSetCount, 1)
     }
 
+    func testInitialStateUsesStoredDueDateNotificationPreference() {
+        userDefaults.set(false, forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey)
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+
+        XCTAssertFalse(state.dueDateNotificationsEnabled)
+    }
+
     func testChangingGlobalShortcutPersistsPreferenceAndUpdatesMonitor() {
         let authService = GoogleAuthService(keychain: keychain)
         let monitor = TestGlobalShortcutMonitor()
@@ -80,6 +94,25 @@ final class AppStateTests: XCTestCase {
             false
         )
         XCTAssertEqual(monitor.enabledValues, [true, false])
+    }
+
+    func testChangingDueDateNotificationsPersistsPreferenceAndRemovesNotificationsWhenDisabled() async {
+        let authService = GoogleAuthService(keychain: keychain)
+        let notificationService = TestDueDateNotificationService()
+        let state = makeState(
+            authService: authService,
+            dueDateNotificationService: notificationService
+        )
+
+        state.dueDateNotificationsEnabled = false
+        await Task.yield()
+
+        XCTAssertEqual(
+            userDefaults.object(forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey) as? Bool,
+            false
+        )
+        let removeAllCallCount = await notificationService.removeAllCallCount
+        XCTAssertEqual(removeAllCallCount, 1)
     }
 
     // MARK: - selectedList

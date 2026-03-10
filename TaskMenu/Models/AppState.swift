@@ -20,6 +20,19 @@ final class AppState {
             shortcutMonitor.setEnabled(globalShortcutEnabled)
         }
     }
+    var dueDateNotificationsEnabled: Bool {
+        didSet {
+            userDefaults.set(
+                dueDateNotificationsEnabled,
+                forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey
+            )
+            let enabled = dueDateNotificationsEnabled
+            Task { [weak self] in
+                guard let self else { return }
+                await self.applyDueDateNotificationsPreferenceChange(enabled: enabled)
+            }
+        }
+    }
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
@@ -29,6 +42,7 @@ final class AppState {
     private let api: GoogleTasksAPI
     private let userDefaults: UserDefaults
     private let shortcutMonitor: GlobalShortcutMonitoring
+    private let dueDateNotificationService: any DueDateNotificationServicing
 
     /// Whether completed tasks have been fetched for the current list
     private var completedTasksFetched = false
@@ -39,14 +53,19 @@ final class AppState {
         authService: GoogleAuthService = GoogleAuthService(),
         api: GoogleTasksAPI? = nil,
         userDefaults: UserDefaults = .standard,
-        shortcutMonitor: GlobalShortcutMonitoring? = nil
+        shortcutMonitor: GlobalShortcutMonitoring? = nil,
+        dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService()
     ) {
         self.authService = authService
         self.api = api ?? GoogleTasksAPI(authService: authService)
         self.userDefaults = userDefaults
         self.shortcutMonitor = shortcutMonitor ?? GlobalShortcutMonitor()
+        self.dueDateNotificationService = dueDateNotificationService
         self.globalShortcutEnabled = userDefaults.object(
             forKey: Constants.UserDefaults.globalShortcutEnabledKey
+        ) as? Bool ?? true
+        self.dueDateNotificationsEnabled = userDefaults.object(
+            forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey
         ) as? Bool ?? true
         self.isSignedIn = authService.isSignedIn
 
@@ -86,6 +105,10 @@ final class AppState {
         selectedListId = nil
         completedTasksFetched = false
         completedTasksCache = []
+        let dueDateNotificationService = dueDateNotificationService
+        Task {
+            await dueDateNotificationService.removeAllNotifications()
+        }
     }
 
     func loadTaskLists() async {
@@ -118,6 +141,7 @@ final class AppState {
                 completedTasksFetched = true
                 tasks = activeTasks + completed
             }
+            await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
         }
@@ -133,6 +157,7 @@ final class AppState {
             completedTasksCache = allTasks.filter { $0.isCompleted }
             completedTasksFetched = true
             tasks = allTasks
+            await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
         }
@@ -143,6 +168,7 @@ final class AppState {
         do {
             let task = try await api.createTask(listId: listId, title: title)
             tasks.insert(task, at: 0)
+            await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
         }
@@ -172,6 +198,7 @@ final class AppState {
             } else {
                 completedTasksCache.removeAll { $0.id == result.id }
             }
+            await syncDueDateNotificationsIfNeeded()
         } catch {
             // Revert optimistic update on failure
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
@@ -194,6 +221,7 @@ final class AppState {
                     completedTasksCache[idx] = result
                 }
             }
+            await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
         }
@@ -205,6 +233,10 @@ final class AppState {
             try await api.deleteTask(listId: listId, taskId: task.id)
             tasks.removeAll { $0.id == task.id }
             completedTasksCache.removeAll { $0.id == task.id }
+            await dueDateNotificationService.removeNotifications(
+                forTaskIDs: [task.id],
+                inListID: listId
+            )
         } catch {
             handleError(error)
         }
@@ -233,6 +265,19 @@ final class AppState {
         } else {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func applyDueDateNotificationsPreferenceChange(enabled: Bool) async {
+        if enabled {
+            await syncDueDateNotificationsIfNeeded()
+        } else {
+            await dueDateNotificationService.removeAllNotifications()
+        }
+    }
+
+    private func syncDueDateNotificationsIfNeeded() async {
+        guard dueDateNotificationsEnabled, let selectedList else { return }
+        await dueDateNotificationService.syncNotifications(for: tasks, in: selectedList)
     }
 
     private func toggleMenuBarPopover() {

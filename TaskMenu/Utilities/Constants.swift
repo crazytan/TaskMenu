@@ -28,5 +28,10 @@ enum Constants {
 
     enum UserDefaults {
         static let globalShortcutEnabledKey = "globalShortcutEnabled"
+        static let dueDateNotificationsEnabledKey = "dueDateNotificationsEnabled"
+    }
+
+    enum Notifications {
+        static let dueDateIdentifierPrefix = "com.taskmenu.dueDate"
     }
 }

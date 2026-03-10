@@ -39,6 +39,9 @@ struct SettingsView: View {
             Toggle("Global shortcut (Cmd+Shift+T)", isOn: $appState.globalShortcutEnabled)
                 .controlSize(.small)
 
+            Toggle("Due date notifications", isOn: $appState.dueDateNotificationsEnabled)
+                .controlSize(.small)
+
             Divider()
 
             // About

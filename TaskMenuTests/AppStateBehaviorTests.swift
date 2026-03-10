@@ -11,6 +11,7 @@ final class AppStateBehaviorTests: XCTestCase {
     private var userDefaults: UserDefaults!
     private var userDefaultsSuiteName: String!
     private var shortcutMonitor: TestGlobalShortcutMonitor!
+    private var dueDateNotificationService: TestDueDateNotificationService!
 
     override func setUp() async throws {
         MockURLProtocol.reset()
@@ -20,6 +21,7 @@ final class AppStateBehaviorTests: XCTestCase {
         userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
         shortcutMonitor = TestGlobalShortcutMonitor()
+        dueDateNotificationService = TestDueDateNotificationService()
         // Pre-load valid tokens so validAccessToken() returns immediately
         try? keychain.save(key: Constants.Keychain.accessTokenKey, string: "test-access-token")
         try? keychain.save(key: Constants.Keychain.refreshTokenKey, string: "test-refresh-token")
@@ -33,7 +35,8 @@ final class AppStateBehaviorTests: XCTestCase {
             authService: authService,
             api: api,
             userDefaults: userDefaults,
-            shortcutMonitor: shortcutMonitor
+            shortcutMonitor: shortcutMonitor,
+            dueDateNotificationService: dueDateNotificationService
         )
     }
 
@@ -46,6 +49,7 @@ final class AppStateBehaviorTests: XCTestCase {
         userDefaults = nil
         userDefaultsSuiteName = nil
         shortcutMonitor = nil
+        dueDateNotificationService = nil
     }
 
     // MARK: - Helpers
@@ -240,6 +244,7 @@ final class AppStateBehaviorTests: XCTestCase {
 
     func testRefreshTasksFetchesFresh() async {
         state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
 
         stubResponse(json: #"{"items":[{"id":"t1","title":"Task","status":"needsAction"},{"id":"t2","title":"Done","status":"completed"}]}"#)
 
@@ -251,6 +256,7 @@ final class AppStateBehaviorTests: XCTestCase {
 
     func testRefreshTasksUpdatesCacheAndSubsequentLoadUsesIt() async {
         state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
 
         // Refresh fetches everything
         stubResponse(json: #"{"items":[{"id":"t1","title":"Active","status":"needsAction"},{"id":"t2","title":"Done","status":"completed"}]}"#)
@@ -403,6 +409,7 @@ final class AppStateBehaviorTests: XCTestCase {
 
     func testDeleteTaskRemovesFromTasksAndCache() async {
         state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
         state.tasks = [makeTask(id: "t1"), makeTask(id: "t2", status: .completed)]
 
         MockURLProtocol.requestHandler = { request in
@@ -414,6 +421,10 @@ final class AppStateBehaviorTests: XCTestCase {
 
         XCTAssertEqual(state.tasks.count, 1)
         XCTAssertEqual(state.tasks[0].id, "t1")
+        let removedTaskIDs = await dueDateNotificationService.removedTaskIDs
+        let removedListIDs = await dueDateNotificationService.removedListIDs
+        XCTAssertEqual(removedTaskIDs, [["t2"]])
+        XCTAssertEqual(removedListIDs, ["list1"])
     }
 
     // MARK: - updateTask
@@ -472,5 +483,19 @@ final class AppStateBehaviorTests: XCTestCase {
 
         // Should keep l2 selected since selectedListId was already set
         XCTAssertEqual(state.selectedListId, "l2")
+    }
+
+    func testRefreshTasksSyncsDueDateNotificationsForSelectedList() async {
+        state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+
+        let dueTaskJSON = #"{"items":[{"id":"t1","title":"Due Task","status":"needsAction","due":"2026-03-15T00:00:00.000Z"}]}"#
+        stubResponse(json: dueTaskJSON)
+
+        await state.refreshTasks()
+
+        let syncCall = await dueDateNotificationService.latestSyncCall()
+        XCTAssertEqual(syncCall?.list.id, "list1")
+        XCTAssertEqual(syncCall?.tasks.map(\.id), ["t1"])
     }
 }
