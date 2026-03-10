@@ -22,6 +22,7 @@
 		7701A8FF61E651659F4776CB /* TestGlobalShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 347E0B7F9B165D9C10450722 /* TestGlobalShortcutMonitor.swift */; };
 		78E76881CED717FBB2187185 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C3377E75BA19027E464EAEB8 /* Assets.xcassets */; };
 		7A424E7FDBAFD974B955448D /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD51E43AB6E5559C98303A3 /* TaskItem.swift */; };
+		8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */; };
 		986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */; };
 		9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12212B7B62ECCDD28979CA54 /* Constants.swift */; };
 		9BE1233CADF8C3BFFC734F1D /* ListPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A7998A82BE9D4729E85B13 /* ListPickerView.swift */; };
@@ -61,6 +62,7 @@
 		1CD51E43AB6E5559C98303A3 /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
 		347E0B7F9B165D9C10450722 /* TestGlobalShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestGlobalShortcutMonitor.swift; sourceTree = "<group>"; };
 		42EAB07F42BE73AAED7BCC56 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
+		4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterTests.swift; sourceTree = "<group>"; };
 		4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPI.swift; sourceTree = "<group>"; };
 		4E2E315C1C8E04FD083F0AEA /* TaskMenu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaskMenu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormattingTests.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 				BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */,
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
 				BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */,
+				4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */,
 				6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */,
 				ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */,
 				347E0B7F9B165D9C10450722 /* TestGlobalShortcutMonitor.swift */,
@@ -341,6 +344,7 @@
 				B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */,
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,
 				D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */,
+				8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */,
 				0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */,
 				44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */,
 				7701A8FF61E651659F4776CB /* TestGlobalShortcutMonitor.swift in Sources */,

@@ -12,6 +12,7 @@ final class AppState {
     var selectedListId: String?
     var tasks: [TaskItem] = []
     var collapsedTaskIDs: Set<String> = []
+    var searchText: String = ""
     var globalShortcutEnabled: Bool {
         didSet {
             userDefaults.set(
@@ -52,6 +53,48 @@ final class AppState {
     /// Whether a task has any children.
     func hasSubtasks(_ taskID: String) -> Bool {
         tasks.contains { $0.parent == taskID }
+    }
+
+    /// Whether search is currently active.
+    var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Tasks filtered by the current search text.
+    /// When searching, includes tasks that match by title/notes, plus parents of matching subtasks.
+    /// Returns all tasks when search text is empty.
+    var searchFilteredTasks: [TaskItem] {
+        guard isSearching else { return tasks }
+        let query = searchText.lowercased()
+
+        // Find all directly matching task IDs
+        let directMatchIDs = Set(tasks.filter { taskMatchesQuery($0, query: query) }.map(\.id))
+
+        // Build the visible set: direct matches + parents of matching subtasks
+        var visibleIDs = directMatchIDs
+        for task in tasks where directMatchIDs.contains(task.id) {
+            if let parentID = task.parent {
+                visibleIDs.insert(parentID)
+            }
+        }
+
+        return tasks.filter { visibleIDs.contains($0.id) }
+    }
+
+    /// Root-level tasks from the search-filtered set.
+    var searchFilteredRootTasks: [TaskItem] {
+        searchFilteredTasks.filter { $0.parent == nil }
+    }
+
+    /// Subtasks of a given task from the search-filtered set.
+    func searchFilteredSubtasks(of taskID: String) -> [TaskItem] {
+        searchFilteredTasks.filter { $0.parent == taskID }
+    }
+
+    private func taskMatchesQuery(_ task: TaskItem, query: String) -> Bool {
+        if task.title.lowercased().contains(query) { return true }
+        if let notes = task.notes, notes.lowercased().contains(query) { return true }
+        return false
     }
 
     /// Toggle collapse state for a parent task.

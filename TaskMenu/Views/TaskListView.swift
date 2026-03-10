@@ -7,12 +7,20 @@ struct TaskListView: View {
     @State private var refreshRotation: Double = 0
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
 
+    private var displayRootTasks: [TaskItem] {
+        appState.isSearching ? appState.searchFilteredRootTasks : appState.rootTasks
+    }
+
     var incompleteRootTasks: [TaskItem] {
-        appState.rootTasks.filter { !$0.isCompleted }
+        displayRootTasks.filter { !$0.isCompleted }
     }
 
     var completedRootTasks: [TaskItem] {
-        appState.rootTasks.filter { $0.isCompleted }
+        displayRootTasks.filter { $0.isCompleted }
+    }
+
+    private var searchResultCount: Int {
+        appState.searchFilteredTasks.count
     }
 
     var body: some View {
@@ -60,6 +68,34 @@ struct TaskListView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 8)
 
+            // Search bar
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("Filter tasks…", text: $appState.searchText)
+                    .textFieldStyle(.plain)
+                    .font(.callout)
+                if !appState.searchText.isEmpty {
+                    Button {
+                        appState.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .padding(.horizontal, 10)
+            .padding(.bottom, 8)
+
             Divider()
 
             // Task list
@@ -84,7 +120,27 @@ struct TaskListView: View {
                 }
                 .padding()
                 Spacer()
+            } else if appState.isSearching && searchResultCount == 0 {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 28, weight: .thin))
+                        .foregroundStyle(.tertiary)
+                    Text("No results")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                Spacer()
             } else {
+                if appState.isSearching {
+                    Text("\(searchResultCount) result\(searchResultCount == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 4)
+                }
+
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         let flatIncomplete = flattenedTasks(roots: incompleteRootTasks)
@@ -117,7 +173,7 @@ struct TaskListView: View {
                             .padding(.horizontal, 14)
                             .padding(.top, 8)
 
-                            if showCompleted {
+                            if showCompleted || appState.isSearching {
                                 let flatCompleted = flattenedTasks(roots: completedRootTasks)
                                 ForEach(flatCompleted, id: \.task.id) { entry in
                                     TaskRowView(
@@ -151,7 +207,9 @@ struct TaskListView: View {
             result.append((task, level, parentCompleted))
             let isCollapsed = appState.collapsedTaskIDs.contains(task.id)
             if !isCollapsed {
-                let children = appState.subtasks(of: task.id)
+                let children = appState.isSearching
+                    ? appState.searchFilteredSubtasks(of: task.id)
+                    : appState.subtasks(of: task.id)
                 for child in children {
                     walk(child, level: level + 1, parentCompleted: parentCompleted || task.isCompleted)
                 }
