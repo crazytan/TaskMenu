@@ -17,14 +17,65 @@ protocol KeychainServiceProtocol: Sendable {
     func deleteAll() throws
 }
 
+private final class TestKeychainStore: @unchecked Sendable {
+    static let shared = TestKeychainStore()
+
+    private let lock = NSLock()
+    private var storage: [String: [String: Data]] = [:]
+
+    func save(service: String, key: String, data: Data) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        var serviceStorage = storage[service] ?? [:]
+        serviceStorage[key] = data
+        storage[service] = serviceStorage
+    }
+
+    func read(service: String, key: String) -> Data? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        return storage[service]?[key]
+    }
+
+    func delete(service: String, key: String) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        storage[service]?[key] = nil
+        if storage[service]?.isEmpty == true {
+            storage[service] = nil
+        }
+    }
+
+    func deleteAll(service: String) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        storage[service] = nil
+    }
+}
+
 struct KeychainService: KeychainServiceProtocol, Sendable {
     let service: String
+    private let testStore: TestKeychainStore?
 
-    init(service: String = Constants.Keychain.service) {
+    init(
+        service: String = Constants.Keychain.service,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) {
         self.service = service
+        // Hosted unit tests launch the app target, so avoid touching the login keychain entirely.
+        self.testStore = environment["XCTestConfigurationFilePath"] == nil ? nil : .shared
     }
 
     func save(key: String, data: Data) throws {
+        if let testStore {
+            testStore.save(service: service, key: key, data: data)
+            return
+        }
+
         // Delete existing item first
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -55,6 +106,10 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
     }
 
     func read(key: String) throws -> Data? {
+        if let testStore {
+            return testStore.read(service: service, key: key)
+        }
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -83,6 +138,11 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
     }
 
     func delete(key: String) throws {
+        if let testStore {
+            testStore.delete(service: service, key: key)
+            return
+        }
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -96,6 +156,11 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
     }
 
     func deleteAll() throws {
+        if let testStore {
+            testStore.deleteAll(service: service)
+            return
+        }
+
         // Delete known keys individually for reliability across macOS versions
         for key in [Constants.Keychain.accessTokenKey, Constants.Keychain.refreshTokenKey, Constants.Keychain.expirationKey] {
             try delete(key: key)

@@ -5,6 +5,7 @@ import XCTest
 /// Avoids real macOS Keychain access (and password prompts) during tests.
 final class KeychainServiceTests: XCTestCase {
     private var keychain: InMemoryKeychainService!
+    private let testEnvironment = ["XCTestConfigurationFilePath": "/tmp/TaskMenuTests.xctestconfiguration"]
 
     override func setUp() {
         super.setUp()
@@ -55,5 +56,32 @@ final class KeychainServiceTests: XCTestCase {
         XCTAssertNil(try keychain.readString(key: Constants.Keychain.accessTokenKey))
         XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
         XCTAssertNil(try keychain.readString(key: Constants.Keychain.expirationKey))
+    }
+
+    func testProductionKeychainUsesInMemoryStoreUnderXCTest() throws {
+        let keychain = KeychainService(
+            service: "com.taskmenu.test.production.\(UUID().uuidString)",
+            environment: testEnvironment
+        )
+
+        try keychain.save(key: "token", string: "abc123")
+
+        XCTAssertEqual(try keychain.readString(key: "token"), "abc123")
+    }
+
+    func testProductionKeychainInMemoryStoreIsScopedByService() throws {
+        let keychainA = KeychainService(
+            service: "com.taskmenu.test.production.a.\(UUID().uuidString)",
+            environment: testEnvironment
+        )
+        let keychainB = KeychainService(
+            service: "com.taskmenu.test.production.b.\(UUID().uuidString)",
+            environment: testEnvironment
+        )
+
+        try keychainA.save(key: "token", string: "value-a")
+
+        XCTAssertEqual(try keychainA.readString(key: "token"), "value-a")
+        XCTAssertNil(try keychainB.readString(key: "token"))
     }
 }
