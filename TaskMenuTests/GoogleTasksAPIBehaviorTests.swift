@@ -9,8 +9,8 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
     private var keychain: KeychainService!
     private var api: GoogleTasksAPI!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         MockURLProtocol.reset()
 
         keychain = KeychainService(service: "com.taskmenu.apitest.\(UUID().uuidString)")
@@ -25,10 +25,10 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         api = GoogleTasksAPI(authService: authService, session: session)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         MockURLProtocol.reset()
         try? keychain.deleteAll()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Pagination
