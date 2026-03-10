@@ -5,14 +5,12 @@ import XCTest
 final class GoogleAuthServiceTests: XCTestCase {
     private var keychain: KeychainService!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
         keychain = KeychainService(service: "com.taskmenu.authtest.\(UUID().uuidString)")
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         try? keychain.deleteAll()
-        super.tearDown()
     }
 
     // MARK: - isSignedIn
