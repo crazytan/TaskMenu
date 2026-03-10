@@ -118,18 +118,31 @@ final class AppState {
         guard let listId = selectedListId else { return }
         var updated = task
         updated.isCompleted.toggle()
+        
+        // Optimistic update: immediately reflect in UI
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            tasks[index] = updated
+        }
+        
         do {
             let result = try await api.updateTask(listId: listId, taskId: task.id, task: updated)
-            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            // Update with server response
+            if let index = tasks.firstIndex(where: { $0.id == result.id }) {
                 tasks[index] = result
             }
             // Update completed tasks cache
             if result.isCompleted {
-                completedTasksCache.append(result)
+                if !completedTasksCache.contains(where: { $0.id == result.id }) {
+                    completedTasksCache.append(result)
+                }
             } else {
                 completedTasksCache.removeAll { $0.id == result.id }
             }
         } catch {
+            // Revert optimistic update on failure
+            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                tasks[index] = task
+            }
             handleError(error)
         }
     }
