@@ -4,6 +4,8 @@ struct TaskDetailView: View {
     @Bindable var appState: AppState
     @State var task: TaskItem
     var onDismiss: () -> Void
+    @State private var subtaskTitle = ""
+    @FocusState private var isSubtaskFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -52,6 +54,43 @@ struct TaskDetailView: View {
             .datePickerStyle(.stepperField)
             .controlSize(.small)
 
+            // Subtasks section
+            if task.parent == nil {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Subtasks")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    let children = appState.subtasks(of: task.id)
+                    ForEach(children) { child in
+                        HStack(spacing: 6) {
+                            Image(systemName: child.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(child.isCompleted ? .green : .secondary)
+                                .font(.system(size: 14, weight: .light))
+                            Text(child.title)
+                                .font(.callout)
+                                .strikethrough(child.isCompleted)
+                                .foregroundStyle(child.isCompleted ? .secondary : .primary)
+                        }
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle")
+                            .foregroundStyle(.blue)
+                            .font(.system(size: 14))
+                        TextField("Add subtask...", text: $subtaskTitle)
+                            .textFieldStyle(.plain)
+                            .font(.callout)
+                            .focused($isSubtaskFieldFocused)
+                            .onSubmit {
+                                addSubtask()
+                            }
+                    }
+                }
+            }
+
             Divider()
 
             HStack {
@@ -77,5 +116,12 @@ struct TaskDetailView: View {
         }
         .padding(16)
         .frame(width: 300)
+    }
+
+    private func addSubtask() {
+        let title = subtaskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        subtaskTitle = ""
+        Task { await appState.addSubtask(title: title, parentId: task.id) }
     }
 }

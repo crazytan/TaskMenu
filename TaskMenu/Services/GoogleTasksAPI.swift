@@ -50,13 +50,16 @@ actor GoogleTasksAPI {
         return allItems
     }
 
-    func createTask(listId: String, title: String, notes: String? = nil, due: String? = nil) async throws -> TaskItem {
+    func createTask(listId: String, title: String, notes: String? = nil, due: String? = nil, parentId: String? = nil) async throws -> TaskItem {
         var body: [String: Any] = ["title": title]
         if let notes { body["notes"] = notes }
         if let due { body["due"] = due }
 
+        var queryItems = [URLQueryItem]()
+        if let parentId { queryItems.append(URLQueryItem(name: "parent", value: parentId)) }
+
         let bodyData = try JSONSerialization.data(withJSONObject: body)
-        let data = try await request(path: "/lists/\(listId)/tasks", method: "POST", body: bodyData)
+        let data = try await request(path: "/lists/\(listId)/tasks", method: "POST", queryItems: queryItems, body: bodyData)
         return try decode(TaskItem.self, from: data)
     }
 

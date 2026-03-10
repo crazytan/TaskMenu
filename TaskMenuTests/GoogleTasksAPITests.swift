@@ -177,4 +177,131 @@ final class GoogleTasksAPITests: XCTestCase {
         XCTAssertEqual(task.parent, "parent1")
         XCTAssertEqual(task.position, "00000002")
     }
+
+    func testDecodeTaskWithoutParentHasNilParent() throws {
+        let json = """
+        {"id": "root1", "title": "Root task", "status": "needsAction"}
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(TaskItem.self, from: json)
+        XCTAssertNil(task.parent)
+    }
+
+    // MARK: - Tree Building from Flat List
+
+    func testRootTasksFilteredCorrectly() throws {
+        let tasks = [
+            makeTask(id: "root1", title: "Root 1"),
+            makeTask(id: "child1", title: "Child 1", parent: "root1"),
+            makeTask(id: "root2", title: "Root 2"),
+            makeTask(id: "child2", title: "Child 2", parent: "root1"),
+        ]
+
+        let rootTasks = tasks.filter { $0.parent == nil }
+        XCTAssertEqual(rootTasks.count, 2)
+        XCTAssertEqual(rootTasks[0].id, "root1")
+        XCTAssertEqual(rootTasks[1].id, "root2")
+    }
+
+    func testSubtasksFilteredByParent() throws {
+        let tasks = [
+            makeTask(id: "root1", title: "Root 1"),
+            makeTask(id: "child1", title: "Child 1", parent: "root1"),
+            makeTask(id: "child2", title: "Child 2", parent: "root1"),
+            makeTask(id: "root2", title: "Root 2"),
+            makeTask(id: "child3", title: "Child 3", parent: "root2"),
+        ]
+
+        let root1Children = tasks.filter { $0.parent == "root1" }
+        XCTAssertEqual(root1Children.count, 2)
+        XCTAssertEqual(root1Children[0].id, "child1")
+        XCTAssertEqual(root1Children[1].id, "child2")
+
+        let root2Children = tasks.filter { $0.parent == "root2" }
+        XCTAssertEqual(root2Children.count, 1)
+        XCTAssertEqual(root2Children[0].id, "child3")
+    }
+
+    func testTaskWithNoChildrenHasEmptySubtasks() throws {
+        let tasks = [
+            makeTask(id: "root1", title: "Root 1"),
+            makeTask(id: "root2", title: "Root 2"),
+        ]
+
+        let children = tasks.filter { $0.parent == "root1" }
+        XCTAssertTrue(children.isEmpty)
+    }
+
+    func testTreeBuildingPreservesOrder() throws {
+        let tasks = [
+            makeTask(id: "root1", title: "Root 1"),
+            makeTask(id: "child1", title: "Child 1", parent: "root1", position: "00000000"),
+            makeTask(id: "child2", title: "Child 2", parent: "root1", position: "00000001"),
+            makeTask(id: "child3", title: "Child 3", parent: "root1", position: "00000002"),
+        ]
+
+        let children = tasks.filter { $0.parent == "root1" }
+        XCTAssertEqual(children.map(\.id), ["child1", "child2", "child3"])
+    }
+
+    func testMixedCompletedAndActiveSubtasks() throws {
+        let tasks = [
+            makeTask(id: "root1", title: "Root 1"),
+            makeTask(id: "child1", title: "Child 1", parent: "root1", status: .needsAction),
+            makeTask(id: "child2", title: "Child 2", parent: "root1", status: .completed),
+        ]
+
+        let children = tasks.filter { $0.parent == "root1" }
+        XCTAssertEqual(children.count, 2)
+        XCTAssertFalse(children[0].isCompleted)
+        XCTAssertTrue(children[1].isCompleted)
+    }
+
+    func testDecodeFlatListWithSubtasks() throws {
+        let json = """
+        {
+            "kind": "tasks#tasks",
+            "items": [
+                {"id": "root1", "title": "Root", "status": "needsAction"},
+                {"id": "child1", "title": "Sub 1", "status": "needsAction", "parent": "root1", "position": "00000000"},
+                {"id": "child2", "title": "Sub 2", "status": "completed", "parent": "root1", "position": "00000001"},
+                {"id": "root2", "title": "Root 2", "status": "needsAction"}
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let list = try JSONDecoder().decode(TaskItemList.self, from: json)
+        let items = list.items!
+        XCTAssertEqual(items.count, 4)
+
+        let roots = items.filter { $0.parent == nil }
+        XCTAssertEqual(roots.count, 2)
+
+        let root1Children = items.filter { $0.parent == "root1" }
+        XCTAssertEqual(root1Children.count, 2)
+        XCTAssertEqual(root1Children[0].title, "Sub 1")
+        XCTAssertEqual(root1Children[1].title, "Sub 2")
+    }
+
+    // MARK: - Helpers
+
+    private func makeTask(
+        id: String,
+        title: String,
+        parent: String? = nil,
+        position: String? = nil,
+        status: TaskItem.TaskStatus = .needsAction
+    ) -> TaskItem {
+        TaskItem(
+            id: id,
+            title: title,
+            notes: nil,
+            status: status,
+            due: nil,
+            selfLink: nil,
+            parent: parent,
+            position: position,
+            updated: nil
+        )
+    }
 }

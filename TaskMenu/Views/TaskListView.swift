@@ -7,12 +7,12 @@ struct TaskListView: View {
     @State private var refreshRotation: Double = 0
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
 
-    var incompleteTasks: [TaskItem] {
-        appState.tasks.filter { !$0.isCompleted }
+    var incompleteRootTasks: [TaskItem] {
+        appState.rootTasks.filter { !$0.isCompleted }
     }
 
-    var completedTasks: [TaskItem] {
-        appState.tasks.filter { $0.isCompleted }
+    var completedRootTasks: [TaskItem] {
+        appState.rootTasks.filter { $0.isCompleted }
     }
 
     var body: some View {
@@ -87,15 +87,16 @@ struct TaskListView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(incompleteTasks) { task in
-                            activeTaskRow(for: task)
+                        let flatIncomplete = flattenedTasks(roots: incompleteRootTasks)
+                        ForEach(flatIncomplete, id: \.task.id) { entry in
+                            activeTaskRow(for: entry.task, indentLevel: entry.indentLevel, isParentCompleted: entry.isParentCompleted, hasChildren: appState.hasSubtasks(entry.task.id), isCollapsed: appState.collapsedTaskIDs.contains(entry.task.id))
                         }
 
-                        if incompleteTasks.count > 1 {
+                        if incompleteRootTasks.count > 1 {
                             activeTaskEndDropZone
                         }
 
-                        if !completedTasks.isEmpty {
+                        if !completedRootTasks.isEmpty {
                             Button {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     showCompleted.toggle()
@@ -105,7 +106,7 @@ struct TaskListView: View {
                                     Image(systemName: "chevron.right")
                                         .font(.caption2)
                                         .rotationEffect(.degrees(showCompleted ? 90 : 0))
-                                    Text("Completed (\(completedTasks.count))")
+                                    Text("Completed (\(completedRootTasks.count))")
                                     Spacer()
                                 }
                                 .contentShape(Rectangle())
@@ -117,11 +118,17 @@ struct TaskListView: View {
                             .padding(.top, 8)
 
                             if showCompleted {
-                                ForEach(completedTasks) { task in
+                                let flatCompleted = flattenedTasks(roots: completedRootTasks)
+                                ForEach(flatCompleted, id: \.task.id) { entry in
                                     TaskRowView(
-                                        task: task,
-                                        onToggle: { Task { await appState.toggleTask(task) } },
-                                        onDelete: { Task { await appState.deleteTask(task) } }
+                                        task: entry.task,
+                                        indentLevel: entry.indentLevel,
+                                        isParentCompleted: entry.isParentCompleted,
+                                        hasChildren: appState.hasSubtasks(entry.task.id),
+                                        isCollapsed: appState.collapsedTaskIDs.contains(entry.task.id),
+                                        onToggle: { Task { await appState.toggleTask(entry.task) } },
+                                        onDelete: { Task { await appState.deleteTask(entry.task) } },
+                                        onCollapseToggle: appState.hasSubtasks(entry.task.id) ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(entry.task.id) } } : nil
                                     )
                                     .padding(.horizontal, 10)
                                     .transition(.opacity)
@@ -136,11 +143,37 @@ struct TaskListView: View {
         }
     }
 
-    private func activeTaskRow(for task: TaskItem) -> some View {
+    /// Flattens the task tree into a list of (task, indentLevel, isParentCompleted) for rendering.
+    private func flattenedTasks(roots: [TaskItem]) -> [(task: TaskItem, indentLevel: Int, isParentCompleted: Bool)] {
+        var result: [(TaskItem, Int, Bool)] = []
+
+        func walk(_ task: TaskItem, level: Int, parentCompleted: Bool) {
+            result.append((task, level, parentCompleted))
+            let isCollapsed = appState.collapsedTaskIDs.contains(task.id)
+            if !isCollapsed {
+                let children = appState.subtasks(of: task.id)
+                for child in children {
+                    walk(child, level: level + 1, parentCompleted: parentCompleted || task.isCompleted)
+                }
+            }
+        }
+
+        for root in roots {
+            walk(root, level: 0, parentCompleted: false)
+        }
+        return result
+    }
+
+    private func activeTaskRow(for task: TaskItem, indentLevel: Int, isParentCompleted: Bool, hasChildren: Bool, isCollapsed: Bool) -> some View {
         TaskRowView(
             task: task,
+            indentLevel: indentLevel,
+            isParentCompleted: isParentCompleted,
+            hasChildren: hasChildren,
+            isCollapsed: isCollapsed,
             onToggle: { Task { await appState.toggleTask(task) } },
-            onDelete: { Task { await appState.deleteTask(task) } }
+            onDelete: { Task { await appState.deleteTask(task) } },
+            onCollapseToggle: hasChildren ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(task.id) } } : nil
         )
         .padding(.horizontal, 10)
         .onTapGesture {
@@ -174,6 +207,7 @@ struct TaskListView: View {
 
     private func handleDrop(of taskIDs: [String], onto targetTask: TaskItem, location: CGPoint) -> Bool {
         guard let draggedTaskID = taskIDs.first else { return false }
+        let incompleteTasks = appState.tasks.filter { !$0.isCompleted }
         guard let targetIndex = incompleteTasks.firstIndex(where: { $0.id == targetTask.id }) else {
             return false
         }
@@ -185,10 +219,12 @@ struct TaskListView: View {
 
     private func handleDropToEnd(of taskIDs: [String]) -> Bool {
         guard let draggedTaskID = taskIDs.first else { return false }
+        let incompleteTasks = appState.tasks.filter { !$0.isCompleted }
         return moveTask(withID: draggedTaskID, toActiveIndex: incompleteTasks.count)
     }
 
     private func moveTask(withID taskID: String, toActiveIndex destinationIndex: Int) -> Bool {
+        let incompleteTasks = appState.tasks.filter { !$0.isCompleted }
         guard let task = incompleteTasks.first(where: { $0.id == taskID }) else { return false }
 
         Task { @MainActor in

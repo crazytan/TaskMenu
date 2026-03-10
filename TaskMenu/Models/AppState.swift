@@ -11,6 +11,7 @@ final class AppState {
     var taskLists: [TaskList] = []
     var selectedListId: String?
     var tasks: [TaskItem] = []
+    var collapsedTaskIDs: Set<String> = []
     var globalShortcutEnabled: Bool {
         didSet {
             userDefaults.set(
@@ -36,6 +37,30 @@ final class AppState {
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
+    }
+
+    /// Root-level tasks (no parent), preserving API order.
+    var rootTasks: [TaskItem] {
+        tasks.filter { $0.parent == nil }
+    }
+
+    /// Children of a given task, preserving API order.
+    func subtasks(of taskID: String) -> [TaskItem] {
+        tasks.filter { $0.parent == taskID }
+    }
+
+    /// Whether a task has any children.
+    func hasSubtasks(_ taskID: String) -> Bool {
+        tasks.contains { $0.parent == taskID }
+    }
+
+    /// Toggle collapse state for a parent task.
+    func toggleCollapsed(_ taskID: String) {
+        if collapsedTaskIDs.contains(taskID) {
+            collapsedTaskIDs.remove(taskID)
+        } else {
+            collapsedTaskIDs.insert(taskID)
+        }
     }
 
     private let authService: GoogleAuthService
@@ -174,6 +199,25 @@ final class AppState {
         }
     }
 
+    func addSubtask(title: String, parentId: String) async {
+        guard let listId = selectedListId else { return }
+        do {
+            let task = try await api.createTask(listId: listId, title: title, parentId: parentId)
+            // Insert after parent and its existing subtasks
+            if let parentIndex = tasks.firstIndex(where: { $0.id == parentId }) {
+                let insertIndex = tasks.indices
+                    .suffix(from: parentIndex + 1)
+                    .first(where: { tasks[$0].parent != parentId }) ?? tasks.endIndex
+                tasks.insert(task, at: insertIndex)
+            } else {
+                tasks.append(task)
+            }
+            await syncDueDateNotificationsIfNeeded()
+        } catch {
+            handleError(error)
+        }
+    }
+
     func toggleTask(_ task: TaskItem) async {
         guard let listId = selectedListId else { return }
         var updated = task
@@ -231,10 +275,12 @@ final class AppState {
         guard let listId = selectedListId else { return }
         do {
             try await api.deleteTask(listId: listId, taskId: task.id)
-            tasks.removeAll { $0.id == task.id }
-            completedTasksCache.removeAll { $0.id == task.id }
+            let childIDs = tasks.filter { $0.parent == task.id }.map(\.id)
+            let removedIDs = [task.id] + childIDs
+            tasks.removeAll { removedIDs.contains($0.id) }
+            completedTasksCache.removeAll { removedIDs.contains($0.id) }
             await dueDateNotificationService.removeNotifications(
-                forTaskIDs: [task.id],
+                forTaskIDs: removedIDs,
                 inListID: listId
             )
         } catch {
