@@ -26,7 +26,7 @@ jobs:
         run: xcodegen generate
 
       - name: Build
-        run: xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu -destination "platform=macOS"
+        run: xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu -destination "platform=macOS" CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
 
       - name: Test
-        run: xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenuTests -destination "platform=macOS"
+        run: xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenuTests -destination "platform=macOS" CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""
