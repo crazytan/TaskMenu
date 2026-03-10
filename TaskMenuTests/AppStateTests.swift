@@ -5,14 +5,14 @@ import XCTest
 final class AppStateTests: XCTestCase {
     private var keychain: KeychainService!
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         keychain = KeychainService(service: "com.taskmenu.statetest.\(UUID().uuidString)")
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         try? keychain.deleteAll()
-        super.tearDown()
+        try await super.tearDown()
     }
 
     // MARK: - Initial State

@@ -229,6 +229,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					2499498786EF41DCFC6BE7F6 = {
+						DevelopmentTeam = ZW5U6862Q8;
+						ProvisioningStyle = Manual;
+					};
 					54F3465CB5E85F801680719A = {
 						DevelopmentTeam = ZW5U6862Q8;
 						ProvisioningStyle = Manual;
@@ -404,7 +408,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = 47081BEFF0F575643E99369B44CBAC87BBCC85E6;
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZW5U6862Q8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -500,7 +507,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = 47081BEFF0F575643E99369B44CBAC87BBCC85E6;
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = ZW5U6862Q8;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

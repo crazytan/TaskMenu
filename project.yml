@@ -47,5 +47,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.taskmenu.TaskMenuTests
         GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_IDENTITY: "47081BEFF0F575643E99369B44CBAC87BBCC85E6" # Apple Development: Jia Tan
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ZW5U6862Q8
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TaskMenu.app/Contents/MacOS/TaskMenu"
         BUNDLE_LOADER: "$(TEST_HOST)"
