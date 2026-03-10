@@ -4,7 +4,7 @@ import Foundation
 
 @MainActor
 final class GoogleAuthService: Sendable {
-    private let keychain: KeychainService
+    private let keychain: any KeychainServiceProtocol
     private let session: URLSession
 
     private(set) var accessToken: String?
@@ -20,7 +20,7 @@ final class GoogleAuthService: Sendable {
         return Date() >= expiration
     }
 
-    init(keychain: KeychainService = KeychainService(), session: URLSession = .shared) {
+    init(keychain: any KeychainServiceProtocol = KeychainService(), session: URLSession = .shared) {
         self.keychain = keychain
         self.session = session
         loadTokens()

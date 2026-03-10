@@ -3,10 +3,10 @@ import XCTest
 
 @MainActor
 final class GoogleAuthServiceTests: XCTestCase {
-    private var keychain: KeychainService!
+    private var keychain: InMemoryKeychainService!
 
     override func setUp() async throws {
-        keychain = KeychainService(service: "com.taskmenu.authtest.\(UUID().uuidString)")
+        keychain = InMemoryKeychainService()
     }
 
     override func tearDown() async throws {

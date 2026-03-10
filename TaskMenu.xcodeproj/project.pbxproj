@@ -23,6 +23,7 @@
 		986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */; };
 		9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12212B7B62ECCDD28979CA54 /* Constants.swift */; };
 		9BE1233CADF8C3BFFC734F1D /* ListPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A7998A82BE9D4729E85B13 /* ListPickerView.swift */; };
+		B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */; };
 		C169507407838BDD4C665CF1 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */; };
 		C1AE79D6748EFE551C7E8F1B /* TaskMenuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF69FFA11009E78484C090A /* TaskMenuApp.swift */; };
 		C1D9C85DFAE57179E9A438A1 /* TaskRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F4164166B2474EB88443EC /* TaskRowView.swift */; };
@@ -71,6 +72,7 @@
 		A8F4164166B2474EB88443EC /* TaskRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowView.swift; sourceTree = "<group>"; };
 		B01BFC3843C941C89C85576B /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
 		BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLProtocol.swift; sourceTree = "<group>"; };
+		BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryKeychainService.swift; sourceTree = "<group>"; };
 		C3377E75BA19027E464EAEB8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthServiceTests.swift; sourceTree = "<group>"; };
 		C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPITests.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 				C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */,
 				8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */,
 				C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */,
+				BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */,
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
 				BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */,
 				6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */,
@@ -317,6 +320,7 @@
 				986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */,
 				068F90845303418F7954D22E /* GoogleTasksAPIBehaviorTests.swift in Sources */,
 				69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */,
+				B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */,
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,
 				D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */,
 				0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */,

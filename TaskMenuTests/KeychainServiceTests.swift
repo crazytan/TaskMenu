@@ -1,18 +1,14 @@
 import XCTest
 @testable import TaskMenu
 
+/// Tests KeychainServiceProtocol contract using InMemoryKeychainService.
+/// Avoids real macOS Keychain access (and password prompts) during tests.
 final class KeychainServiceTests: XCTestCase {
-    private var keychain: KeychainService!
+    private var keychain: InMemoryKeychainService!
 
     override func setUp() {
         super.setUp()
-        keychain = KeychainService(service: "com.taskmenu.test.\(UUID().uuidString)")
-    }
-
-    override func tearDown() {
-        try? keychain.delete(key: "token")
-        try? keychain.delete(key: "data")
-        super.tearDown()
+        keychain = InMemoryKeychainService()
     }
 
     func testSaveAndReadString() throws {

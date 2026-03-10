@@ -6,13 +6,13 @@ import XCTest
 /// Uses MockURLProtocol.requestLog to inspect requests (avoids captured var issues with Swift 6 concurrency).
 @MainActor
 final class AppStateBehaviorTests: XCTestCase {
-    private var keychain: KeychainService!
+    private var keychain: InMemoryKeychainService!
     private var state: AppState!
 
     override func setUp() async throws {
         MockURLProtocol.reset()
 
-        keychain = KeychainService(service: "com.taskmenu.behavior.\(UUID().uuidString)")
+        keychain = InMemoryKeychainService()
         // Pre-load valid tokens so validAccessToken() returns immediately
         try? keychain.save(key: Constants.Keychain.accessTokenKey, string: "test-access-token")
         try? keychain.save(key: Constants.Keychain.refreshTokenKey, string: "test-refresh-token")

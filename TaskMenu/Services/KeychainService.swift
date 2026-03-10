@@ -8,7 +8,16 @@ enum KeychainError: Error, Sendable {
     case unexpectedData
 }
 
-struct KeychainService: Sendable {
+protocol KeychainServiceProtocol: Sendable {
+    func save(key: String, data: Data) throws
+    func save(key: String, string: String) throws
+    func read(key: String) throws -> Data?
+    func readString(key: String) throws -> String?
+    func delete(key: String) throws
+    func deleteAll() throws
+}
+
+struct KeychainService: KeychainServiceProtocol, Sendable {
     let service: String
 
     init(service: String = Constants.Keychain.service) {
