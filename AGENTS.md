@@ -1,131 +1,133 @@
-# TaskMenu — macOS Menu Bar App for Google Tasks
+# TaskMenu
 
-> **Working title.** Final name TBD.
+## Project Overview
 
-## Overview
-A lightweight, native macOS menu bar app that provides quick access to Google Tasks. Built with SwiftUI, targeting macOS 14+. Free and open source (GPLv3).
+TaskMenu is a lightweight, native macOS menu bar application for quick access to Google Tasks. It is a free and open-source (GPLv3) SwiftUI app targeting macOS 14+ (Sonoma). The app lives entirely in the menu bar (no dock icon, no main window).
 
-## Architecture
+**Current status:** Phase 1 MVP complete (v0.1.0). Phase 2 features (widgets, global shortcuts, notifications, multiple accounts) are planned but not yet started.
 
-### Tech Stack
-- **Language:** Swift 6 (strict concurrency)
-- **UI:** SwiftUI (menu bar popover via MenuBarExtra)
-- **Build:** Xcode project via XcodeGen (`project.yml`)
-- **Auth:** OAuth 2.0 with PKCE via ASWebAuthenticationSession
-- **Networking:** URLSession + async/await
-- **Storage:** Keychain (tokens), UserDefaults/SwiftData (local cache)
-- **Min target:** macOS 14.0 (Sonoma)
+## Tech Stack
 
-### Project Structure
+- **Language:** Swift 6 with strict concurrency (`SWIFT_STRICT_CONCURRENCY: complete`)
+- **UI:** SwiftUI — MenuBarExtra with `.window` style
+- **Build system:** XcodeGen (`project.yml`) + Xcode 16.0
+- **Auth:** OAuth 2.0 with PKCE (loopback redirect to `127.0.0.1`)
+- **Networking:** URLSession with async/await
+- **Token storage:** macOS Keychain via Security framework
+- **Dependencies:** Zero — Apple frameworks only
+- **Min deployment target:** macOS 14.0
+
+## Project Structure
+
 ```
 TaskMenu/
-├── project.yml              # XcodeGen project definition
+├── project.yml                    # XcodeGen project definition (source of truth)
+├── Config.xcconfig.example        # OAuth credential template
+├── AGENTS.md                      # Architecture & phase plan
 ├── TaskMenu/
-│   ├── TaskMenuApp.swift     # @main, MenuBarExtra setup
-│   ├── Views/
-│   │   ├── MenuBarPopover.swift    # Main popover view
-│   │   ├── TaskListView.swift      # List of tasks
-│   │   ├── TaskRowView.swift       # Individual task row
-│   │   ├── TaskDetailView.swift    # Edit/view task details
-│   │   ├── QuickAddView.swift      # Inline quick-add field
-│   │   ├── ListPickerView.swift    # Switch between task lists
-│   │   └── SignInView.swift        # OAuth sign-in prompt
+│   ├── TaskMenuApp.swift          # @main entry point, MenuBarExtra setup
 │   ├── Models/
-│   │   ├── TaskItem.swift          # Google Task model
-│   │   ├── TaskList.swift          # Google Task List model
-│   │   └── AppState.swift          # Observable app state
+│   │   ├── AppState.swift         # @Observable centralized app state (@MainActor)
+│   │   ├── TaskItem.swift         # Google Task model (Codable, Sendable)
+│   │   └── TaskList.swift         # Google Task List model (Codable, Sendable)
 │   ├── Services/
-│   │   ├── GoogleAuthService.swift     # OAuth 2.0 + PKCE + token refresh
-│   │   ├── GoogleTasksAPI.swift        # Google Tasks REST API client
-│   │   ├── KeychainService.swift       # Secure token storage
-│   │   └── NotificationService.swift   # Due date notifications (phase 2)
+│   │   ├── GoogleAuthService.swift    # OAuth 2.0 + PKCE flow (@MainActor)
+│   │   ├── GoogleTasksAPI.swift       # Google Tasks REST client (actor)
+│   │   └── KeychainService.swift      # Keychain CRUD wrapper (Sendable)
+│   ├── Views/
+│   │   ├── MenuBarPopover.swift       # Main popover container
+│   │   ├── TaskListView.swift         # Task list with completed section
+│   │   ├── TaskRowView.swift          # Single task row with toggle
+│   │   ├── TaskDetailView.swift       # Edit task sheet
+│   │   ├── QuickAddView.swift         # Inline task creation
+│   │   ├── ListPickerView.swift       # Task list switcher
+│   │   ├── SignInView.swift           # OAuth sign-in screen
+│   │   └── SettingsView.swift         # Settings & sign out
 │   ├── Utilities/
-│   │   ├── Constants.swift         # API URLs, client ID placeholder
-│   │   └── DateFormatting.swift    # RFC 3339 date helpers
+│   │   ├── Constants.swift            # API URLs, OAuth config, keychain keys
+│   │   └── DateFormatting.swift       # RFC 3339 parsing/formatting
 │   └── Resources/
-│       ├── Assets.xcassets         # Menu bar icon, app icon
-│       └── Info.plist
+│       ├── Info.plist                 # LSUIElement=YES, version, OAuth vars
+│       ├── TaskMenu.entitlements
+│       └── Assets.xcassets
 ├── TaskMenuTests/
-│   └── ...
-├── LICENSE                  # GPLv3
-├── README.md
-└── STATUS.md                # Build progress tracking
+│   ├── KeychainServiceTests.swift     # Keychain CRUD tests
+│   ├── DateFormattingTests.swift      # Date parsing/formatting tests
+│   └── GoogleTasksAPITests.swift      # Model decoding/encoding tests
+└── TaskMenu.xcodeproj/               # Generated — do not edit directly
 ```
 
-### Google Tasks API
-- **Base URL:** `https://tasks.googleapis.com/tasks/v1`
-- **Endpoints needed:**
-  - `GET /users/@me/lists` — list all task lists
-  - `GET /lists/{tasklistId}/tasks` — list tasks in a list
-  - `POST /lists/{tasklistId}/tasks` — create task
-  - `PATCH /lists/{tasklistId}/tasks/{taskId}` — update task (title, notes, due, status)
-  - `DELETE /lists/{tasklistId}/tasks/{taskId}` — delete task
-  - `POST /lists/{tasklistId}/tasks/{taskId}/move` — reorder task
-- **Scopes:** `https://www.googleapis.com/auth/tasks`
-- **Auth:** OAuth 2.0 with PKCE (desktop app flow)
-  - Use `ASWebAuthenticationSession` to open Google sign-in
-  - Loopback redirect to `http://127.0.0.1:{port}/callback`
-  - Exchange auth code for access + refresh tokens
-  - Store tokens in Keychain
-  - Auto-refresh access token when expired
+## Build & Test Commands
 
-### OAuth 2.0 Flow (Desktop App with PKCE)
-1. Generate random `code_verifier` (43-128 chars, URL-safe)
-2. Compute `code_challenge` = Base64URL(SHA256(code_verifier))
-3. Open browser: `https://accounts.google.com/o/oauth2/v2/auth?client_id=...&redirect_uri=http://127.0.0.1:{port}/callback&response_type=code&scope=...&code_challenge=...&code_challenge_method=S256`
-4. Start local HTTP server on `127.0.0.1:{port}` to catch redirect
-5. Exchange code at `https://oauth2.googleapis.com/token` with code_verifier
-6. Receive `access_token` + `refresh_token`
-7. Store in Keychain, refresh when access_token expires
-
-### Key Design Decisions
-- **MenuBarExtra with `.window` style** — gives us a proper popover panel
-- **No Electron** — pure SwiftUI, <10MB binary
-- **Offline-friendly** — cache tasks locally, sync on reconnect
-- **Client ID placeholder** — use `YOUR_CLIENT_ID` in Constants.swift; users/dev must provide their own Google Cloud credentials until OAuth verification is complete
-- **No app window** — menu bar only (LSUIElement = YES in Info.plist)
-- **Global keyboard shortcut** — Cmd+Shift+T to open popover (phase 2)
-
-## Build Phases
-
-### Phase 1: Core (MVP) ← BUILD THIS
-1. **Project setup** — XcodeGen project.yml, app structure, entitlements
-2. **Menu bar shell** — MenuBarExtra with empty popover, app icon
-3. **OAuth flow** — GoogleAuthService with PKCE, token storage in Keychain
-4. **API client** — GoogleTasksAPI with all CRUD endpoints
-5. **Task list view** — show tasks from default list, check/uncheck
-6. **List picker** — switch between task lists
-7. **Quick add** — text field at top of popover to create tasks
-8. **Edit task** — tap to edit title, notes, due date
-9. **Delete task** — swipe or context menu to delete
-10. **Pull to refresh** — refresh tasks from API
-11. **Error handling** — sign-in expired, network errors, API errors
-12. **Settings** — sign out, about, launch at login
-
-### Phase 2: Polish (later)
-- macOS widgets (WidgetKit)
-- Global keyboard shortcut (Cmd+Shift+T)
-- Due date notifications
-- Multiple Google accounts
-- Drag-and-drop reordering
-- Subtask support (indent/outdent)
-- Search/filter tasks
-
-## Build Instructions
 ```bash
-# Generate Xcode project
+# Generate Xcode project from project.yml (run after changing project.yml)
 xcodegen generate
 
 # Build
 xcodebuild -scheme TaskMenu -configuration Debug build
 
-# Run tests
+# Run tests (23 unit tests)
 xcodebuild -scheme TaskMenu -configuration Debug test
 ```
 
-## Conventions
-- Update STATUS.md after completing each phase/milestone
-- Commit after each logical unit of work with descriptive messages
-- Use Swift strict concurrency (@Sendable, actors where needed)
-- All API calls must handle errors gracefully (no force unwraps on network data)
-- Keep the binary small — no SPM dependencies unless absolutely necessary
+**OAuth setup:** Copy `Config.xcconfig.example` to `Config.xcconfig` and fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. This file is gitignored.
+
+## Architecture & Patterns
+
+### Concurrency Model (Swift 6 strict)
+- **AppState:** `@MainActor`, `@Observable` — centralized state management
+- **GoogleAuthService:** `@MainActor`, `Sendable` — auth operations
+- **GoogleTasksAPI:** `actor` — network-isolated API client
+- **KeychainService:** `struct`, `Sendable` — thread-safe keychain access
+- **All models:** `Sendable`, `Codable`, `Identifiable`
+
+### State Management
+- `AppState` is the single source of truth, injected via SwiftUI environment
+- Views use `@Bindable` for two-way binding, `@State` for local state
+- Auth state, task lists, selected list, tasks, and errors flow from AppState
+
+### Service Layer
+- `GoogleAuthService` handles the full OAuth 2.0 PKCE flow including token refresh
+- `GoogleTasksAPI` wraps all Google Tasks REST endpoints with typed errors
+- `KeychainService` abstracts macOS Keychain (SecItem APIs)
+
+### Error Handling
+- `APIError` enum: unauthorized, networkError, serverError, decodingError
+- `KeychainError` enum for storage failures
+- Errors surface to UI via `AppState.errorMessage`
+- No force unwraps on network data
+
+## Code Conventions
+
+- **Zero dependencies:** Prefer Apple frameworks. Do not add SPM packages unless absolutely necessary.
+- **Binary size:** Keep under 10MB.
+- **Strict concurrency:** All new code must compile with `SWIFT_STRICT_CONCURRENCY: complete`. Use `@Sendable`, actors, and `@MainActor` as appropriate.
+- **No force unwraps** on network/external data. Use proper error handling.
+- **System icons:** Use SF Symbols — no custom image assets for UI icons.
+- **Menu bar only:** The app has no main window (`LSUIElement = YES`). All UI is in the MenuBarExtra popover.
+- **Commit discipline:** Each commit should be a logical unit of work with a descriptive message.
+
+## Testing Guidelines
+
+- **Always update or add tests when modifying code.** Any change to models, services, or utilities must include corresponding test updates in `TaskMenuTests/`.
+- Test files follow the naming convention `<SourceFile>Tests.swift`.
+- Use a unique keychain service name in test setUp to avoid cross-test contamination (e.g., `KeychainService(service: "com.taskmenu.test.\(UUID().uuidString)")`).
+- Mark test classes that touch `@MainActor` types with `@MainActor`.
+
+## Important Files
+
+| File | Purpose |
+|------|---------|
+| `project.yml` | XcodeGen config — regenerate `.xcodeproj` after edits |
+| `Config.xcconfig` | OAuth credentials (gitignored) |
+| `Constants.swift` | All API URLs, OAuth endpoints, keychain keys |
+| `AppState.swift` | Central state — entry point for understanding app logic |
+| `AGENTS.md` | Full architecture doc and phase plan |
+
+## Things to Avoid
+
+- Do not edit `TaskMenu.xcodeproj` directly — it is generated from `project.yml` via XcodeGen
+- Do not commit `Config.xcconfig` — it contains OAuth secrets
+- Do not add SPM dependencies without strong justification
+- Do not add a dock icon or main window — this is a menu-bar-only app
+- Do not use force unwraps (`!`) on data from network or external sources
