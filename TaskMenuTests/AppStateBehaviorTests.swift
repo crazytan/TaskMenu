@@ -10,7 +10,6 @@ final class AppStateBehaviorTests: XCTestCase {
     private var state: AppState!
     private var userDefaults: UserDefaults!
     private var userDefaultsSuiteName: String!
-    private var shortcutMonitor: TestGlobalShortcutMonitor!
     private var dueDateNotificationService: TestDueDateNotificationService!
 
     override func setUp() async throws {
@@ -20,7 +19,6 @@ final class AppStateBehaviorTests: XCTestCase {
         userDefaultsSuiteName = "com.taskmenu.tests.appstate.behavior.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
-        shortcutMonitor = TestGlobalShortcutMonitor()
         dueDateNotificationService = TestDueDateNotificationService()
         // Pre-load valid tokens so validAccessToken() returns immediately
         try? keychain.save(key: Constants.Keychain.accessTokenKey, string: "test-access-token")
@@ -35,7 +33,6 @@ final class AppStateBehaviorTests: XCTestCase {
             authService: authService,
             api: api,
             userDefaults: userDefaults,
-            shortcutMonitor: shortcutMonitor,
             dueDateNotificationService: dueDateNotificationService
         )
     }
@@ -48,7 +45,6 @@ final class AppStateBehaviorTests: XCTestCase {
         }
         userDefaults = nil
         userDefaultsSuiteName = nil
-        shortcutMonitor = nil
         dueDateNotificationService = nil
     }
 

@@ -27,7 +27,6 @@ enum Constants {
     }
 
     enum UserDefaults {
-        static let globalShortcutEnabledKey = "globalShortcutEnabled"
         static let dueDateNotificationsEnabledKey = "dueDateNotificationsEnabled"
     }
 

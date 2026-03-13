@@ -28,13 +28,11 @@ final class AppStateTests: XCTestCase {
 
     private func makeState(
         authService: GoogleAuthService,
-        shortcutMonitor: TestGlobalShortcutMonitor = TestGlobalShortcutMonitor(),
         dueDateNotificationService: TestDueDateNotificationService? = nil
     ) -> AppState {
         AppState(
             authService: authService,
             userDefaults: userDefaults,
-            shortcutMonitor: shortcutMonitor,
             dueDateNotificationService: dueDateNotificationService ?? self.dueDateNotificationService
         )
     }
@@ -51,7 +49,6 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.taskLists.isEmpty)
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertNil(state.selectedListId)
-        XCTAssertTrue(state.globalShortcutEnabled)
         XCTAssertTrue(state.dueDateNotificationsEnabled)
     }
 
@@ -63,37 +60,12 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.isSignedIn)
     }
 
-    func testInitialStateUsesStoredGlobalShortcutPreference() {
-        userDefaults.set(false, forKey: Constants.UserDefaults.globalShortcutEnabledKey)
-        let authService = GoogleAuthService(keychain: keychain)
-        let monitor = TestGlobalShortcutMonitor()
-        let state = makeState(authService: authService, shortcutMonitor: monitor)
-
-        XCTAssertFalse(state.globalShortcutEnabled)
-        XCTAssertEqual(monitor.enabledValues, [false])
-        XCTAssertEqual(monitor.handlerSetCount, 1)
-    }
-
     func testInitialStateUsesStoredDueDateNotificationPreference() {
         userDefaults.set(false, forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey)
         let authService = GoogleAuthService(keychain: keychain)
         let state = makeState(authService: authService)
 
         XCTAssertFalse(state.dueDateNotificationsEnabled)
-    }
-
-    func testChangingGlobalShortcutPersistsPreferenceAndUpdatesMonitor() {
-        let authService = GoogleAuthService(keychain: keychain)
-        let monitor = TestGlobalShortcutMonitor()
-        let state = makeState(authService: authService, shortcutMonitor: monitor)
-
-        state.globalShortcutEnabled = false
-
-        XCTAssertEqual(
-            userDefaults.object(forKey: Constants.UserDefaults.globalShortcutEnabledKey) as? Bool,
-            false
-        )
-        XCTAssertEqual(monitor.enabledValues, [true, false])
     }
 
     func testChangingDueDateNotificationsPersistsPreferenceAndRemovesNotificationsWhenDisabled() async {
@@ -196,16 +168,5 @@ final class AppStateTests: XCTestCase {
         await state.addTask(title: "New Task")
 
         XCTAssertTrue(state.tasks.isEmpty)
-    }
-
-    func testDeinitInvalidatesShortcutMonitor() {
-        let authService = GoogleAuthService(keychain: keychain)
-        let monitor = TestGlobalShortcutMonitor()
-        var state: AppState? = makeState(authService: authService, shortcutMonitor: monitor)
-
-        state = nil
-
-        XCTAssertNil(state)
-        XCTAssertEqual(monitor.invalidateCallCount, 1)
     }
 }
