@@ -2,7 +2,11 @@ import SwiftUI
 
 @main
 struct TaskMenuApp: App {
-    @State private var appState = AppState()
+    @State private var appState: AppState
+
+    init() {
+        _appState = State(initialValue: AppState())
+    }
 
     var body: some Scene {
         MenuBarExtra {
