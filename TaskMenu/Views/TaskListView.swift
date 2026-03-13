@@ -1,11 +1,35 @@
 import SwiftUI
 
+enum TaskRowSection: String {
+    case active
+    case completed
+}
+
+func taskRowSection(for task: TaskItem) -> TaskRowSection {
+    task.isCompleted ? .completed : .active
+}
+
+func taskRowIdentity(for taskID: String, in section: TaskRowSection) -> String {
+    "\(section.rawValue)-\(taskID)"
+}
+
 struct TaskListView: View {
     @Bindable var appState: AppState
     @State private var selectedTask: TaskItem?
     @State private var showCompleted = false
     @State private var refreshRotation: Double = 0
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
+
+    private struct FlattenedTaskEntry: Identifiable {
+        let task: TaskItem
+        let indentLevel: Int
+        let isParentCompleted: Bool
+        let section: TaskRowSection
+
+        var id: String {
+            taskRowIdentity(for: task.id, in: section)
+        }
+    }
 
     private var displayRootTasks: [TaskItem] {
         appState.isSearching ? appState.searchFilteredRootTasks : appState.rootTasks
@@ -143,9 +167,9 @@ struct TaskListView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        let flatIncomplete = flattenedTasks(roots: incompleteRootTasks)
-                        ForEach(flatIncomplete, id: \.task.id) { entry in
-                            activeTaskRow(for: entry.task, indentLevel: entry.indentLevel, isParentCompleted: entry.isParentCompleted, hasChildren: appState.hasSubtasks(entry.task.id), isCollapsed: appState.collapsedTaskIDs.contains(entry.task.id))
+                        let flatIncomplete = flattenedTasks(roots: incompleteRootTasks, section: .active)
+                        ForEach(flatIncomplete) { entry in
+                            taskRow(for: entry)
                         }
 
                         if incompleteRootTasks.count > 1 {
@@ -174,37 +198,36 @@ struct TaskListView: View {
                             .padding(.top, 8)
 
                             if showCompleted || appState.isSearching {
-                                let flatCompleted = flattenedTasks(roots: completedRootTasks)
-                                ForEach(flatCompleted, id: \.task.id) { entry in
-                                    TaskRowView(
-                                        task: entry.task,
-                                        indentLevel: entry.indentLevel,
-                                        isParentCompleted: entry.isParentCompleted,
-                                        hasChildren: appState.hasSubtasks(entry.task.id),
-                                        isCollapsed: appState.collapsedTaskIDs.contains(entry.task.id),
-                                        onToggle: { Task { await appState.toggleTask(entry.task) } },
-                                        onDelete: { Task { await appState.deleteTask(entry.task) } },
-                                        onCollapseToggle: appState.hasSubtasks(entry.task.id) ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(entry.task.id) } } : nil
-                                    )
-                                    .padding(.horizontal, 10)
-                                    .transition(.opacity)
+                                let flatCompleted = flattenedTasks(roots: completedRootTasks, section: .completed)
+                                ForEach(flatCompleted) { entry in
+                                    taskRow(for: entry)
                                 }
                             }
                         }
                     }
                     .padding(.vertical, 4)
-                    .animation(.easeInOut(duration: 0.25), value: appState.tasks.map(\.id))
+                    .animation(
+                        .easeInOut(duration: 0.25),
+                        value: appState.tasks.map { taskRowIdentity(for: $0.id, in: taskRowSection(for: $0)) }
+                    )
                 }
             }
         }
     }
 
     /// Flattens the task tree into a list of (task, indentLevel, isParentCompleted) for rendering.
-    private func flattenedTasks(roots: [TaskItem]) -> [(task: TaskItem, indentLevel: Int, isParentCompleted: Bool)] {
-        var result: [(TaskItem, Int, Bool)] = []
+    private func flattenedTasks(roots: [TaskItem], section: TaskRowSection) -> [FlattenedTaskEntry] {
+        var result: [FlattenedTaskEntry] = []
 
         func walk(_ task: TaskItem, level: Int, parentCompleted: Bool) {
-            result.append((task, level, parentCompleted))
+            result.append(
+                FlattenedTaskEntry(
+                    task: task,
+                    indentLevel: level,
+                    isParentCompleted: parentCompleted,
+                    section: section
+                )
+            )
             let isCollapsed = appState.collapsedTaskIDs.contains(task.id)
             if !isCollapsed {
                 let children = appState.isSearching
@@ -222,13 +245,15 @@ struct TaskListView: View {
         return result
     }
 
-    private func activeTaskRow(for task: TaskItem, indentLevel: Int, isParentCompleted: Bool, hasChildren: Bool, isCollapsed: Bool) -> some View {
-        TaskRowView(
+    private func taskRowBase(for entry: FlattenedTaskEntry, hasChildren: Bool) -> some View {
+        let task = entry.task
+
+        return TaskRowView(
             task: task,
-            indentLevel: indentLevel,
-            isParentCompleted: isParentCompleted,
+            indentLevel: entry.indentLevel,
+            isParentCompleted: entry.isParentCompleted,
             hasChildren: hasChildren,
-            isCollapsed: isCollapsed,
+            isCollapsed: appState.collapsedTaskIDs.contains(task.id),
             onToggle: { Task { await appState.toggleTask(task) } },
             onDelete: { Task { await appState.deleteTask(task) } },
             onCollapseToggle: hasChildren ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(task.id) } } : nil
@@ -239,18 +264,33 @@ struct TaskListView: View {
                 selectedTask = task
             }
         }
-        .transition(.asymmetric(
-            insertion: .move(edge: .top).combined(with: .opacity),
-            removal: .move(edge: .trailing).combined(with: .opacity)
-        ))
-        .onGeometryChange(for: CGFloat.self) { geometry in
-            geometry.size.height
-        } action: { height in
-            activeTaskRowHeights[task.id] = height
-        }
-        .draggable(task.id)
-        .dropDestination(for: String.self) { items, location in
-            handleDrop(of: items, onto: task, location: location)
+    }
+
+    @ViewBuilder
+    private func taskRow(for entry: FlattenedTaskEntry) -> some View {
+        let task = entry.task
+        let hasChildren = appState.hasSubtasks(task.id)
+
+        if entry.section == .active {
+            taskRowBase(for: entry, hasChildren: hasChildren)
+                .id(entry.id)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
+                .onGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.size.height
+                } action: { height in
+                    activeTaskRowHeights[task.id] = height
+                }
+                .draggable(task.id)
+                .dropDestination(for: String.self) { items, location in
+                    handleDrop(of: items, onto: task, location: location)
+                }
+        } else {
+            taskRowBase(for: entry, hasChildren: hasChildren)
+                .id(entry.id)
+                .transition(.opacity)
         }
     }
 
