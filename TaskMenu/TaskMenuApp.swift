@@ -12,7 +12,7 @@ struct TaskMenuApp: App {
         MenuBarExtra {
             MenuBarPopover(appState: appState)
         } label: {
-            Label("TaskMenu", systemImage: "checklist")
+            Label("TaskMenu", image: "MenuBarIcon")
                 .labelStyle(.iconOnly)
         }
         .menuBarExtraStyle(.window)
