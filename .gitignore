@@ -62,3 +62,4 @@ playground.xcworkspace
 *.key
 Secrets/
 Config.xcconfig
+.wrangler/
