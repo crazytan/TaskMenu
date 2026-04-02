@@ -101,6 +101,7 @@ struct TaskListView: View {
                 TextField("Filter tasks…", text: $appState.searchText)
                     .textFieldStyle(.plain)
                     .font(.callout)
+                    .accessibilityIdentifier("search.field")
                 if !appState.searchText.isEmpty {
                     Button {
                         appState.searchText = ""
@@ -207,6 +208,7 @@ struct TaskListView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 14)
                             .padding(.top, 8)
+                            .accessibilityIdentifier("completed.toggle")
 
                             if showCompleted || appState.isSearching {
                                 let flatCompleted = flattenedTasks(roots: completedRootTasks, section: .completed)
@@ -444,6 +446,7 @@ private struct InlineSubtaskField: View {
                 .textFieldStyle(.plain)
                 .font(.body)
                 .focused($isFocused)
+                .accessibilityIdentifier("inline.subtask.field")
                 .onSubmit {
                     let trimmed = title.trimmingCharacters(in: .whitespaces)
                     guard !trimmed.isEmpty else { return }

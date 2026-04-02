@@ -180,7 +180,7 @@ final class AppState {
     }
 
     private let authService: GoogleAuthService
-    private let api: GoogleTasksAPI
+    private let api: any TasksAPIProtocol
     private let userDefaults: UserDefaults
     private let dueDateNotificationService: any DueDateNotificationServicing
 
@@ -191,7 +191,7 @@ final class AppState {
 
     init(
         authService: GoogleAuthService = GoogleAuthService(),
-        api: GoogleTasksAPI? = nil,
+        api: (any TasksAPIProtocol)? = nil,
         userDefaults: UserDefaults = .standard,
         dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService()
     ) {

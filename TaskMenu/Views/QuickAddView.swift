@@ -23,6 +23,7 @@ struct QuickAddView: View {
                 .onSubmit {
                     addTask()
                 }
+                .accessibilityIdentifier("quickadd.field")
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)

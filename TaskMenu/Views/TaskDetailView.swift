@@ -17,6 +17,7 @@ struct TaskDetailView: View {
                         .font(.system(size: 13, weight: .medium))
                 }
                 .buttonStyle(.borderless)
+                .accessibilityIdentifier("detail.back.button")
 
                 Text("Edit Task")
                     .font(.headline)
@@ -29,11 +30,13 @@ struct TaskDetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .accessibilityIdentifier("detail.done.button")
             }
 
             TextField("Title", text: $task.title)
                 .textFieldStyle(.roundedBorder)
                 .font(.body)
+                .accessibilityIdentifier("detail.title.field")
 
             TextField("Notes", text: Binding(
                 get: { task.notes ?? "" },

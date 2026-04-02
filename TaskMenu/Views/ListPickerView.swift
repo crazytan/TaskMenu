@@ -28,6 +28,7 @@ struct ListPickerView: View {
                 }
             }
             .menuStyle(.borderlessButton)
+            .accessibilityIdentifier("list.picker")
         } else {
             Text(appState.selectedList?.title ?? "Tasks")
                 .font(.headline)

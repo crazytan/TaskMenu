@@ -80,6 +80,7 @@ struct TaskRowView: View {
                     .scaleEffect(checkmarkScale)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("task.checkbox.\(task.id)")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
@@ -87,6 +88,7 @@ struct TaskRowView: View {
                     .lineLimit(2)
                     .strikethrough(task.isCompleted)
                     .foregroundStyle(isGrayedOut ? .secondary : .primary)
+                    .accessibilityIdentifier("task.title.\(task.id)")
 
                 if let date = task.dueDate {
                     Label {
@@ -120,6 +122,7 @@ struct TaskRowView: View {
                 .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
         )
         .contentShape(Rectangle())
+        .accessibilityIdentifier("task.row.\(task.id)")
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering

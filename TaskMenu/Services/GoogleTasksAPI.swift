@@ -7,7 +7,7 @@ enum APIError: Error, Sendable {
     case decodingError(Error)
 }
 
-actor GoogleTasksAPI {
+actor GoogleTasksAPI: TasksAPIProtocol {
     private let authService: GoogleAuthService
     private let session: URLSession
     private let baseURL: String
