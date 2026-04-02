@@ -96,6 +96,89 @@ final class AppState {
         }
     }
 
+    /// Whether a root-level task can be indented (made a subtask of the task above it).
+    func canIndentTask(_ task: TaskItem) -> Bool {
+        guard task.parent == nil, !task.isCompleted, !hasSubtasks(task.id) else { return false }
+        let roots = rootTasks.filter { !$0.isCompleted }
+        guard let index = roots.firstIndex(where: { $0.id == task.id }), index > 0 else { return false }
+        return true
+    }
+
+    /// Whether a subtask can be outdented (moved to root level).
+    func canOutdentTask(_ task: TaskItem) -> Bool {
+        task.parent != nil
+    }
+
+    /// Indent a root-level task to become a subtask of the task directly above it.
+    func indentTask(_ task: TaskItem) async {
+        guard let listId = selectedListId else { return }
+        guard canIndentTask(task) else { return }
+
+        let roots = rootTasks.filter { !$0.isCompleted }
+        guard let taskIndex = roots.firstIndex(where: { $0.id == task.id }), taskIndex > 0 else { return }
+        let newParent = roots[taskIndex - 1]
+
+        let originalTasks = tasks
+        if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks.remove(at: idx)
+            updatedTask.parent = newParent.id
+            if let parentIdx = tasks.firstIndex(where: { $0.id == newParent.id }) {
+                let insertIdx = tasks.indices
+                    .suffix(from: parentIdx + 1)
+                    .first(where: { tasks[$0].parent != newParent.id }) ?? tasks.endIndex
+                tasks.insert(updatedTask, at: insertIdx)
+            }
+        }
+
+        do {
+            let movedTask = try await api.moveTask(
+                listId: listId,
+                taskId: task.id,
+                parentId: newParent.id
+            )
+            if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
+                tasks[index] = movedTask
+            }
+        } catch {
+            tasks = originalTasks
+            handleError(error)
+        }
+    }
+
+    /// Outdent a subtask to become a root-level task, placed after its former parent.
+    func outdentTask(_ task: TaskItem) async {
+        guard let listId = selectedListId else { return }
+        guard let parentId = task.parent else { return }
+
+        let originalTasks = tasks
+        if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = tasks.remove(at: idx)
+            updatedTask.parent = nil
+            if let parentIdx = tasks.firstIndex(where: { $0.id == parentId }) {
+                let insertIdx = tasks.indices
+                    .suffix(from: parentIdx + 1)
+                    .first(where: { tasks[$0].parent != parentId }) ?? tasks.endIndex
+                tasks.insert(updatedTask, at: insertIdx)
+            } else {
+                tasks.append(updatedTask)
+            }
+        }
+
+        do {
+            let movedTask = try await api.moveTask(
+                listId: listId,
+                taskId: task.id,
+                previousId: parentId
+            )
+            if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
+                tasks[index] = movedTask
+            }
+        } catch {
+            tasks = originalTasks
+            handleError(error)
+        }
+    }
+
     private let authService: GoogleAuthService
     private let api: GoogleTasksAPI
     private let userDefaults: UserDefaults

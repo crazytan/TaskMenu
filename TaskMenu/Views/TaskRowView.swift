@@ -9,8 +9,10 @@ struct TaskRowView: View {
     let onToggle: () -> Void
     let onDelete: () -> Void
     var onCollapseToggle: (() -> Void)?
+    var onAddSubtask: (() -> Void)?
 
     @State private var isHovering = false
+    @State private var checkmarkScale: CGFloat = 1.0
 
     init(
         task: TaskItem,
@@ -20,7 +22,8 @@ struct TaskRowView: View {
         isCollapsed: Bool = false,
         onToggle: @escaping () -> Void,
         onDelete: @escaping () -> Void,
-        onCollapseToggle: (() -> Void)? = nil
+        onCollapseToggle: (() -> Void)? = nil,
+        onAddSubtask: (() -> Void)? = nil
     ) {
         self.task = task
         self.indentLevel = indentLevel
@@ -30,6 +33,7 @@ struct TaskRowView: View {
         self.onToggle = onToggle
         self.onDelete = onDelete
         self.onCollapseToggle = onCollapseToggle
+        self.onAddSubtask = onAddSubtask
     }
 
     private var isGrayedOut: Bool {
@@ -55,11 +59,25 @@ struct TaskRowView: View {
                     .frame(width: 12)
             }
 
-            Button(action: onToggle) {
+            Button {
+                if !task.isCompleted {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) {
+                        checkmarkScale = 1.2
+                    }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(200))
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                            checkmarkScale = 1.0
+                        }
+                    }
+                }
+                onToggle()
+            } label: {
                 Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(task.isCompleted ? .green : .secondary)
                     .font(.system(size: 18, weight: .light))
                     .contentTransition(.symbolEffect(.replace))
+                    .scaleEffect(checkmarkScale)
             }
             .buttonStyle(.plain)
 
@@ -82,23 +100,29 @@ struct TaskRowView: View {
             }
 
             Spacer()
+
+            if let onAddSubtask {
+                Button(action: onAddSubtask) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovering ? 1 : 0)
+            }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 4)
         .padding(.leading, CGFloat(indentLevel) * 20)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isHovering ? Color.primary.opacity(0.05) : .clear)
+                .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
         )
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering
-            }
-        }
-        .contextMenu {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
             }
         }
     }

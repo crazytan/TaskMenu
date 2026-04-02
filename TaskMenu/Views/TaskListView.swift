@@ -19,6 +19,7 @@ struct TaskListView: View {
     @State private var showCompleted = false
     @State private var refreshRotation: Double = 0
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
+    @State private var inlineSubtaskParentID: String?
 
     private struct FlattenedTaskEntry: Identifiable {
         let task: TaskItem
@@ -170,6 +171,16 @@ struct TaskListView: View {
                         let flatIncomplete = flattenedTasks(roots: incompleteRootTasks, section: .active)
                         ForEach(flatIncomplete) { entry in
                             taskRow(for: entry)
+
+                            if shouldShowInlineSubtaskField(after: entry, in: flatIncomplete) {
+                                InlineSubtaskField(
+                                    parentId: inlineSubtaskParentID!,
+                                    indentLevel: 1,
+                                    appState: appState,
+                                    onDismiss: { inlineSubtaskParentID = nil }
+                                )
+                                .padding(.horizontal, 10)
+                            }
                         }
 
                         if incompleteRootTasks.count > 1 {
@@ -245,6 +256,15 @@ struct TaskListView: View {
         return result
     }
 
+    private func triggerInlineSubtask(for task: TaskItem) {
+        if appState.collapsedTaskIDs.contains(task.id) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appState.toggleCollapsed(task.id)
+            }
+        }
+        inlineSubtaskParentID = task.id
+    }
+
     private func taskRowBase(for entry: FlattenedTaskEntry, hasChildren: Bool) -> some View {
         let task = entry.task
 
@@ -256,12 +276,46 @@ struct TaskListView: View {
             isCollapsed: appState.collapsedTaskIDs.contains(task.id),
             onToggle: { Task { await appState.toggleTask(task) } },
             onDelete: { Task { await appState.deleteTask(task) } },
-            onCollapseToggle: hasChildren ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(task.id) } } : nil
+            onCollapseToggle: hasChildren ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(task.id) } } : nil,
+            onAddSubtask: task.parent == nil && !task.isCompleted ? { triggerInlineSubtask(for: task) } : nil
         )
         .padding(.horizontal, 10)
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedTask = task
+            }
+        }
+        .contextMenu {
+            if task.parent == nil && !task.isCompleted {
+                Button {
+                    triggerInlineSubtask(for: task)
+                } label: {
+                    Label("Add Subtask", systemImage: "text.badge.plus")
+                }
+            }
+
+            if appState.canIndentTask(task) {
+                Button {
+                    Task { await appState.indentTask(task) }
+                } label: {
+                    Label("Make Subtask", systemImage: "arrow.right")
+                }
+            }
+
+            if appState.canOutdentTask(task) {
+                Button {
+                    Task { await appState.outdentTask(task) }
+                } label: {
+                    Label("Move to Top Level", systemImage: "arrow.left")
+                }
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                Task { await appState.deleteTask(task) }
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }
@@ -331,6 +385,28 @@ struct TaskListView: View {
         return true
     }
 
+    private func shouldShowInlineSubtaskField(after entry: FlattenedTaskEntry, in entries: [FlattenedTaskEntry]) -> Bool {
+        guard let parentID = inlineSubtaskParentID else { return false }
+        guard !appState.isSearching else { return false }
+        guard entry.section == .active else { return false }
+
+        if entry.task.id == parentID {
+            if !appState.hasSubtasks(parentID) || appState.collapsedTaskIDs.contains(parentID) {
+                return true
+            }
+        }
+
+        if entry.task.parent == parentID {
+            guard let entryIndex = entries.firstIndex(where: { $0.task.id == entry.task.id }) else { return false }
+            let nextIndex = entryIndex + 1
+            if nextIndex >= entries.count || entries[nextIndex].task.parent != parentID {
+                return true
+            }
+        }
+
+        return false
+    }
+
     private func startSpinning() {
         // Continuously add 360° rotations while loading
         func spin() {
@@ -343,5 +419,54 @@ struct TaskListView: View {
             }
         }
         spin()
+    }
+}
+
+private struct InlineSubtaskField: View {
+    let parentId: String
+    let indentLevel: Int
+    let appState: AppState
+    let onDismiss: () -> Void
+
+    @State private var title = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Spacer()
+                .frame(width: 12)
+
+            Image(systemName: "plus.circle")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 16))
+
+            TextField("Add subtask…", text: $title)
+                .textFieldStyle(.plain)
+                .font(.body)
+                .focused($isFocused)
+                .onSubmit {
+                    let trimmed = title.trimmingCharacters(in: .whitespaces)
+                    guard !trimmed.isEmpty else { return }
+                    let taskTitle = trimmed
+                    title = ""
+                    Task { await appState.addSubtask(title: taskTitle, parentId: parentId) }
+                }
+                .onExitCommand {
+                    onDismiss()
+                }
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 4)
+        .padding(.leading, CGFloat(indentLevel) * 20)
+        .onAppear {
+            isFocused = true
+        }
+        .onChange(of: isFocused) { _, focused in
+            if !focused {
+                onDismiss()
+            }
+        }
     }
 }
