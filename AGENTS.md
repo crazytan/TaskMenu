@@ -66,7 +66,7 @@ xcodegen generate
 # Build
 xcodebuild -scheme TaskMenu -configuration Debug build
 
-# Run tests (23 unit tests)
+# Run tests
 xcodebuild -scheme TaskMenu -configuration Debug test
 ```
 
@@ -106,6 +106,12 @@ xcodebuild -scheme TaskMenu -configuration Debug test
 - **System icons:** Use SF Symbols — no custom image assets for UI icons.
 - **Menu bar only:** The app has no main window (`LSUIElement = YES`). All UI is in the MenuBarExtra popover.
 - **Commit discipline:** Each commit should be a logical unit of work with a descriptive message.
+
+## Git Workflow
+
+- **Default workflow:** Commit and push directly to `main` when working in the primary checkout.
+- **No separate PR/branch by default:** Do not create feature branches or pull requests unless explicitly requested.
+- **Worktree exception:** When working from a git worktree, use a separate branch for that worktree. Open a PR only if that worktree-based flow needs one.
 
 ## Testing Guidelines
 
