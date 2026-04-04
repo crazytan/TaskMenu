@@ -74,6 +74,15 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertNil(auth.tokenExpiration)
     }
 
+    func testLoadTokensClearsAllOnKeychainError() {
+        let failingKeychain = FailingKeychainService()
+        let auth = GoogleAuthService(keychain: failingKeychain)
+        XCTAssertNil(auth.accessToken)
+        XCTAssertNil(auth.refreshToken)
+        XCTAssertNil(auth.tokenExpiration)
+        XCTAssertFalse(auth.isSignedIn)
+    }
+
     // MARK: - Sign Out
 
     func testSignOutClearsTokens() throws {

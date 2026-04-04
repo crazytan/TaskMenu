@@ -43,6 +43,7 @@
 		E53F1F56DBC73CF159E93516 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7270F80F12239828D873B133 /* SignInView.swift */; };
 		E54169E513191306010635A7 /* AppIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */; };
 		E7D0145136EE024CB87D7963 /* TaskListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612D4C039654B488ADC17151 /* TaskListView.swift */; };
+		F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */; };
 		FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3614C7335BB0200D28F074 /* AppStateTests.swift */; };
 		FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
@@ -72,6 +73,7 @@
 		5AF69FFA11009E78484C090A /* TaskMenuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuApp.swift; sourceTree = "<group>"; };
 		5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		612D4C039654B488ADC17151 /* TaskListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListView.swift; sourceTree = "<group>"; };
+		62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailViewTests.swift; sourceTree = "<group>"; };
 		633899C51990EF71D24F5C89 /* TaskList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskList.swift; sourceTree = "<group>"; };
 		63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
 				BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */,
 				4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */,
+				62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */,
 				6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */,
 				A2191A69341B04C760925B55 /* TaskListViewTests.swift */,
 				9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */,
@@ -275,12 +278,11 @@
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					2499498786EF41DCFC6BE7F6 = {
-						DevelopmentTeam = ZW5U6862Q8;
-						ProvisioningStyle = Manual;
+						DevelopmentTeam = V82M9YX8BR;
 					};
 					54F3465CB5E85F801680719A = {
-						DevelopmentTeam = ZW5U6862Q8;
-						ProvisioningStyle = Manual;
+						DevelopmentTeam = V82M9YX8BR;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -360,6 +362,7 @@
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,
 				D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */,
 				8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */,
+				F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */,
 				0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */,
 				B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */,
 				44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */,
@@ -383,16 +386,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.taskmenu.TaskMenu;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu;
 				PRODUCT_NAME = TaskMenu;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -478,7 +485,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.taskmenu.TaskMenuTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenuTests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TaskMenu.app/Contents/MacOS/TaskMenu";
 			};
@@ -552,16 +559,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.taskmenu.TaskMenu;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu;
 				PRODUCT_NAME = TaskMenu;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -577,7 +588,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.taskmenu.TaskMenuTests;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenuTests;
 				SDKROOT = macosx;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TaskMenu.app/Contents/MacOS/TaskMenu";
 			};

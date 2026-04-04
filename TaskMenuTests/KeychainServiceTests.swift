@@ -60,7 +60,7 @@ final class KeychainServiceTests: XCTestCase {
 
     func testProductionKeychainUsesInMemoryStoreUnderXCTest() throws {
         let keychain = KeychainService(
-            service: "com.taskmenu.test.production.\(UUID().uuidString)",
+            service: "dev.crazytan.TaskMenu.test.production.\(UUID().uuidString)",
             environment: testEnvironment
         )
 
@@ -71,11 +71,11 @@ final class KeychainServiceTests: XCTestCase {
 
     func testProductionKeychainInMemoryStoreIsScopedByService() throws {
         let keychainA = KeychainService(
-            service: "com.taskmenu.test.production.a.\(UUID().uuidString)",
+            service: "dev.crazytan.TaskMenu.test.production.a.\(UUID().uuidString)",
             environment: testEnvironment
         )
         let keychainB = KeychainService(
-            service: "com.taskmenu.test.production.b.\(UUID().uuidString)",
+            service: "dev.crazytan.TaskMenu.test.production.b.\(UUID().uuidString)",
             environment: testEnvironment
         )
 

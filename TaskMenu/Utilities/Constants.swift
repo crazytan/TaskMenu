@@ -20,7 +20,7 @@ enum Constants {
     static let redirectHost = "127.0.0.1"
 
     enum Keychain {
-        static let service = "com.taskmenu.oauth"
+        static let service = "dev.crazytan.TaskMenu.oauth"
         static let accessTokenKey = "access_token"
         static let refreshTokenKey = "refresh_token"
         static let expirationKey = "token_expiration"
@@ -31,6 +31,6 @@ enum Constants {
     }
 
     enum Notifications {
-        static let dueDateIdentifierPrefix = "com.taskmenu.dueDate"
+        static let dueDateIdentifierPrefix = "dev.crazytan.TaskMenu.dueDate"
     }
 }

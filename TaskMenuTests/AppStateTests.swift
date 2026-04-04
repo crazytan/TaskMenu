@@ -10,7 +10,7 @@ final class AppStateTests: XCTestCase {
 
     override func setUp() async throws {
         keychain = InMemoryKeychainService()
-        userDefaultsSuiteName = "com.taskmenu.tests.appstate.\(UUID().uuidString)"
+        userDefaultsSuiteName = "dev.crazytan.TaskMenu.tests.appstate.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
         dueDateNotificationService = TestDueDateNotificationService()

@@ -1,6 +1,33 @@
 @testable import TaskMenu
 import Foundation
 
+/// Keychain stub that always throws — for testing error-handling paths.
+final class FailingKeychainService: KeychainServiceProtocol, @unchecked Sendable {
+    func save(key: String, data: Data) throws {
+        throw KeychainError.saveFailed(-1)
+    }
+
+    func save(key: String, string: String) throws {
+        throw KeychainError.saveFailed(-1)
+    }
+
+    func read(key: String) throws -> Data? {
+        throw KeychainError.readFailed(-1)
+    }
+
+    func readString(key: String) throws -> String? {
+        throw KeychainError.readFailed(-1)
+    }
+
+    func delete(key: String) throws {
+        throw KeychainError.deleteFailed(-1)
+    }
+
+    func deleteAll() throws {
+        throw KeychainError.deleteFailed(-1)
+    }
+}
+
 /// In-memory keychain replacement for tests — avoids macOS Keychain prompts.
 final class InMemoryKeychainService: KeychainServiceProtocol, @unchecked Sendable {
     private var storage: [String: Data] = [:]

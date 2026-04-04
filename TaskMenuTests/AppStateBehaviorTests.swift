@@ -16,7 +16,7 @@ final class AppStateBehaviorTests: XCTestCase {
         MockURLProtocol.reset()
 
         keychain = InMemoryKeychainService()
-        userDefaultsSuiteName = "com.taskmenu.tests.appstate.behavior.\(UUID().uuidString)"
+        userDefaultsSuiteName = "dev.crazytan.TaskMenu.tests.appstate.behavior.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
         userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
         dueDateNotificationService = TestDueDateNotificationService()

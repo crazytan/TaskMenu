@@ -1,6 +1,9 @@
 import AuthenticationServices
 import CryptoKit
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TaskMenu", category: "Auth")
 
 @MainActor
 final class GoogleAuthService: Sendable {
@@ -138,22 +141,32 @@ final class GoogleAuthService: Sendable {
     }
 
     private func saveTokens() {
-        try? keychain.save(key: Constants.Keychain.accessTokenKey, string: accessToken ?? "")
-        if let refreshToken {
-            try? keychain.save(key: Constants.Keychain.refreshTokenKey, string: refreshToken)
-        }
-        if let expiration = tokenExpiration {
-            let data = String(expiration.timeIntervalSince1970)
-            try? keychain.save(key: Constants.Keychain.expirationKey, string: data)
+        do {
+            try keychain.save(key: Constants.Keychain.accessTokenKey, string: accessToken ?? "")
+            if let refreshToken {
+                try keychain.save(key: Constants.Keychain.refreshTokenKey, string: refreshToken)
+            }
+            if let expiration = tokenExpiration {
+                try keychain.save(key: Constants.Keychain.expirationKey, string: String(expiration.timeIntervalSince1970))
+            }
+        } catch {
+            logger.error("Failed to save tokens to keychain: \(error.localizedDescription)")
         }
     }
 
     private func loadTokens() {
-        accessToken = try? keychain.readString(key: Constants.Keychain.accessTokenKey)
-        refreshToken = try? keychain.readString(key: Constants.Keychain.refreshTokenKey)
-        if let expStr = try? keychain.readString(key: Constants.Keychain.expirationKey),
-           let interval = Double(expStr) {
-            tokenExpiration = Date(timeIntervalSince1970: interval)
+        do {
+            accessToken = try keychain.readString(key: Constants.Keychain.accessTokenKey)
+            refreshToken = try keychain.readString(key: Constants.Keychain.refreshTokenKey)
+            if let expStr = try keychain.readString(key: Constants.Keychain.expirationKey),
+               let interval = Double(expStr) {
+                tokenExpiration = Date(timeIntervalSince1970: interval)
+            }
+        } catch {
+            logger.error("Failed to load tokens from keychain: \(error.localizedDescription)")
+            accessToken = nil
+            refreshToken = nil
+            tokenExpiration = nil
         }
     }
 
