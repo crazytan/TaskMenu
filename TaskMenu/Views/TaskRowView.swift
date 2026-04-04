@@ -89,6 +89,14 @@ struct TaskRowView: View {
                     .scaleEffect(checkmarkScale)
             }
             .buttonStyle(.plain)
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .help(task.isCompleted ? "Mark as incomplete" : "Mark as complete")
             .accessibilityIdentifier("task.checkbox.\(task.id)")
 
             VStack(alignment: .leading, spacing: 2) {
@@ -120,7 +128,19 @@ struct TaskRowView: View {
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
+                .help("Add subtask")
                 .opacity(isHovering ? 1 : 0)
+            }
+
+            if isHovering && !task.isCompleted {
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .help("Delete task")
             }
         }
         .padding(.vertical, TaskRowLayout.verticalPadding)
