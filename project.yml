@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: com.taskmenu
   deploymentTarget:
     macOS: "14.0"
-  xcodeVersion: "16.0"
+  xcodeVersion: "26.4"
   generateEmptyDirectories: true
 
 configFiles:
@@ -12,9 +12,17 @@ configFiles:
 
 settings:
   base:
+    CURRENT_PROJECT_VERSION: "1"
+    DEAD_CODE_STRIPPING: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
     SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+  configs:
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-Osize"
 
 targets:
   TaskMenu:
@@ -27,12 +35,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.taskmenu.TaskMenu
         INFOPLIST_FILE: TaskMenu/Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: TaskMenu/Resources/TaskMenu.entitlements
+        ENABLE_APP_SANDBOX: YES
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         COMBINE_HIDPI_IMAGES: YES
-        CODE_SIGN_IDENTITY: "47081BEFF0F575643E99369B44CBAC87BBCC85E6" # Apple Development: Jia Tan
-        CODE_SIGN_STYLE: Manual
-        DEVELOPMENT_TEAM: ZW5U6862Q8
         PRODUCT_NAME: TaskMenu
     entitlements:
       path: TaskMenu/Resources/TaskMenu.entitlements
@@ -49,6 +55,3 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TaskMenu.app/Contents/MacOS/TaskMenu"
-        CODE_SIGN_IDENTITY: "47081BEFF0F575643E99369B44CBAC87BBCC85E6" # Apple Development: Jia Tan
-        CODE_SIGN_STYLE: Manual
-        DEVELOPMENT_TEAM: ZW5U6862Q8
