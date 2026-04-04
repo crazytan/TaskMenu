@@ -1,11 +1,54 @@
 import SwiftUI
 
+struct TaskDetailDueDateState {
+    var isEnabled: Bool
+    var selection: Date
+
+    init(task: TaskItem, defaultDate: @autoclosure () -> Date = Date()) {
+        if let dueDate = task.dueDate {
+            isEnabled = true
+            selection = dueDate
+        } else {
+            isEnabled = false
+            selection = defaultDate()
+        }
+    }
+
+    mutating func enable(defaultDate: @autoclosure () -> Date = Date()) {
+        guard !isEnabled else { return }
+        isEnabled = true
+        selection = defaultDate()
+    }
+
+    mutating func clear() {
+        isEnabled = false
+    }
+
+    func applying(to task: TaskItem) -> TaskItem {
+        var updatedTask = task
+        if isEnabled {
+            updatedTask.dueDate = selection
+        } else {
+            updatedTask.clearDueDate()
+        }
+        return updatedTask
+    }
+}
+
 struct TaskDetailView: View {
     @Bindable var appState: AppState
     @State var task: TaskItem
     var onDismiss: () -> Void
     @State private var subtaskTitle = ""
+    @State private var dueDateState: TaskDetailDueDateState
     @FocusState private var isSubtaskFieldFocused: Bool
+
+    init(appState: AppState, task: TaskItem, onDismiss: @escaping () -> Void) {
+        self.appState = appState
+        self.onDismiss = onDismiss
+        _task = State(initialValue: task)
+        _dueDateState = State(initialValue: TaskDetailDueDateState(task: task))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -23,8 +66,9 @@ struct TaskDetailView: View {
                     .font(.headline)
                 Spacer()
                 Button("Done") {
+                    let updatedTask = dueDateState.applying(to: task)
                     Task {
-                        await appState.updateTask(task)
+                        await appState.updateTask(updatedTask)
                         onDismiss()
                     }
                 }
@@ -46,16 +90,27 @@ struct TaskDetailView: View {
             .font(.callout)
             .lineLimit(3...6)
 
-            DatePicker(
-                "Due date",
-                selection: Binding(
-                    get: { task.dueDate ?? Date() },
-                    set: { task.dueDate = $0 }
-                ),
-                displayedComponents: .date
-            )
-            .datePickerStyle(.stepperField)
-            .controlSize(.small)
+            HStack {
+                Text("Due date")
+                    .font(.callout)
+                Spacer()
+                if dueDateState.isEnabled {
+                    DatePicker(
+                        "",
+                        selection: $dueDateState.selection,
+                        displayedComponents: .date
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.stepperField)
+                    .controlSize(.small)
+                } else {
+                    Button("Add due date") {
+                        dueDateState.enable()
+                    }
+                    .font(.caption)
+                    .controlSize(.small)
+                }
+            }
 
             // Subtasks section
             if task.parent == nil {
@@ -97,9 +152,9 @@ struct TaskDetailView: View {
             Divider()
 
             HStack {
-                if task.dueDate != nil {
+                if dueDateState.isEnabled {
                     Button("Clear due date") {
-                        task.due = nil
+                        dueDateState.clear()
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)

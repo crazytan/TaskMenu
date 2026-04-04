@@ -30,6 +30,15 @@ struct TaskItem: Codable, Identifiable, Sendable {
             due = newValue.map { DateFormatting.formatRFC3339($0) }
         }
     }
+
+    mutating func enableDueDate(defaultDate: Date = Date()) {
+        guard dueDate == nil else { return }
+        dueDate = defaultDate
+    }
+
+    mutating func clearDueDate() {
+        dueDate = nil
+    }
 }
 
 struct TaskItemList: Codable, Sendable {

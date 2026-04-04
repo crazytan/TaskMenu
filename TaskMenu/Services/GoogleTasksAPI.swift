@@ -64,7 +64,7 @@ actor GoogleTasksAPI: TasksAPIProtocol {
     }
 
     func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem {
-        let body = try JSONEncoder().encode(task)
+        let body = try makeTaskUpdateBody(for: task)
         let data = try await request(path: "/lists/\(listId)/tasks/\(taskId)", method: "PATCH", body: body)
         return try decode(TaskItem.self, from: data)
     }
@@ -135,5 +135,16 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         } catch {
             throw APIError.decodingError(error)
         }
+    }
+
+    private func makeTaskUpdateBody(for task: TaskItem) throws -> Data {
+        let body: [String: Any] = [
+            "title": task.title,
+            "status": task.status.rawValue,
+            "notes": task.notes ?? NSNull(),
+            "due": task.due ?? NSNull(),
+        ]
+
+        return try JSONSerialization.data(withJSONObject: body)
     }
 }

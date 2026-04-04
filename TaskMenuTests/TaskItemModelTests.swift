@@ -184,6 +184,41 @@ final class TaskItemModelTests: XCTestCase {
         XCTAssertNil(task.notes)
     }
 
+    // MARK: - Due Date Editing Helpers
+
+    func testEnableDueDateSetsDefaultWhenMissing() {
+        var task = TaskItem(id: "t1", title: "Test", notes: nil, status: .needsAction, due: nil, selfLink: nil, parent: nil, position: nil, updated: nil)
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        let expectedDue = DateFormatting.formatRFC3339(date)
+
+        task.enableDueDate(defaultDate: date)
+
+        XCTAssertEqual(task.due, expectedDue)
+        XCTAssertEqual(task.dueDate, DateFormatting.parseRFC3339(expectedDue))
+    }
+
+    func testEnableDueDatePreservesExistingDueDate() {
+        let originalDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let replacementDate = Date(timeIntervalSince1970: 1_900_000_000)
+        var task = TaskItem(id: "t1", title: "Test", notes: nil, status: .needsAction, due: nil, selfLink: nil, parent: nil, position: nil, updated: nil)
+        task.dueDate = originalDate
+        let originalDue = task.due
+
+        task.enableDueDate(defaultDate: replacementDate)
+
+        XCTAssertEqual(task.due, originalDue)
+    }
+
+    func testClearDueDateRemovesDueDate() {
+        var task = TaskItem(id: "t1", title: "Test", notes: nil, status: .needsAction, due: nil, selfLink: nil, parent: nil, position: nil, updated: nil)
+        task.dueDate = Date(timeIntervalSince1970: 1_800_000_000)
+
+        task.clearDueDate()
+
+        XCTAssertNil(task.dueDate)
+        XCTAssertNil(task.due)
+    }
+
     // MARK: - Identifiable Conformance
 
     func testIdentifiableUsesIdProperty() {

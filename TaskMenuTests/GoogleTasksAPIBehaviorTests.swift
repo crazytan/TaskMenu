@@ -6,6 +6,7 @@ import XCTest
 /// Uses MockURLProtocol.requestLog to inspect requests (avoids captured var issues with Swift 6 concurrency).
 @MainActor
 final class GoogleTasksAPIBehaviorTests: XCTestCase {
+    nonisolated(unsafe) private static var capturedRequestBody: Data?
     private var keychain: InMemoryKeychainService!
     private var api: GoogleTasksAPI!
 
@@ -281,6 +282,38 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         XCTAssertTrue(result.isCompleted)
     }
 
+    func testUpdateTaskSendsNullForClearedDueAndNotes() async throws {
+        Self.capturedRequestBody = nil
+        MockURLProtocol.requestHandler = { request in
+            Self.capturedRequestBody = requestBodyData(from: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"id":"t1","title":"Updated","status":"needsAction"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let task = TaskItem(
+            id: "t1",
+            title: "Updated",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: nil,
+            updated: nil
+        )
+
+        _ = try await api.updateTask(listId: "list1", taskId: "t1", task: task)
+
+        let bodyData = try XCTUnwrap(Self.capturedRequestBody)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: bodyData) as? [String: Any])
+
+        XCTAssertEqual(body["title"] as? String, "Updated")
+        XCTAssertEqual(body["status"] as? String, "needsAction")
+        XCTAssertTrue(body["notes"] is NSNull)
+        XCTAssertTrue(body["due"] is NSNull)
+    }
+
     // MARK: - listTaskLists
 
     func testListTaskListsReturnsLists() async throws {
@@ -328,4 +361,28 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         XCTAssertTrue(url.contains("parent=parent1"))
         XCTAssertEqual(result.id, "t1")
     }
+}
+
+private func requestBodyData(from request: URLRequest) -> Data? {
+    if let body = request.httpBody {
+        return body
+    }
+
+    guard let stream = request.httpBodyStream else {
+        return nil
+    }
+
+    stream.open()
+    defer { stream.close() }
+
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 1024)
+
+    while stream.hasBytesAvailable {
+        let bytesRead = stream.read(&buffer, maxLength: buffer.count)
+        guard bytesRead > 0 else { break }
+        data.append(buffer, count: bytesRead)
+    }
+
+    return data
 }
