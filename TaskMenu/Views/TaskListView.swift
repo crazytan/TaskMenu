@@ -180,7 +180,8 @@ struct TaskListView: View {
                                     appState: appState,
                                     onDismiss: { inlineSubtaskParentID = nil }
                                 )
-                                .padding(.horizontal, 10)
+                                .padding(.leading, 4)
+                                .padding(.trailing, 10)
                             }
                         }
 
@@ -281,7 +282,8 @@ struct TaskListView: View {
             onCollapseToggle: hasChildren ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(task.id) } } : nil,
             onAddSubtask: task.parent == nil && !task.isCompleted ? { triggerInlineSubtask(for: task) } : nil
         )
-        .padding(.horizontal, 10)
+        .padding(.leading, 4)
+        .padding(.trailing, 10)
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedTask = task
@@ -434,9 +436,9 @@ private struct InlineSubtaskField: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Spacer()
-                .frame(width: 12)
+                .frame(width: 10)
 
             Image(systemName: "plus.circle")
                 .foregroundStyle(.secondary)
@@ -461,7 +463,8 @@ private struct InlineSubtaskField: View {
             Spacer()
         }
         .padding(.vertical, 6)
-        .padding(.horizontal, 4)
+        .padding(.leading, 2)
+        .padding(.trailing, 4)
         .padding(.leading, CGFloat(indentLevel) * 20)
         .onAppear {
             isFocused = true

@@ -1,5 +1,14 @@
 import SwiftUI
 
+private enum TaskRowLayout {
+    static let spacing: CGFloat = 8
+    static let disclosureWidth: CGFloat = 10
+    static let verticalPadding: CGFloat = 6
+    static let leadingPadding: CGFloat = 2
+    static let trailingPadding: CGFloat = 4
+    static let indentWidth: CGFloat = 20
+}
+
 struct TaskRowView: View {
     let task: TaskItem
     let indentLevel: Int
@@ -41,7 +50,7 @@ struct TaskRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: TaskRowLayout.spacing) {
             if hasChildren {
                 Button {
                     onCollapseToggle?()
@@ -53,10 +62,10 @@ struct TaskRowView: View {
                         .animation(.easeInOut(duration: 0.15), value: isCollapsed)
                 }
                 .buttonStyle(.plain)
-                .frame(width: 12)
+                .frame(width: TaskRowLayout.disclosureWidth)
             } else {
                 Spacer()
-                    .frame(width: 12)
+                    .frame(width: TaskRowLayout.disclosureWidth)
             }
 
             Button {
@@ -114,9 +123,10 @@ struct TaskRowView: View {
                 .opacity(isHovering ? 1 : 0)
             }
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 4)
-        .padding(.leading, CGFloat(indentLevel) * 20)
+        .padding(.vertical, TaskRowLayout.verticalPadding)
+        .padding(.leading, TaskRowLayout.leadingPadding)
+        .padding(.trailing, TaskRowLayout.trailingPadding)
+        .padding(.leading, CGFloat(indentLevel) * TaskRowLayout.indentWidth)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
