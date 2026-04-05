@@ -17,7 +17,6 @@ struct TaskListView: View {
     @Bindable var appState: AppState
     @State private var selectedTask: TaskItem?
     @State private var showCompleted = false
-    @State private var refreshRotation: Double = 0
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
     @State private var inlineSubtaskParentID: String?
 
@@ -68,21 +67,19 @@ struct TaskListView: View {
             HStack {
                 ListPickerView(appState: appState)
                 Spacer()
-                Button {
-                    Task { await appState.refreshTasks() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 13, weight: .medium))
-                        .rotationEffect(.degrees(refreshRotation))
-                        .onChange(of: appState.isLoading) { _, isLoading in
-                            if isLoading {
-                                startSpinning()
-                            }
-                        }
+                if appState.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Button {
+                        Task { await appState.refreshTasks() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .disabled(appState.isLoading)
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
@@ -411,19 +408,6 @@ struct TaskListView: View {
         return false
     }
 
-    private func startSpinning() {
-        // Continuously add 360° rotations while loading
-        func spin() {
-            guard appState.isLoading else { return }
-            withAnimation(.linear(duration: 1)) {
-                refreshRotation += 360
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                spin()
-            }
-        }
-        spin()
-    }
 }
 
 private struct InlineSubtaskField: View {
