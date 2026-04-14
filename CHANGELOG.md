@@ -1,16 +1,17 @@
 # Changelog
 
+## TODO
+
+- right click menu on app icon
+- macOS widgets (WidgetKit)
+- Global keyboard shortcut (Cmd+Shift+T)
+- Multiple Google accounts
+
 ## Unreleased
 
 ### Fixed
 - Removed the unstable global keyboard shortcut implementation that interfered with the menu bar window opening
 - Removed the shortcut toggle and private AppKit menu bar click simulation, restoring default `MenuBarExtra` behavior
-
-## TODO
-
-- macOS widgets (WidgetKit)
-- Global keyboard shortcut (Cmd+Shift+T)
-- Multiple Google accounts
 
 ## v0.1.0 (2026-03-08)
 
