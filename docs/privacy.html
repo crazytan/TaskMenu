@@ -17,7 +17,7 @@
 </head>
 <body>
     <h1>TaskMenu Privacy Policy</h1>
-    <p class="updated"><strong>Last updated:</strong> March 10, 2026</p>
+    <p class="updated"><strong>Last updated:</strong> April 20, 2026</p>
     <p>TaskMenu is a free, open-source macOS menu bar app for managing Google Tasks. Your privacy matters — here's how TaskMenu handles your data.</p>
 
     <h2>What TaskMenu accesses</h2>
@@ -27,7 +27,19 @@
     <p>All data stays on your device:</p>
     <ul>
         <li><strong>OAuth tokens</strong> are stored in the macOS Keychain, protected by your system's security.</li>
-        <li><strong>Task data</strong> is fetched from Google on demand and displayed in the app. It is not cached or stored separately on disk.</li>
+        <li><strong>Task data</strong> is fetched from Google on demand and displayed in the app. It is not stored in a separate local database or on TaskMenu-operated servers.</li>
+        <li><strong>Due date notifications</strong> are optional. If you enable them, macOS may temporarily store notification content locally so reminders can be displayed.</li>
+    </ul>
+
+    <h2>Data retention and deletion</h2>
+    <p>TaskMenu retains the minimum Google user data needed to provide its functionality:</p>
+    <ul>
+        <li><strong>OAuth tokens</strong> are retained in the macOS Keychain until you sign out of TaskMenu or revoke TaskMenu's access from your Google Account.</li>
+        <li><strong>Task and task list data</strong> is kept in memory while the app is running so the interface and optional due date notifications can work. TaskMenu does not keep a separate server-side copy of your Google Tasks data.</li>
+        <li>When you <strong>sign out of TaskMenu</strong>, the app deletes its stored OAuth tokens from the macOS Keychain, clears in-memory task data, and removes pending or delivered local notifications created by the app.</li>
+        <li>When you <strong>delete or modify tasks in TaskMenu</strong>, those changes are sent to Google Tasks and reflected in your Google account.</li>
+        <li><strong>Uninstalling TaskMenu</strong> does not automatically delete tasks from your Google account. Your tasks remain in Google Tasks until you delete them through TaskMenu, Google Tasks, or another Google client.</li>
+        <li>You can stop TaskMenu from accessing your Google data at any time by signing out of the app or revoking access at your <a href="https://myaccount.google.com/permissions">Google Account permissions page</a>.</li>
     </ul>
 
     <h2>What TaskMenu does NOT do</h2>
