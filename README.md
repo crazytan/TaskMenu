@@ -4,6 +4,12 @@
 
 TaskMenu brings Google Tasks to the macOS menu bar with a fast, native SwiftUI interface. It stays out of the Dock, lives entirely in the menu bar, and keeps everyday task management close at hand.
 
+## Links
+
+- Website: https://taskmenu.crazytan.dev/
+- Privacy Policy: https://taskmenu.crazytan.dev/privacy
+- Support: https://github.com/crazytan/TaskMenu/issues
+
 ## Features
 
 - Menu bar-first macOS app with no Dock icon or main window

@@ -6,6 +6,12 @@ TaskMenu is a lightweight, native macOS menu bar application for quick access to
 
 **Current status:** Phase 1 MVP complete (v1.0.0). Phase 2 features (widgets, notifications, multiple accounts) are planned but not yet started.
 
+## Public Links
+
+- Website / Marketing URL: https://taskmenu.crazytan.dev/
+- Privacy Policy URL: https://taskmenu.crazytan.dev/privacy
+- Support URL: https://github.com/crazytan/TaskMenu/issues
+
 ## Tech Stack
 
 - **Language:** Swift 6 with strict concurrency (`SWIFT_STRICT_CONCURRENCY: complete`)
