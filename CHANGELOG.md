@@ -13,7 +13,7 @@
 - Removed the unstable global keyboard shortcut implementation that interfered with the menu bar window opening
 - Removed the shortcut toggle and private AppKit menu bar click simulation, restoring default `MenuBarExtra` behavior
 
-## v0.1.0 (2026-03-08)
+## v1.0.0 (2026-03-08)
 
 Initial release — menu bar app for Google Tasks.
 

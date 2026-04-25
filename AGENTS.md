@@ -4,7 +4,7 @@
 
 TaskMenu is a lightweight, native macOS menu bar application for quick access to Google Tasks. It is a free and open-source (GPLv3) SwiftUI app targeting macOS 14+ (Sonoma). The app lives entirely in the menu bar (no dock icon, no main window).
 
-**Current status:** Phase 1 MVP complete (v0.1.0). Phase 2 features (widgets, notifications, multiple accounts) are planned but not yet started.
+**Current status:** Phase 1 MVP complete (v1.0.0). Phase 2 features (widgets, notifications, multiple accounts) are planned but not yet started.
 
 ## Tech Stack
 

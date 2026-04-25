@@ -74,4 +74,4 @@ Issues and feature requests: https://github.com/crazytan/TaskMenu/issues
 
 ## License
 
-MIT
+GNU GPLv3
