@@ -1,12 +1,21 @@
 # App Store Previews
 
-This directory contains App Store screenshot assets for the TaskMenu macOS listing.
+This directory contains the reusable workflow for producing App Store screenshot
+assets for the TaskMenu macOS listing.
 
-The source screenshots are expected at:
+## Inputs
 
-- `/Users/tan/Documents/Screenshot 2026-04-27 at 15.07.43.png`
-- `/Users/tan/Documents/Screenshot 2026-04-27 at 15.07.58.png`
-- `/Users/tan/Documents/Screenshot 2026-04-27 at 15.08.12.png`
+The generator uses three source screenshots:
+
+- The main task list popover
+- The task edit/detail popover
+- The settings popover
+
+These screenshots should be captured from the real app so the generated App
+Store assets reflect the current UI. The source paths are configured in
+`generate_previews.py`.
+
+## Workflow
 
 Run the generator from the repository root:
 
@@ -14,10 +23,17 @@ Run the generator from the repository root:
 python3 AppStorePreviews/generate_previews.py
 ```
 
-The script creates three App Store-ready PNGs at `2880x1800`, plus resized copies in:
+The script composites each source screenshot into a 16:10 macOS desktop-style
+marketing frame. It adds short product copy, places the menu bar popover in
+context, masks the captured popover edges for clean rounded corners, and
+replaces any real task names in task-related screenshots with fake sample data.
+
+The script creates three App Store-ready PNGs at `2880x1800`, plus resized
+copies in:
 
 - `2560x1600/`
 - `1440x900/`
 - `1280x800/`
 
-All exported images are 16:10 RGB PNGs. The generator also replaces real task names in the task list and edit screenshots with fake sample tasks.
+All exported images are RGB PNGs sized for Apple's accepted macOS screenshot
+requirements.
