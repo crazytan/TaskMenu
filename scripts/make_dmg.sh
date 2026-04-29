@@ -7,9 +7,9 @@ usage: make_dmg.sh --app <TaskMenu.app> --version <x.y.z> --output-dir <dir>
 
 Environment:
   SIGNING_IDENTITY              Optional Developer ID identity for signing the DMG.
-  APPLE_ID                      Optional Apple ID for notarization.
-  APPLE_TEAM_ID                 Optional Apple Developer Team ID for notarization.
-  APPLE_APP_SPECIFIC_PASSWORD   Optional app-specific password for notarization.
+  APP_STORE_CONNECT_KEY_ID      Optional App Store Connect API key ID for notarization.
+  APP_STORE_CONNECT_ISSUER_ID   Optional App Store Connect issuer ID for notarization.
+  APP_STORE_CONNECT_KEY_PATH    Optional path to the App Store Connect private key.
 EOF
 }
 
@@ -79,16 +79,21 @@ if [[ -n "${SIGNING_IDENTITY:-}" ]]; then
   codesign --verify --verbose=2 "$dmg_path"
 fi
 
-if [[ -n "${APPLE_ID:-}" || -n "${APPLE_TEAM_ID:-}" || -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
-  if [[ -z "${APPLE_ID:-}" || -z "${APPLE_TEAM_ID:-}" || -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]]; then
-    echo "APPLE_ID, APPLE_TEAM_ID, and APPLE_APP_SPECIFIC_PASSWORD must all be set to notarize." >&2
+if [[ -n "${APP_STORE_CONNECT_KEY_ID:-}" || -n "${APP_STORE_CONNECT_ISSUER_ID:-}" || -n "${APP_STORE_CONNECT_KEY_PATH:-}" ]]; then
+  if [[ -z "${APP_STORE_CONNECT_KEY_ID:-}" || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" || -z "${APP_STORE_CONNECT_KEY_PATH:-}" ]]; then
+    echo "APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, and APP_STORE_CONNECT_KEY_PATH must all be set to notarize." >&2
+    exit 65
+  fi
+
+  if [[ ! -f "$APP_STORE_CONNECT_KEY_PATH" ]]; then
+    echo "App Store Connect key not found: $APP_STORE_CONNECT_KEY_PATH" >&2
     exit 65
   fi
 
   xcrun notarytool submit "$dmg_path" \
-    --apple-id "$APPLE_ID" \
-    --team-id "$APPLE_TEAM_ID" \
-    --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+    --key "$APP_STORE_CONNECT_KEY_PATH" \
+    --key-id "$APP_STORE_CONNECT_KEY_ID" \
+    --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
     --wait
   xcrun stapler staple "$dmg_path"
   xcrun stapler validate "$dmg_path"

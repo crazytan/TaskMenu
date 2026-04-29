@@ -4,19 +4,23 @@ TaskMenu releases are published from GitHub Actions when a `vX.Y.Z` tag is pushe
 
 ## One-time GitHub setup
 
-Add these repository secrets in GitHub under **Settings -> Secrets and variables -> Actions**:
+Add these repository secrets in GitHub under **Settings -> Secrets and variables -> Actions -> Secrets**:
 
 | Secret | Value |
 | --- | --- |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID used by release builds |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret used by release builds |
-| `MACOS_TEAM_ID` | Apple Developer Team ID, for example `V82M9YX8BR` |
 | `BUILD_CERTIFICATE_BASE64` | Base64-encoded `.p12` export of your Developer ID Application certificate |
 | `BUILD_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` file |
-| `KEYCHAIN_PASSWORD` | Any strong temporary password for the CI keychain |
-| `APPLE_ID` | Apple ID email used for notarization |
-| `APPLE_TEAM_ID` | Apple Developer Team ID used for notarization |
-| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for the Apple ID |
+| `APP_STORE_CONNECT_API_KEY_BASE64` | Base64-encoded App Store Connect API private key (`.p8`) |
+
+Add these repository variables under **Settings -> Secrets and variables -> Actions -> Variables**:
+
+| Variable | Value |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID used by release builds |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret used by release builds |
+| `APPLE_TEAM_ID` | Apple Developer Team ID, for example `V82M9YX8BR` |
+| `APP_STORE_CONNECT_KEY_ID` | App Store Connect API key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
 
 OAuth client secrets embedded in a desktop app are not truly private once the app is distributed. Keep them out of the repository, but treat them as client configuration rather than server-grade secrets.
 
@@ -35,9 +39,17 @@ base64 -i DeveloperIDApplication.p12 | tr -d '\n' | pbcopy
 
 Paste the clipboard into `BUILD_CERTIFICATE_BASE64`. Put the export password in `BUILD_CERTIFICATE_PASSWORD`.
 
-## Create the Apple app-specific password
+## Create the App Store Connect API key
 
-Create an app-specific password at <https://account.apple.com/> under **Sign-In and Security -> App-Specific Passwords**. Store that value in `APPLE_APP_SPECIFIC_PASSWORD`.
+Create an App Store Connect API key in **App Store Connect -> Users and Access -> Integrations -> App Store Connect API**. A key with Developer access is enough for notarization.
+
+Download the `.p8` key once, then copy the base64 form into `APP_STORE_CONNECT_API_KEY_BASE64`:
+
+```bash
+base64 -i AuthKey_XXXXXXXXXX.p8 | tr -d '\n' | pbcopy
+```
+
+Store the key ID in `APP_STORE_CONNECT_KEY_ID` and the issuer ID in `APP_STORE_CONNECT_ISSUER_ID`.
 
 ## Release checklist
 
@@ -80,9 +92,9 @@ After producing a signed app bundle, you can package it locally:
 
 ```bash
 SIGNING_IDENTITY="Developer ID Application" \
-APPLE_ID="you@example.com" \
-APPLE_TEAM_ID="V82M9YX8BR" \
-APPLE_APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx" \
+APP_STORE_CONNECT_KEY_ID="XXXXXXXXXX" \
+APP_STORE_CONNECT_ISSUER_ID="00000000-0000-0000-0000-000000000000" \
+APP_STORE_CONNECT_KEY_PATH="$HOME/private_keys/AuthKey_XXXXXXXXXX.p8" \
 ./scripts/make_dmg.sh \
   --app build/TaskMenu.xcarchive/Products/Applications/TaskMenu.app \
   --version 1.0.1 \
