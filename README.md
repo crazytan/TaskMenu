@@ -35,6 +35,12 @@ Screenshots coming soon.
 
 ## Installation
 
+Download signed DMGs from the GitHub releases page:
+
+https://github.com/crazytan/TaskMenu/releases
+
+Or build from source:
+
 1. Clone the repository:
 
 ```bash
@@ -77,6 +83,8 @@ xcodegen generate
 Contributions are welcome. If you have a bug report, feature request, or a focused improvement, open an issue or submit a pull request.
 
 Issues and feature requests: https://github.com/crazytan/TaskMenu/issues
+
+Maintainer release instructions live in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## License
 

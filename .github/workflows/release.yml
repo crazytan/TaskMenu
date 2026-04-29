@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, without the leading v"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark the GitHub release as a prerelease"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+env:
+  SCHEME: TaskMenu
+  CONFIGURATION: Release
+  ARCHIVE_PATH: ${{ github.workspace }}/build/TaskMenu.xcarchive
+  ARTIFACTS_PATH: ${{ github.workspace }}/build/artifacts
+
+jobs:
+  release:
+    name: Build signed DMG and publish release
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release version
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            version="${{ inputs.version }}"
+            tag_name="v${version}"
+            prerelease="${{ inputs.prerelease }}"
+          else
+            tag_name="${GITHUB_REF_NAME}"
+            version="${tag_name#v}"
+            prerelease="false"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+[.][0-9]+[.][0-9]+$ ]]; then
+            echo "Version must use x.y.z format: $version" >&2
+            exit 64
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Create release config
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          for name in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET MACOS_TEAM_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required secret: $name" >&2
+              exit 65
+            fi
+          done
+
+          {
+            printf 'GOOGLE_CLIENT_ID = %s\n' "$GOOGLE_CLIENT_ID"
+            printf 'GOOGLE_CLIENT_SECRET = %s\n' "$GOOGLE_CLIENT_SECRET"
+            printf 'DEVELOPMENT_TEAM = %s\n' "$MACOS_TEAM_ID"
+          } > Config.xcconfig
+
+      - name: Install signing certificate
+        shell: bash
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          BUILD_CERTIFICATE_PASSWORD: ${{ secrets.BUILD_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          for name in BUILD_CERTIFICATE_BASE64 BUILD_CERTIFICATE_PASSWORD KEYCHAIN_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required secret: $name" >&2
+              exit 65
+            fi
+          done
+
+          certificate_path="$RUNNER_TEMP/developer-id-application.p12"
+          keychain_path="$RUNNER_TEMP/app-signing.keychain-db"
+
+          if ! printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path" 2>/dev/null; then
+            printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
+          fi
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$BUILD_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security default-keychain -s "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Validate project version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected_version="${{ steps.release.outputs.version }}"
+          actual_version="$(
+            xcodebuild -project TaskMenu.xcodeproj \
+              -scheme "$SCHEME" \
+              -configuration "$CONFIGURATION" \
+              -showBuildSettings |
+              awk -F'= ' '/ MARKETING_VERSION = / { print $2; exit }'
+          )"
+
+          if [[ "$actual_version" != "$expected_version" ]]; then
+            echo "Tag version v${expected_version} does not match MARKETING_VERSION ${actual_version}." >&2
+            echo "Update project.yml before tagging the release." >&2
+            exit 65
+          fi
+
+      - name: Extract release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./scripts/extract_changelog.sh "${{ steps.release.outputs.version }}" > "$RUNNER_TEMP/release-notes.md"
+          if [[ ! -s "$RUNNER_TEMP/release-notes.md" ]]; then
+            echo "Release notes are empty for ${{ steps.release.outputs.version }}." >&2
+            exit 65
+          fi
+
+      - name: Archive
+        shell: bash
+        env:
+          MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          xcodebuild archive \
+            -project TaskMenu.xcodeproj \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination "generic/platform=macOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$MACOS_TEAM_ID" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp"
+
+      - name: Build, sign, and notarize DMG
+        shell: bash
+        env:
+          SIGNING_IDENTITY: Developer ID Application
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          for name in APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required secret: $name" >&2
+              exit 65
+            fi
+          done
+
+          app_path="$ARCHIVE_PATH/Products/Applications/TaskMenu.app"
+          ./scripts/make_dmg.sh \
+            --app "$app_path" \
+            --version "${{ steps.release.outputs.version }}" \
+            --output-dir "$ARTIFACTS_PATH"
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          VERSION: ${{ steps.release.outputs.version }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          prerelease_args=()
+          if [[ "$PRERELEASE" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$ARTIFACTS_PATH"/* --clobber
+            gh release edit "$TAG_NAME" \
+              --title "TaskMenu ${VERSION}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              "${prerelease_args[@]}"
+          else
+            gh release create "$TAG_NAME" "$ARTIFACTS_PATH"/* \
+              --title "TaskMenu ${VERSION}" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              "${prerelease_args[@]}"
+          fi
