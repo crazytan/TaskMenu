@@ -128,6 +128,15 @@ jobs:
           done
 
           issuer_trimmed="$(printf '%s' "$APP_STORE_CONNECT_ISSUER_ID" | tr -d '[:space:]')"
+          key_id_trimmed="$(printf '%s' "$APP_STORE_CONNECT_KEY_ID" | tr -d '[:space:]')"
+          echo "Key ID length after trimming whitespace: ${#key_id_trimmed}"
+          if [[ "$key_id_trimmed" =~ ^[0-9A-Za-z]+$ ]]; then
+            echo "Key ID format: alphanumeric"
+          else
+            echo "Key ID format: invalid" >&2
+            exit 64
+          fi
+
           echo "Issuer ID length after trimming whitespace: ${#issuer_trimmed}"
           if [[ "$issuer_trimmed" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
             echo "Issuer ID format: valid UUID"
@@ -136,19 +145,30 @@ jobs:
             exit 64
           fi
 
-          key_path="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          key_path="$RUNNER_TEMP/AuthKey_${key_id_trimmed}.p8"
           if ! printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$key_path" 2>/dev/null; then
             printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -D > "$key_path"
           fi
           chmod 600 "$key_path"
 
+          echo "Decoded API key bytes: $(wc -c < "$key_path" | tr -d '[:space:]')"
+          echo "Decoded API key lines: $(wc -l < "$key_path" | tr -d '[:space:]')"
+          echo "Decoded API key SHA-256: $(shasum -a 256 "$key_path" | awk '{print $1}')"
+          if grep -q -- "-----BEGIN PRIVATE KEY-----" "$key_path" && grep -q -- "-----END PRIVATE KEY-----" "$key_path"; then
+            echo "Decoded API key PEM envelope: present"
+          else
+            echo "Decoded API key PEM envelope: missing" >&2
+            exit 65
+          fi
+          openssl pkey -in "$key_path" -noout >/dev/null
+
           xcrun notarytool history \
             --key "$key_path" \
-            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --key-id "$key_id_trimmed" \
             --issuer "$issuer_trimmed" \
             --output-format json >/dev/null
 
-          echo "APP_STORE_CONNECT_KEY_ID=$APP_STORE_CONNECT_KEY_ID" >> "$GITHUB_ENV"
+          echo "APP_STORE_CONNECT_KEY_ID=$key_id_trimmed" >> "$GITHUB_ENV"
           echo "APP_STORE_CONNECT_ISSUER_ID=$issuer_trimmed" >> "$GITHUB_ENV"
           echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
