@@ -127,6 +127,15 @@ jobs:
             fi
           done
 
+          issuer_trimmed="$(printf '%s' "$APP_STORE_CONNECT_ISSUER_ID" | tr -d '[:space:]')"
+          echo "Issuer ID length after trimming whitespace: ${#issuer_trimmed}"
+          if [[ "$issuer_trimmed" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
+            echo "Issuer ID format: valid UUID"
+          else
+            echo "Issuer ID format: invalid UUID" >&2
+            exit 64
+          fi
+
           key_path="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           if ! printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$key_path" 2>/dev/null; then
             printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -D > "$key_path"
@@ -136,11 +145,11 @@ jobs:
           xcrun notarytool history \
             --key "$key_path" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
-            --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --issuer "$issuer_trimmed" \
             --output-format json >/dev/null
 
           echo "APP_STORE_CONNECT_KEY_ID=$APP_STORE_CONNECT_KEY_ID" >> "$GITHUB_ENV"
-          echo "APP_STORE_CONNECT_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID" >> "$GITHUB_ENV"
+          echo "APP_STORE_CONNECT_ISSUER_ID=$issuer_trimmed" >> "$GITHUB_ENV"
           echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
       - name: Install XcodeGen
