@@ -51,6 +51,38 @@ base64 -i AuthKey_XXXXXXXXXX.p8 | tr -d '\n' | pbcopy
 
 Store the key ID in `APP_STORE_CONNECT_KEY_ID` and the issuer ID in `APP_STORE_CONNECT_ISSUER_ID`.
 
+## Notarization troubleshooting
+
+If the release job fails with:
+
+```text
+source=Unnotarized Developer ID
+```
+
+before the `notarytool submit` command, that is expected. The app has not been notarized yet, so the workflow packages the signed app into a DMG and submits that DMG to Apple.
+
+If the release job fails with:
+
+```text
+HTTP status code: 401. Unauthenticated.
+```
+
+then Apple rejected the App Store Connect API credentials. Check these values first:
+
+- `APP_STORE_CONNECT_API_KEY_BASE64` must be the base64 text of the downloaded `.p8` private key file, not the JSON key metadata.
+- `APP_STORE_CONNECT_KEY_ID` must match the key ID shown for that same `.p8` file.
+- `APP_STORE_CONNECT_ISSUER_ID` must be the issuer ID from App Store Connect API access.
+- The API key must be active, team-scoped, and have at least Developer access.
+
+You can validate the same credentials locally before pushing a tag:
+
+```bash
+xcrun notarytool history \
+  --key "$HOME/private_keys/AuthKey_XXXXXXXXXX.p8" \
+  --key-id "XXXXXXXXXX" \
+  --issuer "00000000-0000-0000-0000-000000000000"
+```
+
 ## Release checklist
 
 1. Move changelog entries from `Unreleased` to a version heading:
