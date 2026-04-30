@@ -55,11 +55,22 @@ struct MenuBarPopover: View {
             }
         }
         .frame(width: 320, height: appState.isSignedIn ? 480 : nil)
-        .background(.regularMaterial)
+        .taskMenuPopoverSurface()
         .animation(.easeInOut(duration: 0.25), value: appState.isSignedIn)
         .animation(.easeInOut(duration: 0.2), value: appState.errorMessage != nil)
         .task {
             await appState.refreshForMenuPresentation()
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func taskMenuPopoverSurface() -> some View {
+        if #available(macOS 26.0, *) {
+            self.glassEffect(.regular, in: Rectangle())
+        } else {
+            self.background(.regularMaterial)
         }
     }
 }
