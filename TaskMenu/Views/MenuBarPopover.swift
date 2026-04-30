@@ -54,13 +54,12 @@ struct MenuBarPopover: View {
                 .transition(.opacity)
             }
         }
-        .frame(width: 320, height: appState.isSignedIn && !showSettings ? 480 : nil)
+        .frame(width: 320, height: appState.isSignedIn ? 480 : nil)
+        .background(.regularMaterial)
         .animation(.easeInOut(duration: 0.25), value: appState.isSignedIn)
         .animation(.easeInOut(duration: 0.2), value: appState.errorMessage != nil)
         .task {
-            if appState.isSignedIn && appState.taskLists.isEmpty {
-                await appState.loadTaskLists()
-            }
+            await appState.refreshForMenuPresentation()
         }
     }
 }

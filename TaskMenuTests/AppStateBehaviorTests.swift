@@ -559,6 +559,63 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertEqual(state.selectedListId, "l2")
     }
 
+    // MARK: - refreshForMenuPresentation
+
+    func testRefreshForMenuPresentationLoadsListsWhenEmpty() async {
+        state.isSignedIn = true
+
+        MockURLProtocol.requestHandler = { request in
+            let url = request.url!.absoluteString
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+
+            if url.contains("/users/@me/lists") {
+                let json = #"{"items":[{"id":"l1","title":"My Tasks"}]}"#
+                return (response, json.data(using: .utf8)!)
+            } else {
+                let json = #"{"items":[{"id":"t1","title":"Fresh Task","status":"needsAction"}]}"#
+                return (response, json.data(using: .utf8)!)
+            }
+        }
+
+        await state.refreshForMenuPresentation()
+
+        XCTAssertEqual(state.selectedListId, "l1")
+        XCTAssertEqual(state.taskLists.map(\.id), ["l1"])
+        XCTAssertEqual(state.tasks.map(\.title), ["Fresh Task"])
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 2)
+    }
+
+    func testRefreshForMenuPresentationRefreshesSelectedListWhenListsAlreadyLoaded() async {
+        state.isSignedIn = true
+        state.taskLists = [TaskList(id: "l1", title: "My Tasks", selfLink: nil, updated: nil)]
+        state.selectedListId = "l1"
+        state.tasks = [makeTask(id: "stale", title: "Stale Task")]
+
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"items":[{"id":"fresh","title":"Fresh Task","status":"needsAction"}]}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        await state.refreshForMenuPresentation()
+
+        XCTAssertEqual(state.tasks.map(\.id), ["fresh"])
+        XCTAssertFalse(MockURLProtocol.requestLog.contains { $0.url?.absoluteString.contains("/users/@me/lists") == true })
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
+    }
+
+    func testRefreshForMenuPresentationDoesNothingWhenSignedOut() async {
+        state.isSignedIn = false
+        state.taskLists = [TaskList(id: "l1", title: "My Tasks", selfLink: nil, updated: nil)]
+        state.selectedListId = "l1"
+        state.tasks = [makeTask(id: "existing")]
+
+        await state.refreshForMenuPresentation()
+
+        XCTAssertEqual(state.tasks.map(\.id), ["existing"])
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+    }
+
     func testRefreshTasksSyncsDueDateNotificationsForSelectedList() async {
         state.selectedListId = "list1"
         state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]

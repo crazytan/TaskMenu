@@ -248,6 +248,16 @@ final class AppState {
         }
     }
 
+    func refreshForMenuPresentation() async {
+        guard isSignedIn, !isLoading else { return }
+
+        if taskLists.isEmpty || selectedListId == nil {
+            await loadTaskLists()
+        } else {
+            await refreshTasks()
+        }
+    }
+
     /// Loads active tasks (always fresh) and completed tasks (from cache if available).
     func loadTasks() async {
         guard let listId = selectedListId else { return }

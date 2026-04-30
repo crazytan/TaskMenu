@@ -90,7 +90,7 @@ struct SettingsView: View {
             .padding(.top, 4)
         }
         .padding(16)
-        .frame(width: 300)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }
