@@ -257,20 +257,27 @@ jobs:
         run: |
           set -euo pipefail
 
-          prerelease_args=()
-          if [[ "$PRERELEASE" == "true" ]]; then
-            prerelease_args+=(--prerelease)
-          fi
-
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             gh release upload "$TAG_NAME" "$ARTIFACTS_PATH"/* --clobber
-            gh release edit "$TAG_NAME" \
-              --title "TaskMenu ${VERSION}" \
-              --notes-file "$RUNNER_TEMP/release-notes.md" \
-              "${prerelease_args[@]}"
+            if [[ "$PRERELEASE" == "true" ]]; then
+              gh release edit "$TAG_NAME" \
+                --title "TaskMenu ${VERSION}" \
+                --notes-file "$RUNNER_TEMP/release-notes.md" \
+                --prerelease
+            else
+              gh release edit "$TAG_NAME" \
+                --title "TaskMenu ${VERSION}" \
+                --notes-file "$RUNNER_TEMP/release-notes.md"
+            fi
           else
-            gh release create "$TAG_NAME" "$ARTIFACTS_PATH"/* \
-              --title "TaskMenu ${VERSION}" \
-              --notes-file "$RUNNER_TEMP/release-notes.md" \
-              "${prerelease_args[@]}"
+            if [[ "$PRERELEASE" == "true" ]]; then
+              gh release create "$TAG_NAME" "$ARTIFACTS_PATH"/* \
+                --title "TaskMenu ${VERSION}" \
+                --notes-file "$RUNNER_TEMP/release-notes.md" \
+                --prerelease
+            else
+              gh release create "$TAG_NAME" "$ARTIFACTS_PATH"/* \
+                --title "TaskMenu ${VERSION}" \
+                --notes-file "$RUNNER_TEMP/release-notes.md"
+            fi
           fi
