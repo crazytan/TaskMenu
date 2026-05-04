@@ -2,12 +2,14 @@
 
 ## TODO
 
-- right click menu on app icon
 - macOS widgets (WidgetKit)
 - Global keyboard shortcut (Cmd+Shift+T)
 - Multiple Google accounts
 
 ## Unreleased
+
+### Added
+- Added a right-click menu on the menu bar icon with a Quit action
 
 ### Fixed
 - Removed the unstable global keyboard shortcut implementation that interfered with the menu bar window opening

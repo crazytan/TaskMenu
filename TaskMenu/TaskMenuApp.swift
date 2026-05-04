@@ -1,50 +1,62 @@
 import SwiftUI
 
+@MainActor
+final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
+    lazy var appState: AppState = TaskMenuApp.makeAppState()
+
+    private var statusBarController: StatusBarController?
+    private var uiTestingWindow: NSWindow?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if TaskMenuApp.isUITesting {
+            showUITestingWindow()
+        } else if !TaskMenuApp.isUnitTesting {
+            statusBarController = StatusBarController(appState: appState)
+        }
+    }
+
+    private func showUITestingWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 480),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "TaskMenu"
+        window.contentViewController = NSHostingController(
+            rootView: MenuBarPopover(appState: appState)
+                .frame(width: 320, height: 480)
+        )
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        uiTestingWindow = window
+    }
+}
+
 @main
 struct TaskMenuApp: App {
-    @State private var appState: AppState
+    @NSApplicationDelegateAdaptor(TaskMenuAppDelegate.self) private var appDelegate
 
     static let isUITesting = CommandLine.arguments.contains("-ui-testing")
+    static let isUnitTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
-    init() {
+    @MainActor
+    static func makeAppState() -> AppState {
         if Self.isUITesting {
             // Make the app a regular app so UI automation can attach
             NSApplication.shared.setActivationPolicy(.regular)
             let mockAPI = MockTasksAPI()
             let state = AppState(api: mockAPI)
             state.isSignedIn = true
-            _appState = State(initialValue: state)
-        } else {
-            _appState = State(initialValue: AppState())
+            return state
         }
+
+        return AppState()
     }
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarPopover(appState: appState)
-        } label: {
-            Label("TaskMenu", image: "MenuBarIcon")
-                .labelStyle(.iconOnly)
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.window)
-
-        Window("TaskMenu", id: "ui-testing") {
-            Group {
-                if Self.isUITesting {
-                    MenuBarPopover(appState: appState)
-                        .frame(width: 320, height: 480)
-                }
-            }
-            .onAppear {
-                if !Self.isUITesting {
-                    DispatchQueue.main.async {
-                        NSApplication.shared.windows
-                            .filter { $0.title == "TaskMenu" }
-                            .forEach { $0.close() }
-                    }
-                }
-            }
-        }
-        .windowResizability(.contentSize)
     }
 }

@@ -21,6 +21,7 @@
 		5D77ED33F50BA2FB8E0F4B8F /* MenuBarPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42EAB07F42BE73AAED7BCC56 /* MenuBarPopover.swift */; };
 		67748198F5F097AEE9019675 /* MockTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88387DAAC83474A8C1AE6EEE /* MockTasksAPI.swift */; };
 		69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */; };
+		769F9F3B097D5D7C678CEE7F /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4F099FA85A0476A96ED002 /* StatusBarController.swift */; };
 		76E308FD16F5E910DE7D81E6 /* GoogleTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */; };
 		78E76881CED717FBB2187185 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C3377E75BA19027E464EAEB8 /* Assets.xcassets */; };
 		7A424E7FDBAFD974B955448D /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD51E43AB6E5559C98303A3 /* TaskItem.swift */; };
@@ -95,6 +96,7 @@
 		ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDueDateNotificationService.swift; sourceTree = "<group>"; };
 		B01BFC3843C941C89C85576B /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
 		B39705E088F29F844C149617 /* DueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationService.swift; sourceTree = "<group>"; };
+		BB4F099FA85A0476A96ED002 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLProtocol.swift; sourceTree = "<group>"; };
 		BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryKeychainService.swift; sourceTree = "<group>"; };
 		C3377E75BA19027E464EAEB8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -166,6 +168,7 @@
 		A34BA795C75683448AFABACA /* TaskMenu */ = {
 			isa = PBXGroup;
 			children = (
+				BB4F099FA85A0476A96ED002 /* StatusBarController.swift */,
 				5AF69FFA11009E78484C090A /* TaskMenuApp.swift */,
 				7CA4A7AB59308D29BDE9DFD5 /* Models */,
 				141A484087CC4923B5F2371C /* Resources */,
@@ -344,6 +347,7 @@
 				48943AA6EDE34BA7B373106E /* QuickAddView.swift in Sources */,
 				FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */,
 				E53F1F56DBC73CF159E93516 /* SignInView.swift in Sources */,
+				769F9F3B097D5D7C678CEE7F /* StatusBarController.swift in Sources */,
 				DB500BD90BD49B8D4ECBDA15 /* TaskDetailView.swift in Sources */,
 				7A424E7FDBAFD974B955448D /* TaskItem.swift in Sources */,
 				DE51E84794E46D07C1401DE6 /* TaskList.swift in Sources */,
