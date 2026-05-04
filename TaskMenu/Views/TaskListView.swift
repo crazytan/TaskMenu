@@ -5,6 +5,11 @@ enum TaskRowSection: String {
     case completed
 }
 
+enum TaskListLayout {
+    static let activeEndDropZoneHeight: CGFloat = 4
+    static let completedHeaderTopPadding: CGFloat = 2
+}
+
 func taskRowSection(for task: TaskItem) -> TaskRowSection {
     task.isCompleted ? .completed : .active
 }
@@ -205,7 +210,7 @@ struct TaskListView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 14)
-                            .padding(.top, 8)
+                            .padding(.top, TaskListLayout.completedHeaderTopPadding)
                             .accessibilityIdentifier("completed.toggle")
 
                             if showCompleted || appState.isSearching {
@@ -351,7 +356,7 @@ struct TaskListView: View {
 
     private var activeTaskEndDropZone: some View {
         Color.clear
-            .frame(height: 16)
+            .frame(height: TaskListLayout.activeEndDropZoneHeight)
             .contentShape(Rectangle())
             .dropDestination(for: String.self) { items, _ in
                 handleDropToEnd(of: items)

@@ -40,4 +40,9 @@ final class TaskListViewTests: XCTestCase {
             taskRowIdentity(for: taskID, in: .completed)
         )
     }
+
+    func testCompletedSectionSpacingStaysCompact() {
+        XCTAssertLessThanOrEqual(TaskListLayout.activeEndDropZoneHeight, 4)
+        XCTAssertLessThanOrEqual(TaskListLayout.completedHeaderTopPadding, 2)
+    }
 }
