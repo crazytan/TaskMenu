@@ -12,6 +12,7 @@
 - Added a right-click menu on the menu bar icon with a Quit action
 
 ### Fixed
+- Made the task completion checkbox hover target more reliable and preview the checkmark before clicking
 - Removed the unstable global keyboard shortcut implementation that interfered with the menu bar window opening
 - Removed the shortcut toggle and private AppKit menu bar click simulation, restoring default `MenuBarExtra` behavior
 

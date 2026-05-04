@@ -7,6 +7,7 @@ private enum TaskRowLayout {
     static let leadingPadding: CGFloat = 2
     static let trailingPadding: CGFloat = 4
     static let indentWidth: CGFloat = 20
+    static let checkboxHitSize: CGFloat = 26
 }
 
 struct TaskRowView: View {
@@ -21,6 +22,7 @@ struct TaskRowView: View {
     var onAddSubtask: (() -> Void)?
 
     @State private var isHovering = false
+    @State private var isCheckboxHovering = false
     @State private var checkmarkScale: CGFloat = 1.0
 
     init(
@@ -47,6 +49,17 @@ struct TaskRowView: View {
 
     private var isGrayedOut: Bool {
         task.isCompleted || isParentCompleted
+    }
+
+    private var checkboxSymbolName: String {
+        if task.isCompleted {
+            return "checkmark.circle.fill"
+        }
+        return isCheckboxHovering ? "checkmark.circle" : "circle"
+    }
+
+    private var checkboxColor: Color {
+        task.isCompleted || isCheckboxHovering ? .green : .secondary
     }
 
     var body: some View {
@@ -82,20 +95,20 @@ struct TaskRowView: View {
                 }
                 onToggle()
             } label: {
-                Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(task.isCompleted ? .green : .secondary)
+                Image(systemName: checkboxSymbolName)
+                    .foregroundStyle(checkboxColor)
                     .font(.system(size: 18, weight: .light))
                     .contentTransition(.symbolEffect(.replace))
                     .scaleEffect(checkmarkScale)
+                    .frame(width: TaskRowLayout.checkboxHitSize, height: TaskRowLayout.checkboxHitSize)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .contentShape(Rectangle())
             .onHover { hovering in
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
+                updateCheckboxHover(hovering)
             }
+            .onDisappear(perform: clearCheckboxHover)
             .help(task.isCompleted ? "Mark as incomplete" : "Mark as complete")
             .accessibilityIdentifier("task.checkbox.\(task.id)")
 
@@ -167,5 +180,25 @@ struct TaskRowView: View {
             return .red
         }
         return .secondary
+    }
+
+    private func updateCheckboxHover(_ hovering: Bool) {
+        guard hovering != isCheckboxHovering else { return }
+
+        withAnimation(.easeInOut(duration: 0.12)) {
+            isCheckboxHovering = hovering
+        }
+
+        if hovering {
+            NSCursor.pointingHand.push()
+        } else {
+            NSCursor.pop()
+        }
+    }
+
+    private func clearCheckboxHover() {
+        guard isCheckboxHovering else { return }
+        isCheckboxHovering = false
+        NSCursor.pop()
     }
 }
