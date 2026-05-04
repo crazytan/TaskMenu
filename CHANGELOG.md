@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+## v1.0.1 (2026-05-04)
+
 ### Added
 - Added a right-click menu on the menu bar icon with a Quit action
 
