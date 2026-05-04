@@ -29,6 +29,7 @@
 		986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */; };
 		9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12212B7B62ECCDD28979CA54 /* Constants.swift */; };
 		9BE1233CADF8C3BFFC734F1D /* ListPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A7998A82BE9D4729E85B13 /* ListPickerView.swift */; };
+		A4BCA782CFF3DA69020CF385 /* MenuBarWindowChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */; };
 		B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */; };
 		B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2191A69341B04C760925B55 /* TaskListViewTests.swift */; };
 		B8593A4B6220752FE803BAF3 /* DueDateNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39705E088F29F844C149617 /* DueDateNotificationService.swift */; };
@@ -43,6 +44,7 @@
 		E53F1F56DBC73CF159E93516 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7270F80F12239828D873B133 /* SignInView.swift */; };
 		E54169E513191306010635A7 /* AppIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */; };
 		E7D0145136EE024CB87D7963 /* TaskListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612D4C039654B488ADC17151 /* TaskListView.swift */; };
+		E9F151927F17F397115553E7 /* MenuBarWindowGlassSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */; };
 		F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */; };
 		FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3614C7335BB0200D28F074 /* AppStateTests.swift */; };
 		FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */; };
@@ -65,6 +67,7 @@
 		12212B7B62ECCDD28979CA54 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBehaviorTests.swift; sourceTree = "<group>"; };
 		1CD51E43AB6E5559C98303A3 /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
+		4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowGlassSupport.swift; sourceTree = "<group>"; };
 		42EAB07F42BE73AAED7BCC56 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
 		4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterTests.swift; sourceTree = "<group>"; };
 		4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPI.swift; sourceTree = "<group>"; };
@@ -76,6 +79,7 @@
 		62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailViewTests.swift; sourceTree = "<group>"; };
 		633899C51990EF71D24F5C89 /* TaskList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskList.swift; sourceTree = "<group>"; };
 		63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
+		68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowChromeTests.swift; sourceTree = "<group>"; };
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
 		6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemModelTests.swift; sourceTree = "<group>"; };
 		7270F80F12239828D873B133 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
@@ -177,6 +181,7 @@
 			children = (
 				D7A7998A82BE9D4729E85B13 /* ListPickerView.swift */,
 				42EAB07F42BE73AAED7BCC56 /* MenuBarPopover.swift */,
+				4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */,
 				B01BFC3843C941C89C85576B /* QuickAddView.swift */,
 				5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */,
 				7270F80F12239828D873B133 /* SignInView.swift */,
@@ -208,6 +213,7 @@
 				C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */,
 				BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */,
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
+				68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */,
 				BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */,
 				4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */,
 				62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */,
@@ -333,6 +339,7 @@
 				C169507407838BDD4C665CF1 /* KeychainService.swift in Sources */,
 				9BE1233CADF8C3BFFC734F1D /* ListPickerView.swift in Sources */,
 				5D77ED33F50BA2FB8E0F4B8F /* MenuBarPopover.swift in Sources */,
+				E9F151927F17F397115553E7 /* MenuBarWindowGlassSupport.swift in Sources */,
 				67748198F5F097AEE9019675 /* MockTasksAPI.swift in Sources */,
 				48943AA6EDE34BA7B373106E /* QuickAddView.swift in Sources */,
 				FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */,
@@ -360,6 +367,7 @@
 				69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */,
 				B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */,
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,
+				A4BCA782CFF3DA69020CF385 /* MenuBarWindowChromeTests.swift in Sources */,
 				D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */,
 				8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */,
 				F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */,

@@ -28,6 +28,7 @@ enum Constants {
 
     enum UserDefaults {
         static let dueDateNotificationsEnabledKey = "dueDateNotificationsEnabled"
+        static let experimentalFullWindowLiquidGlassEnabledKey = "experimentalFullWindowLiquidGlassEnabled"
     }
 
     enum Notifications {

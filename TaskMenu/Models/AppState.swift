@@ -25,6 +25,14 @@ final class AppState {
             }
         }
     }
+    var experimentalFullWindowLiquidGlassEnabled: Bool {
+        didSet {
+            userDefaults.set(
+                experimentalFullWindowLiquidGlassEnabled,
+                forKey: Constants.UserDefaults.experimentalFullWindowLiquidGlassEnabledKey
+            )
+        }
+    }
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
@@ -202,6 +210,9 @@ final class AppState {
         self.dueDateNotificationsEnabled = userDefaults.object(
             forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey
         ) as? Bool ?? true
+        self.experimentalFullWindowLiquidGlassEnabled = userDefaults.object(
+            forKey: Constants.UserDefaults.experimentalFullWindowLiquidGlassEnabledKey
+        ) as? Bool ?? false
         self.isSignedIn = authService.isSignedIn
     }
 

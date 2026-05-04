@@ -50,6 +50,7 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertNil(state.selectedListId)
         XCTAssertTrue(state.dueDateNotificationsEnabled)
+        XCTAssertFalse(state.experimentalFullWindowLiquidGlassEnabled)
     }
 
     func testInitialStateReflectsSignedInStatus() throws {
@@ -66,6 +67,26 @@ final class AppStateTests: XCTestCase {
         let state = makeState(authService: authService)
 
         XCTAssertFalse(state.dueDateNotificationsEnabled)
+    }
+
+    func testInitialStateUsesStoredExperimentalFullWindowLiquidGlassPreference() {
+        userDefaults.set(true, forKey: Constants.UserDefaults.experimentalFullWindowLiquidGlassEnabledKey)
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+
+        XCTAssertTrue(state.experimentalFullWindowLiquidGlassEnabled)
+    }
+
+    func testChangingExperimentalFullWindowLiquidGlassPersistsPreference() {
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+
+        state.experimentalFullWindowLiquidGlassEnabled = true
+
+        XCTAssertEqual(
+            userDefaults.object(forKey: Constants.UserDefaults.experimentalFullWindowLiquidGlassEnabledKey) as? Bool,
+            true
+        )
     }
 
     func testChangingDueDateNotificationsPersistsPreferenceAndRemovesNotificationsWhenDisabled() async {
