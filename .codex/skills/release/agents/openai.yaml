@@ -1,0 +1,4 @@
+interface:
+  display_name: "TaskMenu Release"
+  short_description: "Cut TaskMenu macOS releases"
+  default_prompt: "Use $release to prepare a TaskMenu release for version <version>."
