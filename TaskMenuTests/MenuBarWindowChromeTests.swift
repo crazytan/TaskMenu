@@ -5,11 +5,15 @@ import XCTest
 @MainActor
 final class MenuBarWindowChromeTests: XCTestCase {
     func testLiquidGlassAvailabilityMatchesPlatformAvailability() {
+        #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             XCTAssertTrue(MenuBarWindowChrome.supportsLiquidGlass)
         } else {
             XCTAssertFalse(MenuBarWindowChrome.supportsLiquidGlass)
         }
+        #else
+        XCTAssertFalse(MenuBarWindowChrome.supportsLiquidGlass)
+        #endif
     }
 
     func testApplyingLiquidGlassSupportClearsSupportedWindowBackground() {

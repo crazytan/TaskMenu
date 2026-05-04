@@ -8,15 +8,21 @@ enum MenuBarWindowChrome {
     )
 
     static var supportsLiquidGlass: Bool {
+        #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             true
         } else {
             false
         }
+        #else
+        false
+        #endif
     }
 
     static func applyLiquidGlassSupport(to window: NSWindow?, enabled: Bool) {
         guard let window else { return }
+
+        #if compiler(>=6.2)
         guard #available(macOS 26.0, *) else { return }
 
         window.isOpaque = false
@@ -30,16 +36,26 @@ enum MenuBarWindowChrome {
         } else {
             unwrapContentViewFromGlassEffect(window)
         }
+        #else
+        _ = window
+        _ = enabled
+        #endif
     }
 
     static func isFullWindowGlassApplied(to window: NSWindow?) -> Bool {
+        #if compiler(>=6.2)
         guard #available(macOS 26.0, *),
               let contentView = window?.contentView
         else { return false }
 
         return contentView.identifier == fullWindowGlassIdentifier
+        #else
+        _ = window
+        return false
+        #endif
     }
 
+    #if compiler(>=6.2)
     @available(macOS 26.0, *)
     private static func wrapContentViewInGlassEffect(_ window: NSWindow) {
         guard let contentView = window.contentView else { return }
@@ -85,6 +101,7 @@ enum MenuBarWindowChrome {
         glassView.wantsLayer = true
         glassView.layer?.backgroundColor = NSColor.clear.cgColor
     }
+    #endif
 }
 
 private struct MenuBarWindowGlassSupport: NSViewRepresentable {
