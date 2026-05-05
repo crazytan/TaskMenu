@@ -62,12 +62,12 @@ jobs:
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_SCHEME: ${{ vars.GOOGLE_REDIRECT_SCHEME || secrets.GOOGLE_REDIRECT_SCHEME }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
 
-          for name in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET APPLE_TEAM_ID; do
+          for name in GOOGLE_CLIENT_ID GOOGLE_REDIRECT_SCHEME APPLE_TEAM_ID; do
             if [[ -z "${!name:-}" ]]; then
               echo "Missing required release value: $name" >&2
               exit 65
@@ -76,7 +76,7 @@ jobs:
 
           {
             printf 'GOOGLE_CLIENT_ID = %s\n' "$GOOGLE_CLIENT_ID"
-            printf 'GOOGLE_CLIENT_SECRET = %s\n' "$GOOGLE_CLIENT_SECRET"
+            printf 'GOOGLE_REDIRECT_SCHEME = %s\n' "$GOOGLE_REDIRECT_SCHEME"
             printf 'DEVELOPMENT_TEAM = %s\n' "$APPLE_TEAM_ID"
           } > Config.xcconfig
 

@@ -12,7 +12,7 @@ Add these repository secrets in GitHub under **Settings -> Secrets and variables
 | `BUILD_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` file |
 | `APP_STORE_CONNECT_API_KEY_BASE64` | Base64-encoded App Store Connect API private key (`.p8`) |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID used by release builds |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret used by release builds |
+| `GOOGLE_REDIRECT_SCHEME` | Google OAuth redirect scheme, for example `com.googleusercontent.apps.<client-id-prefix>` |
 | `APP_STORE_CONNECT_KEY_ID` | App Store Connect API key ID |
 | `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
 
@@ -22,7 +22,7 @@ Add this repository variable under **Settings -> Secrets and variables -> Action
 | --- | --- |
 | `APPLE_TEAM_ID` | Apple Developer Team ID, for example `V82M9YX8BR` |
 
-OAuth client secrets embedded in a desktop app are not truly private once the app is distributed. Keep them out of the repository, but treat them as client configuration rather than server-grade secrets.
+TaskMenu uses a native OAuth client with PKCE, so release builds do not embed a Google client secret.
 
 ## Export the signing certificate
 

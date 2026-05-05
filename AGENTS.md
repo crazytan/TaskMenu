@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-TaskMenu is a lightweight, native macOS menu bar application for quick access to Google Tasks. It is a free and open-source (GPLv3) SwiftUI app targeting macOS 14+ (Sonoma). The app lives entirely in the menu bar (no dock icon, no main window).
+TaskMenu is a lightweight, native macOS menu bar application for quick access to Google Tasks. It is a free and open-source (GPLv3) SwiftUI app targeting macOS 14.4+ (Sonoma). The app lives entirely in the menu bar (no dock icon, no main window).
 
 **Current status:** Phase 1 MVP complete (v1.0.0). Phase 2 features (widgets, notifications, multiple accounts) are planned but not yet started.
 
@@ -17,11 +17,11 @@ TaskMenu is a lightweight, native macOS menu bar application for quick access to
 - **Language:** Swift 6 with strict concurrency (`SWIFT_STRICT_CONCURRENCY: complete`)
 - **UI:** SwiftUI — MenuBarExtra with `.window` style
 - **Build system:** XcodeGen (`project.yml`) + Xcode 16.0
-- **Auth:** OAuth 2.0 with PKCE (loopback redirect to `127.0.0.1`)
+- **Auth:** OAuth 2.0 with PKCE via `ASWebAuthenticationSession.Callback.customScheme`
 - **Networking:** URLSession with async/await
 - **Token storage:** macOS Keychain via Security framework
 - **Dependencies:** Zero — Apple frameworks only
-- **Min deployment target:** macOS 14.0
+- **Min deployment target:** macOS 14.4
 
 ## Project Structure
 
@@ -76,7 +76,7 @@ xcodebuild -scheme TaskMenu -configuration Debug build
 xcodebuild -scheme TaskMenu -configuration Debug test
 ```
 
-**OAuth setup:** Copy `Config.xcconfig.example` to `Config.xcconfig` and fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. This file is gitignored.
+**OAuth setup:** Copy `Config.xcconfig.example` to `Config.xcconfig` and fill in `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` from the Google iOS OAuth client. This file is gitignored.
 
 ## Architecture & Patterns
 

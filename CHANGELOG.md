@@ -9,6 +9,7 @@
 ## Unreleased
 
 - Added MetricKit collection
+- Use ASWebAuthenticationSession's modern callback API for Google OAuth, remove the local callback server, and drop the incoming network entitlement.
 - Show task notes previews in the main task list, including subtask notes.
 - Moved settings into a dedicated native macOS Settings window.
 - Place the inline add-subtask field before existing subtasks.

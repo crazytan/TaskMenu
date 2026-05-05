@@ -16,7 +16,7 @@ jobs:
         run: |
           cat > Config.xcconfig <<'EOF'
           GOOGLE_CLIENT_ID = dummy-client-id.apps.googleusercontent.com
-          GOOGLE_CLIENT_SECRET = dummy-client-secret
+          GOOGLE_REDIRECT_SCHEME = com.googleusercontent.apps.dummy-client-id
           EOF
 
       - name: Install XcodeGen

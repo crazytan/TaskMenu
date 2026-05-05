@@ -27,11 +27,11 @@ Screenshots coming soon.
 
 ## Requirements
 
-- macOS 14 or later (Sonoma)
+- macOS 14.4 or later (Sonoma)
 - Xcode 16 or later
 - XcodeGen
 - A Google Cloud project with the Google Tasks API enabled
-- Google OAuth credentials for the app
+- Google OAuth iOS credentials for the app bundle ID
 
 ## Installation
 
@@ -51,7 +51,7 @@ cd TaskMenu
 2. Create or configure a Google Cloud project:
 
 - Enable the Google Tasks API
-- Create OAuth credentials in Google Cloud Console
+- Create an iOS OAuth client in Google Cloud Console for bundle ID `dev.crazytan.TaskMenu`
 - If your OAuth consent screen is in Testing mode, add your Google account as a test user
 
 3. Copy the example config and add your Google OAuth credentials:
@@ -60,7 +60,7 @@ cd TaskMenu
 cp Config.xcconfig.example Config.xcconfig
 ```
 
-Fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `Config.xcconfig`.
+Fill in `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` in `Config.xcconfig`.
 
 4. Generate the Xcode project:
 

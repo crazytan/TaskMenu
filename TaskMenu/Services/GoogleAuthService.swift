@@ -1,3 +1,4 @@
+import AppKit
 import AuthenticationServices
 import CryptoKit
 import Foundation
@@ -5,10 +6,137 @@ import os.log
 
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "TaskMenu", category: "Auth")
 
+enum GoogleAuthError: LocalizedError, Sendable {
+    case authorizationFailed(String)
+    case canceled
+    case invalidCallback
+    case invalidState
+    case unableToStartAuthenticationSession
+
+    var errorDescription: String? {
+        switch self {
+        case .authorizationFailed(let message):
+            return "Authorization failed: \(message)"
+        case .canceled:
+            return "Sign in was canceled."
+        case .invalidCallback:
+            return "Google returned an invalid sign-in response."
+        case .invalidState:
+            return "Google returned a sign-in response that did not match this session."
+        case .unableToStartAuthenticationSession:
+            return "Unable to start the Google sign-in session."
+        }
+    }
+}
+
+enum OAuthCallbackParser {
+    static func authorizationCode(
+        from callbackURL: URL,
+        expectedState: String,
+        expectedScheme: String,
+        expectedPath: String = Constants.googleRedirectPath
+    ) throws -> String {
+        guard callbackURL.scheme?.lowercased() == expectedScheme.lowercased(),
+              callbackURL.path == expectedPath,
+              let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
+            throw GoogleAuthError.invalidCallback
+        }
+
+        let queryItems = responseQueryItems(from: components)
+        guard queryItems.first(where: { $0.name == "state" })?.value == expectedState else {
+            throw GoogleAuthError.invalidState
+        }
+
+        if let error = queryItems.first(where: { $0.name == "error" })?.value {
+            throw GoogleAuthError.authorizationFailed(error)
+        }
+
+        guard let code = queryItems.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
+            throw GoogleAuthError.invalidCallback
+        }
+
+        return code
+    }
+
+    private static func responseQueryItems(from components: URLComponents) -> [URLQueryItem] {
+        if let queryItems = components.queryItems, !queryItems.isEmpty {
+            return queryItems
+        }
+
+        guard let fragment = components.fragment,
+              let fragmentComponents = URLComponents(string: "?\(fragment)") else {
+            return []
+        }
+        return fragmentComponents.queryItems ?? []
+    }
+}
+
+@MainActor
+protocol WebAuthenticating: AnyObject {
+    func authenticate(
+        url: URL,
+        callbackScheme: String,
+        presentationContextProvider: any ASWebAuthenticationPresentationContextProviding
+    ) async throws -> URL
+}
+
+@MainActor
+final class ASWebAuthenticationSessionAuthenticator: WebAuthenticating {
+    private var webAuthSession: ASWebAuthenticationSession?
+
+    func authenticate(
+        url: URL,
+        callbackScheme: String,
+        presentationContextProvider: any ASWebAuthenticationPresentationContextProviding
+    ) async throws -> URL {
+        finishAuthenticationSession()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let session = ASWebAuthenticationSession(
+                url: url,
+                callback: .customScheme(callbackScheme)
+            ) { [weak self] callbackURL, error in
+                Task { @MainActor in
+                    self?.webAuthSession = nil
+                }
+
+                if let error {
+                    continuation.resume(throwing: webAuthenticationError(from: error))
+                    return
+                }
+
+                guard let callbackURL else {
+                    continuation.resume(throwing: GoogleAuthError.invalidCallback)
+                    return
+                }
+
+                continuation.resume(returning: callbackURL)
+            }
+            session.presentationContextProvider = presentationContextProvider
+            session.prefersEphemeralWebBrowserSession = false
+
+            webAuthSession = session
+
+            guard session.start() else {
+                webAuthSession = nil
+                continuation.resume(throwing: GoogleAuthError.unableToStartAuthenticationSession)
+                return
+            }
+        }
+    }
+
+    private func finishAuthenticationSession() {
+        webAuthSession?.cancel()
+        webAuthSession = nil
+    }
+}
+
 @MainActor
 final class GoogleAuthService: Sendable {
     private let keychain: any KeychainServiceProtocol
     private let session: URLSession
+    private let webAuthenticator: any WebAuthenticating
+    private let presentationContextProvider = AuthenticationPresentationContextProvider()
 
     private(set) var accessToken: String?
     private(set) var refreshToken: String?
@@ -23,9 +151,14 @@ final class GoogleAuthService: Sendable {
         return Date() >= expiration
     }
 
-    init(keychain: any KeychainServiceProtocol = KeychainService(), session: URLSession = .shared) {
+    init(
+        keychain: any KeychainServiceProtocol = KeychainService(),
+        session: URLSession = .shared,
+        webAuthenticator: (any WebAuthenticating)? = nil
+    ) {
         self.keychain = keychain
         self.session = session
+        self.webAuthenticator = webAuthenticator ?? ASWebAuthenticationSessionAuthenticator()
         loadTokens()
     }
 
@@ -34,8 +167,9 @@ final class GoogleAuthService: Sendable {
     func signIn() async throws {
         let codeVerifier = generateCodeVerifier()
         let codeChallenge = generateCodeChallenge(from: codeVerifier)
-        let port = findAvailablePort()
-        let redirectURI = "http://\(Constants.redirectHost):\(port)/callback"
+        let state = generateState()
+        let redirectScheme = Constants.googleRedirectScheme
+        let redirectURI = Constants.googleRedirectURI
 
         var components = URLComponents(string: Constants.googleAuthURL)!
         components.queryItems = [
@@ -47,12 +181,22 @@ final class GoogleAuthService: Sendable {
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "access_type", value: "offline"),
             URLQueryItem(name: "prompt", value: "consent"),
+            URLQueryItem(name: "state", value: state),
         ]
 
-        let authCode = try await startLocalServerAndAuth(
-            url: components.url!,
-            port: UInt16(port),
-            redirectURI: redirectURI
+        guard let authURL = components.url else {
+            throw GoogleAuthError.invalidCallback
+        }
+
+        let callbackURL = try await webAuthenticator.authenticate(
+            url: authURL,
+            callbackScheme: redirectScheme,
+            presentationContextProvider: presentationContextProvider
+        )
+        let authCode = try OAuthCallbackParser.authorizationCode(
+            from: callbackURL,
+            expectedState: state,
+            expectedScheme: redirectScheme
         )
 
         try await exchangeCodeForTokens(
@@ -60,6 +204,18 @@ final class GoogleAuthService: Sendable {
             codeVerifier: codeVerifier,
             redirectURI: redirectURI
         )
+    }
+
+    func disconnect() async {
+        let tokenToRevoke = refreshToken ?? accessToken
+        if let tokenToRevoke {
+            do {
+                try await revokeToken(tokenToRevoke)
+            } catch {
+                logger.error("Failed to revoke Google OAuth token: \(error.localizedDescription)")
+            }
+        }
+        signOut()
     }
 
     func signOut() {
@@ -98,14 +254,14 @@ final class GoogleAuthService: Sendable {
         let params = [
             "code": code,
             "client_id": Constants.googleClientId,
-            "client_secret": Constants.googleClientSecret,
             "code_verifier": codeVerifier,
             "grant_type": "authorization_code",
             "redirect_uri": redirectURI,
         ]
         request.httpBody = params.urlEncodedString().data(using: .utf8)
 
-        let (data, _) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        try validateTokenResponse(response)
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
 
         accessToken = tokenResponse.accessToken
@@ -122,7 +278,6 @@ final class GoogleAuthService: Sendable {
         let params = [
             "refresh_token": refreshToken,
             "client_id": Constants.googleClientId,
-            "client_secret": Constants.googleClientSecret,
             "grant_type": "refresh_token",
         ]
         request.httpBody = params.urlEncodedString().data(using: .utf8)
@@ -138,6 +293,25 @@ final class GoogleAuthService: Sendable {
         accessToken = tokenResponse.accessToken
         tokenExpiration = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
         saveTokens()
+    }
+
+    private func revokeToken(_ token: String) async throws {
+        var request = URLRequest(url: URL(string: Constants.googleRevocationURL)!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = ["token": token].urlEncodedString().data(using: .utf8)
+
+        let (_, response) = try await session.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {
+            throw APIError.unauthorized
+        }
+    }
+
+    private func validateTokenResponse(_ response: URLResponse) throws {
+        guard let httpResponse = response as? HTTPURLResponse else { return }
+        guard httpResponse.statusCode == 200 else {
+            throw APIError.unauthorized
+        }
     }
 
     private func saveTokens() {
@@ -184,100 +358,44 @@ final class GoogleAuthService: Sendable {
         return Data(hash).base64URLEncoded()
     }
 
-    // MARK: - Local Server for OAuth Callback
-
-    private nonisolated func findAvailablePort() -> Int {
-        // Use a random port in the ephemeral range
-        Int.random(in: 49152...65535)
+    private func generateState() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return Data(bytes).base64URLEncoded()
     }
+}
 
-    private func startLocalServerAndAuth(url: URL, port: UInt16, redirectURI: String) async throws -> String {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, Error>) in
-            guard createLocalServer(port: port, completion: { queryString in
-                if let code = URLComponents(string: "?\(queryString)")?.queryItems?.first(where: { $0.name == "code" })?.value {
-                    continuation.resume(returning: code)
-                } else {
-                    continuation.resume(throwing: APIError.unauthorized)
-                }
-            }) else {
-                continuation.resume(throwing: APIError.networkError(URLError(.cannotConnectToHost)))
-                return
-            }
+@MainActor
+private final class AuthenticationPresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    private var fallbackWindow: NSWindow?
 
-            NSWorkspace.shared.open(url)
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.isVisible }) {
+            return window
         }
+
+        if let fallbackWindow {
+            return fallbackWindow
+        }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
+            styleMask: [],
+            backing: .buffered,
+            defer: false
+        )
+        fallbackWindow = window
+        return window
     }
+}
 
-    @discardableResult
-    private nonisolated func createLocalServer(port: UInt16, completion: @escaping @Sendable (String) -> Void) -> Bool {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
-        guard fd >= 0 else { return false }
-
-        var reuse: Int32 = 1
-        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout<Int32>.size))
-
-        var addr = sockaddr_in()
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_port = port.bigEndian
-        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
-
-        let bindResult = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-            }
-        }
-
-        guard bindResult == 0 else {
-            close(fd)
-            return false
-        }
-
-        listen(fd, 1)
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            let clientFd = accept(fd, nil, nil)
-            guard clientFd >= 0 else {
-                close(fd)
-                return
-            }
-
-            var buffer = [UInt8](repeating: 0, count: 4096)
-            let bytesRead = read(clientFd, &buffer, buffer.count)
-
-            if bytesRead > 0 {
-                let request = String(bytes: buffer[0..<bytesRead], encoding: .utf8) ?? ""
-                // Parse GET /callback?code=...
-                if let firstLine = request.split(separator: "\r\n").first,
-                   let path = firstLine.split(separator: " ").dropFirst().first,
-                   let queryStart = path.firstIndex(of: "?") {
-                    let query = String(path[path.index(after: queryStart)...])
-
-                    let successHTML = """
-                    HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n\
-                    <html><body style="font-family:-apple-system;text-align:center;padding:60px">\
-                    <h2>Signed in to TaskMenu!</h2><p>You can close this tab.</p></body></html>
-                    """
-                    _ = successHTML.withCString { ptr in
-                        write(clientFd, ptr, strlen(ptr))
-                    }
-
-                    close(clientFd)
-                    close(fd)
-                    completion(query)
-                    return
-                }
-            }
-
-            let errorHTML = "HTTP/1.1 400 Bad Request\r\n\r\nError"
-            _ = errorHTML.withCString { ptr in
-                write(clientFd, ptr, strlen(ptr))
-            }
-            close(clientFd)
-            close(fd)
-        }
-
-        return true
+private func webAuthenticationError(from error: Error) -> Error {
+    let nsError = error as NSError
+    if nsError.domain == ASWebAuthenticationSessionError.errorDomain,
+       nsError.code == ASWebAuthenticationSessionError.Code.canceledLogin.rawValue {
+        return GoogleAuthError.canceled
     }
+    return error
 }
 
 // MARK: - Token Response

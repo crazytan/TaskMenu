@@ -14,6 +14,17 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Google OAuth Redirect</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(GOOGLE_REDIRECT_SCHEME)</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
@@ -28,7 +39,7 @@
 	<true/>
 	<key>GOOGLE_CLIENT_ID</key>
 	<string>$(GOOGLE_CLIENT_ID)</string>
-	<key>GOOGLE_CLIENT_SECRET</key>
-	<string>$(GOOGLE_CLIENT_SECRET)</string>
+	<key>GOOGLE_REDIRECT_SCHEME</key>
+	<string>$(GOOGLE_REDIRECT_SCHEME)</string>
 </dict>
 </plist>

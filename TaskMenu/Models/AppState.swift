@@ -242,6 +242,15 @@ final class AppState {
 
     func signOut() {
         authService.signOut()
+        clearSignedInState()
+    }
+
+    func disconnectGoogleAccount() async {
+        await authService.disconnect()
+        clearSignedInState()
+    }
+
+    private func clearSignedInState() {
         isSignedIn = false
         taskLists = []
         tasks = []

@@ -1,9 +1,12 @@
 // TaskMenu OAuth Configuration
 // Copy this file to Config.xcconfig and fill in your values.
 // Get credentials from Google Cloud Console: https://console.cloud.google.com/apis/credentials
+// Create an iOS OAuth client using bundle ID dev.crazytan.TaskMenu.
+// The redirect scheme is the client ID prefix in reverse-DNS form:
+// 1234567890-abc.apps.googleusercontent.com -> com.googleusercontent.apps.1234567890-abc
 
 GOOGLE_CLIENT_ID = your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET = your-client-secret
+GOOGLE_REDIRECT_SCHEME = com.googleusercontent.apps.your-client-id
 
 // Developer-specific signing. CODE_SIGN_STYLE and CODE_SIGN_IDENTITY are set
 // in project.yml (Automatic / Apple Development). Override here if needed.

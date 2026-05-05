@@ -69,9 +69,9 @@ struct SettingsView: View {
             Divider()
 
             // Account & App
-            Button("Sign Out") {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    appState.signOut()
+            Button("Disconnect Google Account") {
+                Task {
+                    await appState.disconnectGoogleAccount()
                 }
             }
             .controlSize(.small)

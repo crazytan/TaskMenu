@@ -7,17 +7,26 @@ enum Constants {
         }
         return id
     }()
-    static let googleClientSecret: String = {
-        guard let secret = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_SECRET") as? String, !secret.isEmpty else {
-            fatalError("GOOGLE_CLIENT_SECRET not set. Copy Config.xcconfig.example to Config.xcconfig and add your credentials.")
+    static let googleRedirectScheme: String = {
+        if let scheme = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_REDIRECT_SCHEME") as? String,
+           !scheme.isEmpty,
+           !scheme.hasPrefix("$(") {
+            return scheme
         }
-        return secret
+
+        let suffix = ".apps.googleusercontent.com"
+        guard googleClientId.hasSuffix(suffix) else {
+            fatalError("GOOGLE_REDIRECT_SCHEME not set. Add it to Config.xcconfig or use a Google OAuth client ID ending in .apps.googleusercontent.com.")
+        }
+        return "com.googleusercontent.apps.\(googleClientId.dropLast(suffix.count))"
     }()
     static let googleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
     static let googleTokenURL = "https://oauth2.googleapis.com/token"
+    static let googleRevocationURL = "https://oauth2.googleapis.com/revoke"
     static let googleTasksBaseURL = "https://tasks.googleapis.com/tasks/v1"
     static let googleTasksScope = "https://www.googleapis.com/auth/tasks"
-    static let redirectHost = "127.0.0.1"
+    static let googleRedirectPath = "/oauth2redirect"
+    static let googleRedirectURI = "\(googleRedirectScheme):\(googleRedirectPath)"
 
     enum Keychain {
         static let service = "dev.crazytan.TaskMenu.oauth"
