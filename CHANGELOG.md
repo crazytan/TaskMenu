@@ -10,6 +10,7 @@
 
 - Added MetricKit collection
 - Show task notes previews in the main task list, including subtask notes.
+- Moved settings into a dedicated native macOS Settings window.
 
 ## v1.0.1 (2026-05-04)
 

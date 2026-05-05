@@ -34,7 +34,9 @@ final class StatusBarController: NSObject {
     private func configurePopover(appState: AppState) {
         popover.behavior = .transient
         popover.contentViewController = NSHostingController(
-            rootView: MenuBarPopover(appState: appState)
+            rootView: MenuBarPopover(appState: appState) { [weak self] in
+                self?.popover.performClose(nil)
+            }
         )
     }
 

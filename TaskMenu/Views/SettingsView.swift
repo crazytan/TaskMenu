@@ -3,7 +3,6 @@ import ServiceManagement
 
 struct SettingsView: View {
     @Bindable var appState: AppState
-    var onBack: () -> Void
     @State private var launchAtLogin = false
 
     private var appVersion: String {
@@ -12,20 +11,8 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with back button
-            HStack {
-                Button {
-                    onBack()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(.borderless)
-
-                Text("Settings")
-                    .font(.headline)
-                Spacer()
-            }
+            Text("Settings")
+                .font(.headline)
 
             Divider()
 
@@ -98,7 +85,7 @@ struct SettingsView: View {
             .padding(.top, 4)
         }
         .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(width: 320, alignment: .topLeading)
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }

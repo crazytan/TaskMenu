@@ -2,20 +2,14 @@ import SwiftUI
 
 struct MenuBarPopover: View {
     @Bindable var appState: AppState
-    @State private var showSettings = false
+    var onRequestClose: (() -> Void)?
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(spacing: 0) {
             if !appState.isSignedIn {
                 SignInView(appState: appState)
                     .transition(.opacity)
-            } else if showSettings {
-                SettingsView(appState: appState, onBack: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showSettings = false
-                        }
-                    })
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
                 TaskListView(appState: appState)
 
@@ -40,9 +34,9 @@ struct MenuBarPopover: View {
                     }
                     Spacer()
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showSettings = true
-                        }
+                        openSettings()
+                        NSApp.activate(ignoringOtherApps: true)
+                        onRequestClose?()
                     } label: {
                         Image(systemName: "gear")
                             .font(.system(size: 13, weight: .medium))
