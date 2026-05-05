@@ -15,6 +15,7 @@
 - Keep long subtask lists scrollable inside the task detail view.
 - Cache tasks per list so switching lists shows cached tasks immediately and ignores stale refreshes.
 - Bootstrap signed-in task loading at launch and show an initial loading state.
+- Close the menu bar popover more reliably when clicking outside it.
 
 ## v1.0.1 (2026-05-04)
 

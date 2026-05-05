@@ -64,4 +64,43 @@ final class MenuBarWindowChromeTests: XCTestCase {
             XCTAssertTrue(window.contentView === hostedContentView)
         }
     }
+
+    func testPopoverClickHandlingKeepsPopoverClicksOpen() {
+        let popoverWindow = NSWindow()
+        let statusWindow = NSWindow()
+
+        XCTAssertFalse(PopoverClickHandling.shouldClosePopover(
+            eventWindow: popoverWindow,
+            popoverWindow: popoverWindow,
+            statusItemWindow: statusWindow
+        ))
+    }
+
+    func testPopoverClickHandlingKeepsStatusItemClicksOpen() {
+        let popoverWindow = NSWindow()
+        let statusWindow = NSWindow()
+
+        XCTAssertFalse(PopoverClickHandling.shouldClosePopover(
+            eventWindow: statusWindow,
+            popoverWindow: popoverWindow,
+            statusItemWindow: statusWindow
+        ))
+    }
+
+    func testPopoverClickHandlingClosesForOtherWindowsAndGlobalEvents() {
+        let popoverWindow = NSWindow()
+        let statusWindow = NSWindow()
+        let otherWindow = NSWindow()
+
+        XCTAssertTrue(PopoverClickHandling.shouldClosePopover(
+            eventWindow: otherWindow,
+            popoverWindow: popoverWindow,
+            statusItemWindow: statusWindow
+        ))
+        XCTAssertTrue(PopoverClickHandling.shouldClosePopover(
+            eventWindow: nil,
+            popoverWindow: popoverWindow,
+            statusItemWindow: statusWindow
+        ))
+    }
 }

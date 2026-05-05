@@ -6,6 +6,7 @@ final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private let contextMenu = NSMenu()
+    private var outsideClickMonitors: [Any] = []
 
     init(appState: AppState) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -33,9 +34,11 @@ final class StatusBarController: NSObject {
 
     private func configurePopover(appState: AppState) {
         popover.behavior = .transient
+        popover.delegate = self
         popover.contentViewController = NSHostingController(
             rootView: MenuBarPopover(appState: appState) { [weak self] in
                 self?.popover.performClose(nil)
+                self?.stopOutsideClickMonitoring()
             }
         )
     }
@@ -63,20 +66,94 @@ final class StatusBarController: NSObject {
     private func togglePopover(from button: NSStatusBarButton) {
         if popover.isShown {
             popover.performClose(nil)
+            stopOutsideClickMonitoring()
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            startOutsideClickMonitoring()
         }
     }
 
     private func showContextMenu(from button: NSStatusBarButton) {
         popover.performClose(nil)
+        stopOutsideClickMonitoring()
 
         statusItem.menu = contextMenu
         button.performClick(nil)
         statusItem.menu = nil
     }
 
+    private func startOutsideClickMonitoring() {
+        stopOutsideClickMonitoring()
+
+        let eventMask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+
+        if let localMonitor = NSEvent.addLocalMonitorForEvents(matching: eventMask, handler: { [weak self] event in
+            MainActor.assumeIsolated {
+                self?.closePopoverIfLocalClickIsOutside(event)
+            }
+            return event
+        }) {
+            outsideClickMonitors.append(localMonitor)
+        }
+
+        if let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: eventMask, handler: { [weak self] _ in
+            Task { @MainActor in
+                self?.closePopoverFromOutsideClick()
+            }
+        }) {
+            outsideClickMonitors.append(globalMonitor)
+        }
+    }
+
+    private func stopOutsideClickMonitoring() {
+        for monitor in outsideClickMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        outsideClickMonitors = []
+    }
+
+    private func closePopoverIfLocalClickIsOutside(_ event: NSEvent) {
+        guard PopoverClickHandling.shouldClosePopover(
+            eventWindow: event.window,
+            popoverWindow: popover.contentViewController?.view.window,
+            statusItemWindow: statusItem.button?.window
+        ) else {
+            return
+        }
+
+        closePopoverFromOutsideClick()
+    }
+
+    private func closePopoverFromOutsideClick() {
+        guard popover.isShown else {
+            stopOutsideClickMonitoring()
+            return
+        }
+
+        popover.performClose(nil)
+        stopOutsideClickMonitoring()
+    }
+
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
+    }
+}
+
+extension StatusBarController: NSPopoverDelegate {
+    func popoverDidClose(_ notification: Notification) {
+        stopOutsideClickMonitoring()
+    }
+}
+
+enum PopoverClickHandling {
+    static func shouldClosePopover(
+        eventWindow: NSWindow?,
+        popoverWindow: NSWindow?,
+        statusItemWindow: NSWindow?
+    ) -> Bool {
+        guard let eventWindow else { return true }
+        if let popoverWindow, eventWindow === popoverWindow { return false }
+        if let statusItemWindow, eventWindow === statusItemWindow { return false }
+        return true
     }
 }
