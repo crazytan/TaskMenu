@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+- Added MetricKit collection
+
 ## v1.0.1 (2026-05-04)
 
 ### Added

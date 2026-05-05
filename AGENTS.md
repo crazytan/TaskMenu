@@ -116,6 +116,7 @@ xcodebuild -scheme TaskMenu -configuration Debug test
 ## Git Workflow
 
 - **Default workflow:** Commit and push directly to `main` when asked.
+- **Keep CHANGELOG.md updated**: Before committing, double-check if the current change is added as an unreleased entry in the CHANGELOG.md file.
 - **No separate PR/branch by default:** Do not create feature branches or pull requests unless explicitly requested.
 - **Worktree exception:** When working from a git worktree, use a separate branch for that worktree. Open a PR only if that worktree-based flow needs one.
 
