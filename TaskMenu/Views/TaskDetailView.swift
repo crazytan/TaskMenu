@@ -35,6 +35,16 @@ struct TaskDetailDueDateState {
     }
 }
 
+enum TaskDetailLayout {
+    static let subtaskRowHeight: CGFloat = 24
+    static let subtaskListMaxHeight: CGFloat = 144
+
+    static func subtaskListHeight(forCount count: Int) -> CGFloat {
+        guard count > 0 else { return 0 }
+        return min(CGFloat(count) * subtaskRowHeight, subtaskListMaxHeight)
+    }
+}
+
 struct TaskDetailView: View {
     @Bindable var appState: AppState
     @State var task: TaskItem
@@ -51,129 +61,175 @@ struct TaskDetailView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Button {
-                    onDismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("detail.back.button")
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 12)
 
-                Text("Edit Task")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    let updatedTask = dueDateState.applying(to: task)
-                    Task {
-                        await appState.updateTask(updatedTask)
-                        onDismiss()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .accessibilityIdentifier("detail.done.button")
-            }
+            VStack(alignment: .leading, spacing: 14) {
+                titleField
+                notesField
+                dueDateRow
 
-            TextField("Title", text: $task.title)
-                .textFieldStyle(.roundedBorder)
-                .font(.body)
-                .accessibilityIdentifier("detail.title.field")
-
-            TextField("Notes", text: Binding(
-                get: { task.notes ?? "" },
-                set: { task.notes = $0.isEmpty ? nil : $0 }
-            ), axis: .vertical)
-            .textFieldStyle(.roundedBorder)
-            .font(.callout)
-            .lineLimit(3...6)
-
-            HStack {
-                Text("Due date")
-                    .font(.callout)
-                Spacer()
-                if dueDateState.isEnabled {
-                    DatePicker(
-                        "",
-                        selection: $dueDateState.selection,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                    .datePickerStyle(.stepperField)
-                    .controlSize(.small)
-                } else {
-                    Button("Add due date") {
-                        dueDateState.enable()
-                    }
-                    .font(.caption)
-                    .controlSize(.small)
+                if task.parent == nil {
+                    subtaskSection
                 }
             }
+            .padding(.horizontal, 16)
 
-            // Subtasks section
-            if task.parent == nil {
-                Divider()
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Subtasks")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle")
-                            .foregroundStyle(.blue)
-                            .font(.system(size: 14))
-                        TextField("Add subtask...", text: $subtaskTitle)
-                            .textFieldStyle(.plain)
-                            .font(.callout)
-                            .focused($isSubtaskFieldFocused)
-                            .onSubmit {
-                                addSubtask()
-                            }
-                    }
-
-                    let children = appState.subtasks(of: task.id)
-                    ForEach(children) { child in
-                        HStack(spacing: 6) {
-                            Image(systemName: child.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(child.isCompleted ? .green : .secondary)
-                                .font(.system(size: 14, weight: .light))
-                            Text(child.title)
-                                .font(.callout)
-                                .strikethrough(child.isCompleted)
-                                .foregroundStyle(child.isCompleted ? .secondary : .primary)
-                        }
-                    }
-                }
-            }
+            Spacer(minLength: 0)
 
             Divider()
 
-            HStack {
-                if dueDateState.isEnabled {
-                    Button("Clear due date") {
-                        dueDateState.clear()
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .controlSize(.small)
+            actions
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+        }
+        .frame(width: 300)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private var header: some View {
+        HStack {
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .accessibilityIdentifier("detail.back.button")
+
+            Text("Edit Task")
+                .font(.headline)
+            Spacer()
+            Button("Done") {
+                let updatedTask = dueDateState.applying(to: task)
+                Task {
+                    await appState.updateTask(updatedTask)
+                    onDismiss()
                 }
-                Spacer()
-                Button(role: .destructive) {
-                    Task {
-                        await appState.deleteTask(task)
-                        onDismiss()
-                    }
-                } label: {
-                    Label("Delete", systemImage: "trash")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .accessibilityIdentifier("detail.done.button")
+        }
+    }
+
+    private var titleField: some View {
+        TextField("Title", text: $task.title)
+            .textFieldStyle(.roundedBorder)
+            .font(.body)
+            .accessibilityIdentifier("detail.title.field")
+    }
+
+    private var notesField: some View {
+        TextField("Notes", text: Binding(
+            get: { task.notes ?? "" },
+            set: { task.notes = $0.isEmpty ? nil : $0 }
+        ), axis: .vertical)
+            .textFieldStyle(.roundedBorder)
+            .font(.callout)
+            .lineLimit(3...6)
+    }
+
+    private var dueDateRow: some View {
+        HStack {
+            Text("Due date")
+                .font(.callout)
+            Spacer()
+            if dueDateState.isEnabled {
+                DatePicker(
+                    "",
+                    selection: $dueDateState.selection,
+                    displayedComponents: .date
+                )
+                .labelsHidden()
+                .datePickerStyle(.stepperField)
+                .controlSize(.small)
+            } else {
+                Button("Add due date") {
+                    dueDateState.enable()
                 }
+                .font(.caption)
                 .controlSize(.small)
             }
         }
-        .padding(16)
-        .frame(width: 300)
+    }
+
+    private var subtaskSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider()
+
+            Text("Subtasks")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle")
+                    .foregroundStyle(.blue)
+                    .font(.system(size: 14))
+                TextField("Add subtask...", text: $subtaskTitle)
+                    .textFieldStyle(.plain)
+                    .font(.callout)
+                    .focused($isSubtaskFieldFocused)
+                    .onSubmit {
+                        addSubtask()
+                    }
+            }
+
+            let children = appState.subtasks(of: task.id)
+            if !children.isEmpty {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 6) {
+                        ForEach(children) { child in
+                            subtaskRow(for: child)
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+                .frame(height: TaskDetailLayout.subtaskListHeight(forCount: children.count))
+                .accessibilityIdentifier("detail.subtasks.scroll")
+            }
+        }
+    }
+
+    private func subtaskRow(for child: TaskItem) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: child.isCompleted ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(child.isCompleted ? .green : .secondary)
+                .font(.system(size: 14, weight: .light))
+            Text(child.title)
+                .font(.callout)
+                .lineLimit(1)
+                .strikethrough(child.isCompleted)
+                .foregroundStyle(child.isCompleted ? .secondary : .primary)
+        }
+        .frame(maxWidth: .infinity, minHeight: TaskDetailLayout.subtaskRowHeight, alignment: .leading)
+    }
+
+    private var actions: some View {
+        HStack {
+            if dueDateState.isEnabled {
+                Button("Clear due date") {
+                    dueDateState.clear()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .controlSize(.small)
+            }
+            Spacer()
+            Button(role: .destructive) {
+                Task {
+                    await appState.deleteTask(task)
+                    onDismiss()
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .controlSize(.small)
+        }
     }
 
     private func addSubtask() {

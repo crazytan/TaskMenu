@@ -65,4 +65,22 @@ final class TaskDetailViewTests: XCTestCase {
         XCTAssertEqual(updatedTask.due, DateFormatting.formatRFC3339(dueDate))
         XCTAssertEqual(updatedTask.dueDate, DateFormatting.parseRFC3339(DateFormatting.formatRFC3339(dueDate)))
     }
+
+    func testSubtaskListHeightIsZeroWhenEmpty() {
+        XCTAssertEqual(TaskDetailLayout.subtaskListHeight(forCount: 0), 0)
+    }
+
+    func testSubtaskListHeightFitsShortLists() {
+        XCTAssertEqual(
+            TaskDetailLayout.subtaskListHeight(forCount: 3),
+            TaskDetailLayout.subtaskRowHeight * 3
+        )
+    }
+
+    func testSubtaskListHeightCapsLongLists() {
+        XCTAssertEqual(
+            TaskDetailLayout.subtaskListHeight(forCount: 20),
+            TaskDetailLayout.subtaskListMaxHeight
+        )
+    }
 }
