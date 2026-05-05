@@ -17,6 +17,7 @@
 - Bootstrap signed-in task loading at launch and show an initial loading state.
 - Close the menu bar popover more reliably when clicking outside it.
 - Verify Google Tasks due-date updates and clears sync through PATCH responses.
+- Hide completed subtasks under active parents by default with a per-parent reveal row.
 
 ## v1.0.1 (2026-05-04)
 

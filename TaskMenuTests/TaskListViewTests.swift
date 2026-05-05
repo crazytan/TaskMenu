@@ -2,6 +2,25 @@ import XCTest
 @testable import TaskMenu
 
 final class TaskListViewTests: XCTestCase {
+    private func makeTask(
+        id: String,
+        title: String = "Task",
+        parent: String? = nil,
+        status: TaskItem.TaskStatus = .needsAction
+    ) -> TaskItem {
+        TaskItem(
+            id: id,
+            title: title,
+            notes: nil,
+            status: status,
+            due: nil,
+            selfLink: nil,
+            parent: parent,
+            position: nil,
+            updated: nil
+        )
+    }
+
     func testTaskRowSectionTracksTaskCompletion() {
         let activeTask = TaskItem(
             id: "active",
@@ -145,5 +164,94 @@ final class TaskListViewTests: XCTestCase {
                 section: .active
             )
         )
+    }
+
+    func testVisibleSubtasksHidesCompletedChildrenByDefaultForActiveParent() {
+        let parent = makeTask(id: "parent")
+        let activeChild = makeTask(id: "active-child", parent: "parent")
+        let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
+
+        let visible = visibleSubtasks(
+            [activeChild, completedChild],
+            under: parent,
+            isSearching: false,
+            completedSubtasksRevealed: false
+        )
+
+        XCTAssertEqual(visible.map(\.id), ["active-child"])
+    }
+
+    func testVisibleSubtasksShowsCompletedChildrenWhenRevealed() {
+        let parent = makeTask(id: "parent")
+        let activeChild = makeTask(id: "active-child", parent: "parent")
+        let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
+
+        let visible = visibleSubtasks(
+            [activeChild, completedChild],
+            under: parent,
+            isSearching: false,
+            completedSubtasksRevealed: true
+        )
+
+        XCTAssertEqual(visible.map(\.id), ["active-child", "done-child"])
+    }
+
+    func testVisibleSubtasksShowsCompletedChildrenDuringSearch() {
+        let parent = makeTask(id: "parent")
+        let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
+
+        let visible = visibleSubtasks(
+            [completedChild],
+            under: parent,
+            isSearching: true,
+            completedSubtasksRevealed: false
+        )
+
+        XCTAssertEqual(visible.map(\.id), ["done-child"])
+    }
+
+    func testVisibleSubtasksDoesNotHideChildrenOfCompletedParent() {
+        let parent = makeTask(id: "parent", status: .completed)
+        let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
+
+        let visible = visibleSubtasks(
+            [completedChild],
+            under: parent,
+            isSearching: false,
+            completedSubtasksRevealed: false
+        )
+
+        XCTAssertEqual(visible.map(\.id), ["done-child"])
+    }
+
+    func testCompletedSubtasksRevealCountCountsOnlyHiddenCompletedChildren() {
+        let parent = makeTask(id: "parent")
+        let activeChild = makeTask(id: "active-child", parent: "parent")
+        let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
+
+        XCTAssertEqual(
+            completedSubtasksRevealCount(
+                [activeChild, completedChild],
+                under: parent,
+                isSearching: false
+            ),
+            1
+        )
+    }
+
+    func testCompletedSubtasksRevealCountIsZeroDuringSearch() {
+        let parent = makeTask(id: "parent")
+        let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
+
+        XCTAssertEqual(
+            completedSubtasksRevealCount([completedChild], under: parent, isSearching: true),
+            0
+        )
+    }
+
+    func testCompletedSubtasksRevealTitlePluralizes() {
+        XCTAssertEqual(completedSubtasksRevealTitle(count: 1, isRevealed: false), "Show 1 completed subtask")
+        XCTAssertEqual(completedSubtasksRevealTitle(count: 2, isRevealed: false), "Show 2 completed subtasks")
+        XCTAssertEqual(completedSubtasksRevealTitle(count: 2, isRevealed: true), "Hide completed subtasks")
     }
 }

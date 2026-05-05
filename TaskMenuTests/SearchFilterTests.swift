@@ -190,6 +190,23 @@ final class SearchFilterTests: XCTestCase {
         XCTAssertTrue(filteredIDs.contains("2"))
     }
 
+    func testSearchIncludesMatchingCompletedSubtaskAndParent() {
+        let tasks = [
+            makeTask(id: "parent1", title: "Errands"),
+            makeTask(id: "child1", title: "Renew passport", parent: "parent1", status: .completed),
+            makeTask(id: "child2", title: "Buy stamps", parent: "parent1"),
+        ]
+        let state = makeAppState(tasks: tasks)
+        state.searchText = "passport"
+
+        let filteredIDs = Set(state.searchFilteredTasks.map(\.id))
+        XCTAssertTrue(filteredIDs.contains("parent1"))
+        XCTAssertTrue(filteredIDs.contains("child1"))
+        XCTAssertFalse(filteredIDs.contains("child2"))
+
+        XCTAssertEqual(state.searchFilteredSubtasks(of: "parent1").map(\.id), ["child1"])
+    }
+
     // MARK: - Search Filtered Root Tasks
 
     func testSearchFilteredRootTasksExcludesSubtasks() {

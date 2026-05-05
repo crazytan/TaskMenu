@@ -30,12 +30,44 @@ func shouldPlaceInlineSubtaskField(
     return task.id == parentID
 }
 
+func visibleSubtasks(
+    _ subtasks: [TaskItem],
+    under parent: TaskItem,
+    isSearching: Bool,
+    completedSubtasksRevealed: Bool
+) -> [TaskItem] {
+    guard !isSearching, !parent.isCompleted, !completedSubtasksRevealed else {
+        return subtasks
+    }
+
+    return subtasks.filter { !$0.isCompleted }
+}
+
+func completedSubtasksRevealCount(
+    _ subtasks: [TaskItem],
+    under parent: TaskItem,
+    isSearching: Bool
+) -> Int {
+    guard !isSearching, !parent.isCompleted else { return 0 }
+    return subtasks.filter(\.isCompleted).count
+}
+
+func completedSubtasksRevealTitle(count: Int, isRevealed: Bool) -> String {
+    if isRevealed {
+        return "Hide completed subtasks"
+    }
+
+    let label = count == 1 ? "completed subtask" : "completed subtasks"
+    return "Show \(count) \(label)"
+}
+
 struct TaskListView: View {
     @Bindable var appState: AppState
     @State private var selectedTask: TaskItem?
     @State private var showCompleted = false
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
     @State private var inlineSubtaskParentID: String?
+    @State private var revealedCompletedSubtaskParentIDs: Set<String> = []
 
     private struct FlattenedTaskEntry: Identifiable {
         let task: TaskItem
@@ -45,6 +77,32 @@ struct TaskListView: View {
 
         var id: String {
             taskRowIdentity(for: task.id, in: section)
+        }
+    }
+
+    fileprivate struct CompletedSubtasksRevealEntry: Identifiable {
+        let parentID: String
+        let count: Int
+        let indentLevel: Int
+        let isRevealed: Bool
+        let section: TaskRowSection
+
+        var id: String {
+            "\(section.rawValue)-completed-subtasks-\(parentID)"
+        }
+    }
+
+    private enum TaskListEntry: Identifiable {
+        case task(FlattenedTaskEntry)
+        case completedSubtasksReveal(CompletedSubtasksRevealEntry)
+
+        var id: String {
+            switch self {
+            case .task(let entry):
+                entry.id
+            case .completedSubtasksReveal(let entry):
+                entry.id
+            }
         }
     }
 
@@ -183,17 +241,26 @@ struct TaskListView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        let flatIncomplete = flattenedTasks(roots: incompleteRootTasks, section: .active)
+                        let flatIncomplete = flattenedListEntries(roots: incompleteRootTasks, section: .active)
                         ForEach(flatIncomplete) { entry in
-                            taskRow(for: entry)
+                            switch entry {
+                            case .task(let taskEntry):
+                                taskRow(for: taskEntry)
 
-                            if shouldShowInlineSubtaskField(after: entry) {
-                                InlineSubtaskField(
-                                    parentId: inlineSubtaskParentID!,
-                                    indentLevel: 1,
-                                    appState: appState,
-                                    onDismiss: { inlineSubtaskParentID = nil }
-                                )
+                                if shouldShowInlineSubtaskField(after: taskEntry) {
+                                    InlineSubtaskField(
+                                        parentId: inlineSubtaskParentID!,
+                                        indentLevel: 1,
+                                        appState: appState,
+                                        onDismiss: { inlineSubtaskParentID = nil }
+                                    )
+                                    .padding(.leading, 4)
+                                    .padding(.trailing, 10)
+                                }
+                            case .completedSubtasksReveal(let revealEntry):
+                                CompletedSubtasksRevealRow(entry: revealEntry) {
+                                    toggleCompletedSubtasksReveal(for: revealEntry.parentID)
+                                }
                                 .padding(.leading, 4)
                                 .padding(.trailing, 10)
                             }
@@ -226,9 +293,18 @@ struct TaskListView: View {
                             .accessibilityIdentifier("completed.toggle")
 
                             if showCompleted || appState.isSearching {
-                                let flatCompleted = flattenedTasks(roots: completedRootTasks, section: .completed)
+                                let flatCompleted = flattenedListEntries(roots: completedRootTasks, section: .completed)
                                 ForEach(flatCompleted) { entry in
-                                    taskRow(for: entry)
+                                    switch entry {
+                                    case .task(let taskEntry):
+                                        taskRow(for: taskEntry)
+                                    case .completedSubtasksReveal(let revealEntry):
+                                        CompletedSubtasksRevealRow(entry: revealEntry) {
+                                            toggleCompletedSubtasksReveal(for: revealEntry.parentID)
+                                        }
+                                        .padding(.leading, 4)
+                                        .padding(.trailing, 10)
+                                    }
                                 }
                             }
                         }
@@ -244,25 +320,50 @@ struct TaskListView: View {
     }
 
     /// Flattens the task tree into a list of (task, indentLevel, isParentCompleted) for rendering.
-    private func flattenedTasks(roots: [TaskItem], section: TaskRowSection) -> [FlattenedTaskEntry] {
-        var result: [FlattenedTaskEntry] = []
+    private func flattenedListEntries(roots: [TaskItem], section: TaskRowSection) -> [TaskListEntry] {
+        var result: [TaskListEntry] = []
 
         func walk(_ task: TaskItem, level: Int, parentCompleted: Bool) {
-            result.append(
+            result.append(.task(
                 FlattenedTaskEntry(
                     task: task,
                     indentLevel: level,
                     isParentCompleted: parentCompleted,
                     section: section
                 )
-            )
+            ))
             let isCollapsed = appState.collapsedTaskIDs.contains(task.id)
             if !isCollapsed {
-                let children = appState.isSearching
+                let allChildren = appState.isSearching
                     ? appState.searchFilteredSubtasks(of: task.id)
                     : appState.subtasks(of: task.id)
-                for child in children {
+                let isRevealed = revealedCompletedSubtaskParentIDs.contains(task.id)
+                let visibleChildren = visibleSubtasks(
+                    allChildren,
+                    under: task,
+                    isSearching: appState.isSearching,
+                    completedSubtasksRevealed: isRevealed
+                )
+
+                for child in visibleChildren {
                     walk(child, level: level + 1, parentCompleted: parentCompleted || task.isCompleted)
+                }
+
+                let hiddenCompletedCount = completedSubtasksRevealCount(
+                    allChildren,
+                    under: task,
+                    isSearching: appState.isSearching
+                )
+                if hiddenCompletedCount > 0 {
+                    result.append(.completedSubtasksReveal(
+                        CompletedSubtasksRevealEntry(
+                            parentID: task.id,
+                            count: hiddenCompletedCount,
+                            indentLevel: level + 1,
+                            isRevealed: isRevealed,
+                            section: section
+                        )
+                    ))
                 }
             }
         }
@@ -271,6 +372,16 @@ struct TaskListView: View {
             walk(root, level: 0, parentCompleted: false)
         }
         return result
+    }
+
+    private func toggleCompletedSubtasksReveal(for parentID: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if revealedCompletedSubtaskParentIDs.contains(parentID) {
+                revealedCompletedSubtaskParentIDs.remove(parentID)
+            } else {
+                revealedCompletedSubtaskParentIDs.insert(parentID)
+            }
+        }
     }
 
     private func triggerInlineSubtask(for task: TaskItem) {
@@ -412,6 +523,37 @@ struct TaskListView: View {
         )
     }
 
+}
+
+private struct CompletedSubtasksRevealRow: View {
+    let entry: TaskListView.CompletedSubtasksRevealEntry
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 8) {
+                Spacer()
+                    .frame(width: 10)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .rotationEffect(.degrees(entry.isRevealed ? -90 : 0))
+
+                Text(completedSubtasksRevealTitle(count: entry.count, isRevealed: entry.isRevealed))
+                    .font(.caption)
+
+                Spacer()
+            }
+            .padding(.vertical, 5)
+            .padding(.leading, 2)
+            .padding(.trailing, 4)
+            .padding(.leading, CGFloat(entry.indentLevel) * 20)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .accessibilityIdentifier("completed.subtasks.toggle.\(entry.parentID)")
+    }
 }
 
 private struct InlineSubtaskField: View {
