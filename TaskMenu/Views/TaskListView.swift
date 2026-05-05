@@ -18,6 +18,18 @@ func taskRowIdentity(for taskID: String, in section: TaskRowSection) -> String {
     "\(section.rawValue)-\(taskID)"
 }
 
+func shouldPlaceInlineSubtaskField(
+    after task: TaskItem,
+    parentID: String?,
+    isSearching: Bool,
+    section: TaskRowSection
+) -> Bool {
+    guard let parentID else { return false }
+    guard !isSearching else { return false }
+    guard section == .active else { return false }
+    return task.id == parentID
+}
+
 struct TaskListView: View {
     @Bindable var appState: AppState
     @State private var selectedTask: TaskItem?
@@ -175,7 +187,7 @@ struct TaskListView: View {
                         ForEach(flatIncomplete) { entry in
                             taskRow(for: entry)
 
-                            if shouldShowInlineSubtaskField(after: entry, in: flatIncomplete) {
+                            if shouldShowInlineSubtaskField(after: entry) {
                                 InlineSubtaskField(
                                     parentId: inlineSubtaskParentID!,
                                     indentLevel: 1,
@@ -391,26 +403,13 @@ struct TaskListView: View {
         return true
     }
 
-    private func shouldShowInlineSubtaskField(after entry: FlattenedTaskEntry, in entries: [FlattenedTaskEntry]) -> Bool {
-        guard let parentID = inlineSubtaskParentID else { return false }
-        guard !appState.isSearching else { return false }
-        guard entry.section == .active else { return false }
-
-        if entry.task.id == parentID {
-            if !appState.hasSubtasks(parentID) || appState.collapsedTaskIDs.contains(parentID) {
-                return true
-            }
-        }
-
-        if entry.task.parent == parentID {
-            guard let entryIndex = entries.firstIndex(where: { $0.task.id == entry.task.id }) else { return false }
-            let nextIndex = entryIndex + 1
-            if nextIndex >= entries.count || entries[nextIndex].task.parent != parentID {
-                return true
-            }
-        }
-
-        return false
+    private func shouldShowInlineSubtaskField(after entry: FlattenedTaskEntry) -> Bool {
+        shouldPlaceInlineSubtaskField(
+            after: entry.task,
+            parentID: inlineSubtaskParentID,
+            isSearching: appState.isSearching,
+            section: entry.section
+        )
     }
 
 }

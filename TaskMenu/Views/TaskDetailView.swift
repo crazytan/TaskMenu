@@ -121,19 +121,6 @@ struct TaskDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    let children = appState.subtasks(of: task.id)
-                    ForEach(children) { child in
-                        HStack(spacing: 6) {
-                            Image(systemName: child.isCompleted ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(child.isCompleted ? .green : .secondary)
-                                .font(.system(size: 14, weight: .light))
-                            Text(child.title)
-                                .font(.callout)
-                                .strikethrough(child.isCompleted)
-                                .foregroundStyle(child.isCompleted ? .secondary : .primary)
-                        }
-                    }
-
                     HStack(spacing: 6) {
                         Image(systemName: "plus.circle")
                             .foregroundStyle(.blue)
@@ -145,6 +132,19 @@ struct TaskDetailView: View {
                             .onSubmit {
                                 addSubtask()
                             }
+                    }
+
+                    let children = appState.subtasks(of: task.id)
+                    ForEach(children) { child in
+                        HStack(spacing: 6) {
+                            Image(systemName: child.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(child.isCompleted ? .green : .secondary)
+                                .font(.system(size: 14, weight: .light))
+                            Text(child.title)
+                                .font(.callout)
+                                .strikethrough(child.isCompleted)
+                                .foregroundStyle(child.isCompleted ? .secondary : .primary)
+                        }
                     }
                 }
             }

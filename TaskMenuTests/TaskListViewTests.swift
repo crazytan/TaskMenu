@@ -77,4 +77,73 @@ final class TaskListViewTests: XCTestCase {
 
         XCTAssertNil(taskNotesPreview(for: task))
     }
+
+    func testInlineSubtaskFieldShowsImmediatelyAfterSelectedParent() {
+        let parent = TaskItem(
+            id: "parent",
+            title: "Parent",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: nil,
+            updated: nil
+        )
+
+        XCTAssertTrue(
+            shouldPlaceInlineSubtaskField(
+                after: parent,
+                parentID: "parent",
+                isSearching: false,
+                section: .active
+            )
+        )
+    }
+
+    func testInlineSubtaskFieldDoesNotShowAfterExistingChild() {
+        let child = TaskItem(
+            id: "child",
+            title: "Child",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: "parent",
+            position: nil,
+            updated: nil
+        )
+
+        XCTAssertFalse(
+            shouldPlaceInlineSubtaskField(
+                after: child,
+                parentID: "parent",
+                isSearching: false,
+                section: .active
+            )
+        )
+    }
+
+    func testInlineSubtaskFieldHidesDuringSearch() {
+        let parent = TaskItem(
+            id: "parent",
+            title: "Parent",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: nil,
+            updated: nil
+        )
+
+        XCTAssertFalse(
+            shouldPlaceInlineSubtaskField(
+                after: parent,
+                parentID: "parent",
+                isSearching: true,
+                section: .active
+            )
+        )
+    }
 }
