@@ -28,6 +28,26 @@ struct TaskDropIndicator: Equatable {
     let placement: TaskDropPlacement
 }
 
+private enum TaskDragTransfer {
+    static let type = UTType(exportedAs: "dev.crazytan.TaskMenu.task-id")
+
+    static var identifiers: [String] {
+        [type.identifier]
+    }
+
+    static func itemProvider(for taskID: String) -> NSItemProvider {
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(
+            forTypeIdentifier: type.identifier,
+            visibility: .ownProcess
+        ) { completion in
+            completion(Data(taskID.utf8), nil)
+            return nil
+        }
+        return provider
+    }
+}
+
 func taskRowSection(for task: TaskItem) -> TaskRowSection {
     task.isCompleted ? .completed : .active
 }
@@ -568,7 +588,7 @@ struct TaskListView: View {
                 activeTaskRow(for: entry, hasChildren: hasChildren)
                     .onDrag {
                         draggedTaskID = task.id
-                        return NSItemProvider(object: task.id as NSString)
+                        return TaskDragTransfer.itemProvider(for: task.id)
                     }
                     .overlay(alignment: .top) {
                         dropInsertionLine(targetTaskID: task.id, placement: .before)
@@ -577,7 +597,7 @@ struct TaskListView: View {
                         dropInsertionLine(targetTaskID: task.id, placement: .after)
                     }
                     .onDrop(
-                        of: [UTType.plainText.identifier],
+                        of: TaskDragTransfer.identifiers,
                         delegate: TaskRowDropDelegate(
                             draggedTaskID: draggedTaskID,
                             targetTask: task,
@@ -623,7 +643,7 @@ struct TaskListView: View {
         }
         .contentShape(Rectangle())
         .onDrop(
-            of: [UTType.plainText.identifier],
+            of: TaskDragTransfer.identifiers,
             delegate: TaskEndDropDelegate(
                 draggedTaskID: draggedTaskID,
                 activeTasks: appState.tasks.filter { !$0.isCompleted },

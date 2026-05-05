@@ -37,11 +37,16 @@ struct TaskDetailDueDateState {
 
 enum TaskDetailLayout {
     static let subtaskRowHeight: CGFloat = 24
+    static let subtaskRowSpacing: CGFloat = 6
+    static let subtaskListVerticalPadding: CGFloat = 1
     static let subtaskListMaxHeight: CGFloat = 144
 
     static func subtaskListHeight(forCount count: Int) -> CGFloat {
         guard count > 0 else { return 0 }
-        return min(CGFloat(count) * subtaskRowHeight, subtaskListMaxHeight)
+        let rowHeights = CGFloat(count) * subtaskRowHeight
+        let rowSpacing = CGFloat(count - 1) * subtaskRowSpacing
+        let verticalPadding = subtaskListVerticalPadding * 2
+        return min(rowHeights + rowSpacing + verticalPadding, subtaskListMaxHeight)
     }
 }
 
@@ -182,12 +187,12 @@ struct TaskDetailView: View {
             let children = appState.subtasks(of: task.id)
             if !children.isEmpty {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 6) {
+                    LazyVStack(alignment: .leading, spacing: TaskDetailLayout.subtaskRowSpacing) {
                         ForEach(children) { child in
                             subtaskRow(for: child)
                         }
                     }
-                    .padding(.vertical, 1)
+                    .padding(.vertical, TaskDetailLayout.subtaskListVerticalPadding)
                 }
                 .frame(height: TaskDetailLayout.subtaskListHeight(forCount: children.count))
                 .accessibilityIdentifier("detail.subtasks.scroll")

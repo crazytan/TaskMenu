@@ -74,6 +74,8 @@ final class TaskDetailViewTests: XCTestCase {
         XCTAssertEqual(
             TaskDetailLayout.subtaskListHeight(forCount: 3),
             TaskDetailLayout.subtaskRowHeight * 3
+                + TaskDetailLayout.subtaskRowSpacing * 2
+                + TaskDetailLayout.subtaskListVerticalPadding * 2
         )
     }
 
