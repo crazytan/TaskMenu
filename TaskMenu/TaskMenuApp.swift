@@ -5,9 +5,14 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     lazy var appState: AppState = TaskMenuApp.makeAppState()
 
     private var statusBarController: StatusBarController?
+    private let metricKitService = MetricKitService()
     private var uiTestingWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if !TaskMenuApp.isUnitTesting {
+            metricKitService.start()
+        }
+
         if TaskMenuApp.isUITesting {
             showUITestingWindow()
         } else if !TaskMenuApp.isUnitTesting {

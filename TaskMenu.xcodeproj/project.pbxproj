@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		021D8C6BC3C40E2DA406BE50 /* MetricKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220E8145372B626FB6D267C7 /* MetricKitService.swift */; };
 		068F90845303418F7954D22E /* GoogleTasksAPIBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */; };
 		0A9AE96BCBF5513327268CAD /* GoogleAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */; };
 		0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */; };
 		11E28771324DA02B74C9983F /* DateFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */; };
 		16F0CFB570B7684CE136B82E /* MenuBarIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = D898FA58565B1CBB9ED2695E /* MenuBarIcon.svg */; };
+		27A7DDF8EE882EE13FB18EF6 /* MetricKitPayloadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */; };
 		3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */; };
 		423DB4F7DE968CBD6A6E805D /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BD10764723731B64E9E183 /* AppState.swift */; };
 		44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */; };
@@ -68,6 +70,7 @@
 		12212B7B62ECCDD28979CA54 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBehaviorTests.swift; sourceTree = "<group>"; };
 		1CD51E43AB6E5559C98303A3 /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
+		220E8145372B626FB6D267C7 /* MetricKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitService.swift; sourceTree = "<group>"; };
 		4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowGlassSupport.swift; sourceTree = "<group>"; };
 		42EAB07F42BE73AAED7BCC56 /* MenuBarPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPopover.swift; sourceTree = "<group>"; };
 		4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterTests.swift; sourceTree = "<group>"; };
@@ -84,6 +87,7 @@
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
 		6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemModelTests.swift; sourceTree = "<group>"; };
 		7270F80F12239828D873B133 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitPayloadStoreTests.swift; sourceTree = "<group>"; };
 		7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		88387DAAC83474A8C1AE6EEE /* MockTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockTasksAPI.swift; sourceTree = "<group>"; };
 		8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */ = {isa = PBXFileReference; path = AppIcon.svg; sourceTree = "<group>"; };
@@ -149,6 +153,7 @@
 				63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */,
 				4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */,
 				EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */,
+				220E8145372B626FB6D267C7 /* MetricKitService.swift */,
 				88387DAAC83474A8C1AE6EEE /* MockTasksAPI.swift */,
 				C351DB97FAAF55B3B516EAD9 /* TasksAPIProtocol.swift */,
 			);
@@ -217,6 +222,7 @@
 				BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */,
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
 				68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */,
+				77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */,
 				BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */,
 				4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */,
 				62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */,
@@ -343,6 +349,7 @@
 				9BE1233CADF8C3BFFC734F1D /* ListPickerView.swift in Sources */,
 				5D77ED33F50BA2FB8E0F4B8F /* MenuBarPopover.swift in Sources */,
 				E9F151927F17F397115553E7 /* MenuBarWindowGlassSupport.swift in Sources */,
+				021D8C6BC3C40E2DA406BE50 /* MetricKitService.swift in Sources */,
 				67748198F5F097AEE9019675 /* MockTasksAPI.swift in Sources */,
 				48943AA6EDE34BA7B373106E /* QuickAddView.swift in Sources */,
 				FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */,
@@ -372,6 +379,7 @@
 				B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */,
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,
 				A4BCA782CFF3DA69020CF385 /* MenuBarWindowChromeTests.swift in Sources */,
+				27A7DDF8EE882EE13FB18EF6 /* MetricKitPayloadStoreTests.swift in Sources */,
 				D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */,
 				8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */,
 				F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */,
