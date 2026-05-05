@@ -45,4 +45,36 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertLessThanOrEqual(TaskListLayout.activeEndDropZoneHeight, 4)
         XCTAssertLessThanOrEqual(TaskListLayout.completedHeaderTopPadding, 2)
     }
+
+    func testTaskNotesPreviewTrimsWhitespace() {
+        let task = TaskItem(
+            id: "with-notes",
+            title: "Subtask",
+            notes: "  Pack the charger\n",
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: "parent",
+            position: nil,
+            updated: nil
+        )
+
+        XCTAssertEqual(taskNotesPreview(for: task), "Pack the charger")
+    }
+
+    func testTaskNotesPreviewHidesEmptyNotes() {
+        let task = TaskItem(
+            id: "empty-notes",
+            title: "Subtask",
+            notes: "  \n",
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: "parent",
+            position: nil,
+            updated: nil
+        )
+
+        XCTAssertNil(taskNotesPreview(for: task))
+    }
 }

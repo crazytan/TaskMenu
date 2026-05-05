@@ -1,5 +1,15 @@
 import SwiftUI
 
+func taskNotesPreview(for task: TaskItem) -> String? {
+    guard let notes = task.notes?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !notes.isEmpty
+    else {
+        return nil
+    }
+
+    return notes
+}
+
 private enum TaskRowLayout {
     static let spacing: CGFloat = 8
     static let disclosureWidth: CGFloat = 10
@@ -119,6 +129,14 @@ struct TaskRowView: View {
                     .strikethrough(task.isCompleted)
                     .foregroundStyle(isGrayedOut ? .secondary : .primary)
                     .accessibilityIdentifier("task.title.\(task.id)")
+
+                if let notes = taskNotesPreview(for: task) {
+                    Text(notes)
+                        .font(.caption)
+                        .lineLimit(indentLevel > 0 ? 2 : 1)
+                        .foregroundStyle(isGrayedOut ? .tertiary : .secondary)
+                        .accessibilityIdentifier("task.notes.\(task.id)")
+                }
 
                 if let date = task.dueDate {
                     Label {
