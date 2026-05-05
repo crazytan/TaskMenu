@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum TaskRowSection: String {
     case active
@@ -10,12 +11,116 @@ enum TaskListLayout {
     static let completedHeaderTopPadding: CGFloat = 2
 }
 
+enum TaskDropPlacement: Equatable {
+    case before
+    case after
+}
+
+struct TaskDropContext: Equatable {
+    let draggedTaskID: String
+    let targetTaskID: String?
+    let placement: TaskDropPlacement
+    let destinationSiblingIndex: Int
+}
+
+struct TaskDropIndicator: Equatable {
+    let targetTaskID: String?
+    let placement: TaskDropPlacement
+}
+
 func taskRowSection(for task: TaskItem) -> TaskRowSection {
     task.isCompleted ? .completed : .active
 }
 
 func taskRowIdentity(for taskID: String, in section: TaskRowSection) -> String {
     "\(section.rawValue)-\(taskID)"
+}
+
+func taskDropPlacement(locationY: CGFloat, rowHeight: CGFloat) -> TaskDropPlacement {
+    rowHeight > 0 && locationY > rowHeight / 2 ? .after : .before
+}
+
+func taskDropContext(
+    draggedTaskID: String?,
+    targetTask: TaskItem,
+    locationY: CGFloat,
+    rowHeight: CGFloat,
+    activeTasks: [TaskItem]
+) -> TaskDropContext? {
+    guard let draggedTaskID,
+          let draggedTask = activeTasks.first(where: { $0.id == draggedTaskID && !$0.isCompleted }),
+          !targetTask.isCompleted,
+          draggedTask.id != targetTask.id,
+          draggedTask.parent == targetTask.parent
+    else {
+        return nil
+    }
+
+    let activeSiblings = activeTasks.filter { !$0.isCompleted && $0.parent == draggedTask.parent }
+    guard let sourceIndex = activeSiblings.firstIndex(where: { $0.id == draggedTaskID }),
+          let targetIndex = activeSiblings.firstIndex(where: { $0.id == targetTask.id })
+    else {
+        return nil
+    }
+
+    let placement = taskDropPlacement(locationY: locationY, rowHeight: rowHeight)
+    let destinationSiblingIndex = targetIndex + (placement == .after ? 1 : 0)
+
+    return makeTaskDropContext(
+        draggedTaskID: draggedTaskID,
+        targetTaskID: targetTask.id,
+        placement: placement,
+        sourceIndex: sourceIndex,
+        destinationSiblingIndex: destinationSiblingIndex,
+        activeSiblingIDs: activeSiblings.map(\.id)
+    )
+}
+
+func taskEndDropContext(draggedTaskID: String?, activeTasks: [TaskItem]) -> TaskDropContext? {
+    guard let draggedTaskID,
+          let draggedTask = activeTasks.first(where: { $0.id == draggedTaskID && !$0.isCompleted }),
+          draggedTask.parent == nil
+    else {
+        return nil
+    }
+
+    let rootTasks = activeTasks.filter { !$0.isCompleted && $0.parent == nil }
+    guard let sourceIndex = rootTasks.firstIndex(where: { $0.id == draggedTaskID }) else {
+        return nil
+    }
+
+    return makeTaskDropContext(
+        draggedTaskID: draggedTaskID,
+        targetTaskID: nil,
+        placement: .after,
+        sourceIndex: sourceIndex,
+        destinationSiblingIndex: rootTasks.count,
+        activeSiblingIDs: rootTasks.map(\.id)
+    )
+}
+
+private func makeTaskDropContext(
+    draggedTaskID: String,
+    targetTaskID: String?,
+    placement: TaskDropPlacement,
+    sourceIndex: Int,
+    destinationSiblingIndex: Int,
+    activeSiblingIDs: [String]
+) -> TaskDropContext? {
+    var reorderedIDs = activeSiblingIDs
+    reorderedIDs.move(
+        fromOffsets: IndexSet(integer: sourceIndex),
+        toOffset: min(max(destinationSiblingIndex, 0), activeSiblingIDs.count)
+    )
+
+    guard reorderedIDs != activeSiblingIDs else { return nil }
+
+    return TaskDropContext(
+        draggedTaskID: draggedTaskID,
+        targetTaskID: targetTaskID,
+        placement: placement,
+        destinationSiblingIndex: destinationSiblingIndex
+    )
 }
 
 func shouldPlaceInlineSubtaskField(
@@ -68,6 +173,8 @@ struct TaskListView: View {
     @State private var activeTaskRowHeights: [String: CGFloat] = [:]
     @State private var inlineSubtaskParentID: String?
     @State private var revealedCompletedSubtaskParentIDs: Set<String> = []
+    @State private var draggedTaskID: String?
+    @State private var dropIndicator: TaskDropIndicator?
 
     private struct FlattenedTaskEntry: Identifiable {
         let task: TaskItem
@@ -455,21 +562,35 @@ struct TaskListView: View {
         let hasChildren = appState.hasSubtasks(task.id)
 
         if entry.section == .active {
-            taskRowBase(for: entry, hasChildren: hasChildren)
-                .id(entry.id)
-                .transition(.asymmetric(
-                    insertion: .move(edge: .top).combined(with: .opacity),
-                    removal: .move(edge: .trailing).combined(with: .opacity)
-                ))
-                .onGeometryChange(for: CGFloat.self) { geometry in
-                    geometry.size.height
-                } action: { height in
-                    activeTaskRowHeights[task.id] = height
-                }
-                .draggable(task.id)
-                .dropDestination(for: String.self) { items, location in
-                    handleDrop(of: items, onto: task, location: location)
-                }
+            if task.isCompleted {
+                activeTaskRow(for: entry, hasChildren: hasChildren)
+            } else {
+                activeTaskRow(for: entry, hasChildren: hasChildren)
+                    .onDrag {
+                        draggedTaskID = task.id
+                        return NSItemProvider(object: task.id as NSString)
+                    }
+                    .overlay(alignment: .top) {
+                        dropInsertionLine(targetTaskID: task.id, placement: .before)
+                    }
+                    .overlay(alignment: .bottom) {
+                        dropInsertionLine(targetTaskID: task.id, placement: .after)
+                    }
+                    .onDrop(
+                        of: [UTType.plainText.identifier],
+                        delegate: TaskRowDropDelegate(
+                            draggedTaskID: draggedTaskID,
+                            targetTask: task,
+                            activeTasks: appState.tasks.filter { !$0.isCompleted },
+                            rowHeight: activeTaskRowHeights[task.id] ?? 0,
+                            updateIndicator: { dropIndicator = $0 },
+                            performMove: { context in
+                                _ = moveTask(withID: context.draggedTaskID, toSiblingIndex: context.destinationSiblingIndex)
+                                clearDropState()
+                            }
+                        )
+                    )
+            }
         } else {
             taskRowBase(for: entry, hasChildren: hasChildren)
                 .id(entry.id)
@@ -477,39 +598,64 @@ struct TaskListView: View {
         }
     }
 
-    private var activeTaskEndDropZone: some View {
-        Color.clear
-            .frame(height: TaskListLayout.activeEndDropZoneHeight)
-            .contentShape(Rectangle())
-            .dropDestination(for: String.self) { items, _ in
-                handleDropToEnd(of: items)
+    private func activeTaskRow(for entry: FlattenedTaskEntry, hasChildren: Bool) -> some View {
+        let task = entry.task
+
+        return taskRowBase(for: entry, hasChildren: hasChildren)
+            .id(entry.id)
+            .transition(.asymmetric(
+                insertion: .move(edge: .top).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            ))
+            .onGeometryChange(for: CGFloat.self) { geometry in
+                geometry.size.height
+            } action: { height in
+                activeTaskRowHeights[task.id] = height
             }
     }
 
-    private func handleDrop(of taskIDs: [String], onto targetTask: TaskItem, location: CGPoint) -> Bool {
-        guard let draggedTaskID = taskIDs.first else { return false }
-        let incompleteTasks = appState.tasks.filter { !$0.isCompleted }
-        guard let targetIndex = incompleteTasks.firstIndex(where: { $0.id == targetTask.id }) else {
-            return false
+    private var activeTaskEndDropZone: some View {
+        ZStack(alignment: .top) {
+            Color.clear
+                .frame(height: TaskListLayout.activeEndDropZoneHeight)
+
+            dropInsertionLine(targetTaskID: nil, placement: .after)
         }
-
-        let rowHeight = activeTaskRowHeights[targetTask.id] ?? 0
-        let destinationIndex = rowHeight > 0 && location.y > rowHeight / 2 ? targetIndex + 1 : targetIndex
-        return moveTask(withID: draggedTaskID, toActiveIndex: destinationIndex)
+        .contentShape(Rectangle())
+        .onDrop(
+            of: [UTType.plainText.identifier],
+            delegate: TaskEndDropDelegate(
+                draggedTaskID: draggedTaskID,
+                activeTasks: appState.tasks.filter { !$0.isCompleted },
+                updateIndicator: { dropIndicator = $0 },
+                performMove: { context in
+                    _ = moveTask(withID: context.draggedTaskID, toSiblingIndex: context.destinationSiblingIndex)
+                    clearDropState()
+                }
+            )
+        )
     }
 
-    private func handleDropToEnd(of taskIDs: [String]) -> Bool {
-        guard let draggedTaskID = taskIDs.first else { return false }
-        let incompleteTasks = appState.tasks.filter { !$0.isCompleted }
-        return moveTask(withID: draggedTaskID, toActiveIndex: incompleteTasks.count)
+    @ViewBuilder
+    private func dropInsertionLine(targetTaskID: String?, placement: TaskDropPlacement) -> some View {
+        if dropIndicator == TaskDropIndicator(targetTaskID: targetTaskID, placement: placement) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(Color.accentColor)
+                .frame(height: 2)
+                .padding(.horizontal, 14)
+        }
     }
 
-    private func moveTask(withID taskID: String, toActiveIndex destinationIndex: Int) -> Bool {
-        let incompleteTasks = appState.tasks.filter { !$0.isCompleted }
-        guard let task = incompleteTasks.first(where: { $0.id == taskID }) else { return false }
+    private func clearDropState() {
+        draggedTaskID = nil
+        dropIndicator = nil
+    }
+
+    private func moveTask(withID taskID: String, toSiblingIndex destinationIndex: Int) -> Bool {
+        guard let task = appState.tasks.first(where: { $0.id == taskID && !$0.isCompleted }) else { return false }
 
         Task { @MainActor in
-            await appState.moveTask(task, toActiveIndex: destinationIndex)
+            await appState.moveTask(task, toSiblingIndex: destinationIndex)
         }
         return true
     }
@@ -523,6 +669,96 @@ struct TaskListView: View {
         )
     }
 
+}
+
+private struct TaskRowDropDelegate: DropDelegate {
+    let draggedTaskID: String?
+    let targetTask: TaskItem
+    let activeTasks: [TaskItem]
+    let rowHeight: CGFloat
+    let updateIndicator: (TaskDropIndicator?) -> Void
+    let performMove: (TaskDropContext) -> Void
+
+    func dropEntered(info: DropInfo) {
+        updateIndicator(context(for: info).map {
+            TaskDropIndicator(targetTaskID: $0.targetTaskID, placement: $0.placement)
+        })
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard let context = context(for: info) else {
+            updateIndicator(nil)
+            return DropProposal(operation: .forbidden)
+        }
+
+        updateIndicator(TaskDropIndicator(targetTaskID: context.targetTaskID, placement: context.placement))
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        updateIndicator(nil)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let context = context(for: info) else {
+            updateIndicator(nil)
+            return false
+        }
+
+        performMove(context)
+        return true
+    }
+
+    private func context(for info: DropInfo) -> TaskDropContext? {
+        taskDropContext(
+            draggedTaskID: draggedTaskID,
+            targetTask: targetTask,
+            locationY: info.location.y,
+            rowHeight: rowHeight,
+            activeTasks: activeTasks
+        )
+    }
+}
+
+private struct TaskEndDropDelegate: DropDelegate {
+    let draggedTaskID: String?
+    let activeTasks: [TaskItem]
+    let updateIndicator: (TaskDropIndicator?) -> Void
+    let performMove: (TaskDropContext) -> Void
+
+    func dropEntered(info: DropInfo) {
+        updateIndicator(context().map {
+            TaskDropIndicator(targetTaskID: $0.targetTaskID, placement: $0.placement)
+        })
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard let context = context() else {
+            updateIndicator(nil)
+            return DropProposal(operation: .forbidden)
+        }
+
+        updateIndicator(TaskDropIndicator(targetTaskID: context.targetTaskID, placement: context.placement))
+        return DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        updateIndicator(nil)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let context = context() else {
+            updateIndicator(nil)
+            return false
+        }
+
+        performMove(context)
+        return true
+    }
+
+    private func context() -> TaskDropContext? {
+        taskEndDropContext(draggedTaskID: draggedTaskID, activeTasks: activeTasks)
+    }
 }
 
 private struct CompletedSubtasksRevealRow: View {

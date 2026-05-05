@@ -254,4 +254,107 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(completedSubtasksRevealTitle(count: 2, isRevealed: false), "Show 2 completed subtasks")
         XCTAssertEqual(completedSubtasksRevealTitle(count: 2, isRevealed: true), "Hide completed subtasks")
     }
+
+    func testTaskDropContextShowsBeforeIndicatorForSameLevelDrop() {
+        let first = makeTask(id: "first")
+        let second = makeTask(id: "second")
+        let third = makeTask(id: "third")
+
+        let context = taskDropContext(
+            draggedTaskID: "third",
+            targetTask: first,
+            locationY: 4,
+            rowHeight: 20,
+            activeTasks: [first, second, third]
+        )
+
+        XCTAssertEqual(
+            context,
+            TaskDropContext(
+                draggedTaskID: "third",
+                targetTaskID: "first",
+                placement: .before,
+                destinationSiblingIndex: 0
+            )
+        )
+    }
+
+    func testTaskDropContextShowsAfterIndicatorForSameLevelDrop() {
+        let first = makeTask(id: "first")
+        let second = makeTask(id: "second")
+        let third = makeTask(id: "third")
+
+        let context = taskDropContext(
+            draggedTaskID: "first",
+            targetTask: second,
+            locationY: 16,
+            rowHeight: 20,
+            activeTasks: [first, second, third]
+        )
+
+        XCTAssertEqual(
+            context,
+            TaskDropContext(
+                draggedTaskID: "first",
+                targetTaskID: "second",
+                placement: .after,
+                destinationSiblingIndex: 2
+            )
+        )
+    }
+
+    func testTaskDropContextRejectsDifferentParents() {
+        let first = makeTask(id: "first", parent: "parent-1")
+        let second = makeTask(id: "second", parent: "parent-2")
+
+        XCTAssertNil(
+            taskDropContext(
+                draggedTaskID: "first",
+                targetTask: second,
+                locationY: 16,
+                rowHeight: 20,
+                activeTasks: [first, second]
+            )
+        )
+    }
+
+    func testTaskDropContextRejectsNoOpAdjacentPlacement() {
+        let first = makeTask(id: "first")
+        let second = makeTask(id: "second")
+
+        XCTAssertNil(
+            taskDropContext(
+                draggedTaskID: "first",
+                targetTask: second,
+                locationY: 4,
+                rowHeight: 20,
+                activeTasks: [first, second]
+            )
+        )
+    }
+
+    func testTaskEndDropContextAcceptsRootTask() {
+        let first = makeTask(id: "first")
+        let second = makeTask(id: "second")
+        let third = makeTask(id: "third")
+
+        let context = taskEndDropContext(draggedTaskID: "first", activeTasks: [first, second, third])
+
+        XCTAssertEqual(
+            context,
+            TaskDropContext(
+                draggedTaskID: "first",
+                targetTaskID: nil,
+                placement: .after,
+                destinationSiblingIndex: 3
+            )
+        )
+    }
+
+    func testTaskEndDropContextRejectsSubtask() {
+        let parent = makeTask(id: "parent")
+        let child = makeTask(id: "child", parent: "parent")
+
+        XCTAssertNil(taskEndDropContext(draggedTaskID: "child", activeTasks: [parent, child]))
+    }
 }

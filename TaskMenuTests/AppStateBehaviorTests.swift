@@ -582,6 +582,30 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertTrue(url.contains("parent=parent1"))
     }
 
+    func testMoveTaskReordersOnlySameParentSiblings() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent1", title: "Parent 1"),
+            makeTask(id: "p1-child1", title: "Child 1", parent: "parent1"),
+            makeTask(id: "p1-child2", title: "Child 2", parent: "parent1"),
+            makeTask(id: "parent2", title: "Parent 2"),
+            makeTask(id: "p2-child1", title: "Other Child", parent: "parent2"),
+        ]
+
+        stubResponse(json: #"{"id":"p1-child2","title":"Child 2","status":"needsAction","parent":"parent1"}"#)
+
+        await state.moveTask(state.tasks[2], toSiblingIndex: 0)
+
+        XCTAssertEqual(
+            state.tasks.map(\.id),
+            ["parent1", "p1-child2", "p1-child1", "parent2", "p2-child1"]
+        )
+
+        let components = URLComponents(url: MockURLProtocol.requestLog.last!.url!, resolvingAgainstBaseURL: false)
+        XCTAssertNil(components?.queryItems?.first(where: { $0.name == "previous" }))
+        XCTAssertEqual(components?.queryItems?.first(where: { $0.name == "parent" })?.value, "parent1")
+    }
+
     func testMoveTaskToFirstPositionOmitsPreviousQueryParam() async {
         state.selectedListId = "list1"
         state.tasks = [

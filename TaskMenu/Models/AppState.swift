@@ -424,6 +424,10 @@ final class AppState {
     }
 
     func moveTask(_ task: TaskItem, toActiveIndex destinationIndex: Int) async {
+        await moveTask(task, toSiblingIndex: destinationIndex)
+    }
+
+    func moveTask(_ task: TaskItem, toSiblingIndex destinationIndex: Int) async {
         guard let listId = selectedListId else { return }
         guard let moveContext = makeMoveContext(for: task.id, destinationIndex: destinationIndex) else {
             return
@@ -553,29 +557,39 @@ final class AppState {
     }
 
     private func makeMoveContext(for taskID: String, destinationIndex: Int) -> TaskMoveContext? {
-        let activeTasks = tasks.filter { !$0.isCompleted }
-        guard let sourceIndex = activeTasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        guard let movedTask = tasks.first(where: { $0.id == taskID && !$0.isCompleted }) else {
+            return nil
+        }
 
-        let clampedDestinationIndex = min(max(destinationIndex, 0), activeTasks.count)
-        var reorderedActiveTasks = activeTasks
-        reorderedActiveTasks.move(
+        let activeSiblings = tasks.filter { !$0.isCompleted && $0.parent == movedTask.parent }
+        guard let sourceIndex = activeSiblings.firstIndex(where: { $0.id == taskID }) else { return nil }
+
+        let clampedDestinationIndex = min(max(destinationIndex, 0), activeSiblings.count)
+        var reorderedActiveSiblings = activeSiblings
+        reorderedActiveSiblings.move(
             fromOffsets: IndexSet(integer: sourceIndex),
             toOffset: clampedDestinationIndex
         )
 
-        guard reorderedActiveTasks.map(\.id) != activeTasks.map(\.id) else {
+        guard reorderedActiveSiblings.map(\.id) != activeSiblings.map(\.id) else {
             return nil
         }
 
-        guard let movedTaskIndex = reorderedActiveTasks.firstIndex(where: { $0.id == taskID }) else {
+        guard let movedTaskIndex = reorderedActiveSiblings.firstIndex(where: { $0.id == taskID }) else {
             return nil
         }
 
-        let previousTaskID = movedTaskIndex > 0 ? reorderedActiveTasks[movedTaskIndex - 1].id : nil
-        let completedTasks = tasks.filter { $0.isCompleted }
+        let previousTaskID = movedTaskIndex > 0 ? reorderedActiveSiblings[movedTaskIndex - 1].id : nil
+        var reorderedIterator = reorderedActiveSiblings.makeIterator()
+        let reorderedTasks = tasks.map { task in
+            if !task.isCompleted && task.parent == movedTask.parent {
+                return reorderedIterator.next() ?? task
+            }
+            return task
+        }
 
         return TaskMoveContext(
-            reorderedTasks: reorderedActiveTasks + completedTasks,
+            reorderedTasks: reorderedTasks,
             previousTaskID: previousTaskID
         )
     }
