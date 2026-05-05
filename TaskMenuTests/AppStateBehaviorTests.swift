@@ -527,6 +527,35 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertEqual(state.tasks[0].title, "Updated Title")
     }
 
+    func testUpdateTaskStoresServerDueDateResponse() async {
+        state.selectedListId = "list1"
+        var task = makeTask()
+        task.due = "2026-04-01T00:00:00.000Z"
+        state.tasks = [makeTask()]
+
+        stubResponse(json: #"{"id":"t1","title":"Test","status":"needsAction","due":"2026-04-02T00:00:00.000Z"}"#)
+
+        await state.updateTask(task)
+
+        XCTAssertEqual(state.tasks[0].due, "2026-04-02T00:00:00.000Z")
+    }
+
+    func testUpdateTaskStoresClearedServerDueDateResponse() async {
+        state.selectedListId = "list1"
+        var existingTask = makeTask()
+        existingTask.due = "2026-04-01T00:00:00.000Z"
+        var updatedTask = existingTask
+        updatedTask.clearDueDate()
+        state.tasks = [existingTask]
+
+        stubResponse(json: #"{"id":"t1","title":"Test","status":"needsAction"}"#)
+
+        await state.updateTask(updatedTask)
+
+        XCTAssertNil(state.tasks[0].due)
+        XCTAssertNil(state.tasks[0].dueDate)
+    }
+
     // MARK: - moveTask
 
     func testMoveTaskReordersActiveTasksAndPersistsMoveRequest() async {

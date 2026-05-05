@@ -314,6 +314,35 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         XCTAssertTrue(body["due"] is NSNull)
     }
 
+    func testUpdateTaskSendsDueDateInPatchBody() async throws {
+        Self.capturedRequestBody = nil
+        MockURLProtocol.requestHandler = { request in
+            Self.capturedRequestBody = requestBodyData(from: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"id":"t1","title":"Updated","status":"needsAction","due":"2026-04-02T00:00:00.000Z"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let task = TaskItem(
+            id: "t1",
+            title: "Updated",
+            notes: nil,
+            status: .needsAction,
+            due: "2026-04-02T00:00:00.000Z",
+            selfLink: nil,
+            parent: nil,
+            position: nil,
+            updated: nil
+        )
+
+        _ = try await api.updateTask(listId: "list1", taskId: "t1", task: task)
+
+        let bodyData = try XCTUnwrap(Self.capturedRequestBody)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: bodyData) as? [String: Any])
+
+        XCTAssertEqual(body["due"] as? String, "2026-04-02T00:00:00.000Z")
+    }
+
     // MARK: - listTaskLists
 
     func testListTaskListsReturnsLists() async throws {

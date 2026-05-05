@@ -16,6 +16,7 @@
 - Cache tasks per list so switching lists shows cached tasks immediately and ignores stale refreshes.
 - Bootstrap signed-in task loading at launch and show an initial loading state.
 - Close the menu bar popover more reliably when clicking outside it.
+- Verify Google Tasks due-date updates and clears sync through PATCH responses.
 
 ## v1.0.1 (2026-05-04)
 
