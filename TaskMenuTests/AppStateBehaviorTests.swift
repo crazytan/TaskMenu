@@ -94,6 +94,16 @@ final class AppStateBehaviorTests: XCTestCase {
         }
     }
 
+    private func makeState(api: any TasksAPIProtocol) -> AppState {
+        let authService = GoogleAuthService(keychain: keychain, session: MockURLProtocol.mockSession())
+        return AppState(
+            authService: authService,
+            api: api,
+            userDefaults: userDefaults,
+            dueDateNotificationService: dueDateNotificationService
+        )
+    }
+
     // MARK: - toggleTask: Optimistic Update
 
     func testToggleTaskCompletesSuccessfully() async {
@@ -294,9 +304,9 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertFalse(state.isLoading)
     }
 
-    // MARK: - selectList: Resets Cache
+    // MARK: - selectList: Per-list Cache
 
-    func testSelectListResetsCacheAndLoadsNewList() async {
+    func testSelectListLoadsFreshListWithoutReusingPreviousListCache() async {
         state.selectedListId = "list1"
 
         // Initial load for list1
@@ -306,24 +316,87 @@ final class AppStateBehaviorTests: XCTestCase {
         // Reset log, then select list2
         MockURLProtocol.requestLog = []
         MockURLProtocol.requestHandler = { request in
-            let url = request.url!.absoluteString
             let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-
-            if url.contains("showCompleted=false") {
-                let json = #"{"items":[{"id":"t3","title":"List2 Active","status":"needsAction"}]}"#
-                return (response, json.data(using: .utf8)!)
-            } else {
-                let json = #"{"items":[{"id":"t4","title":"List2 Done","status":"completed"}]}"#
-                return (response, json.data(using: .utf8)!)
-            }
+            let json = #"{"items":[{"id":"t3","title":"List2 Active","status":"needsAction"},{"id":"t4","title":"List2 Done","status":"completed"}]}"#
+            return (response, json.data(using: .utf8)!)
         }
 
         await state.selectList("list2")
 
-        // Should have fetched both active + completed (cache was reset)
-        XCTAssertEqual(MockURLProtocol.requestLog.count, 2)
+        // Should fetch the new list directly instead of showing list1's cached tasks.
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
         XCTAssertEqual(state.selectedListId, "list2")
+        XCTAssertFalse(state.tasks.contains(where: { $0.id == "t1" }))
         XCTAssertTrue(state.tasks.contains(where: { $0.id == "t3" }))
+    }
+
+    func testSelectListShowsCachedTasksBeforeRefreshCompletes() async {
+        let cachedList1Task = makeTask(id: "list1-cached", title: "Cached List 1")
+        let freshList1Task = makeTask(id: "list1-fresh", title: "Fresh List 1")
+        let list2Task = makeTask(id: "list2-task", title: "List 2")
+        let api = DelayedTasksAPI(
+            taskLists: [
+                TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil),
+                TaskList(id: "list2", title: "Work", selfLink: nil, updated: nil),
+            ],
+            tasksByListID: [
+                "list1": [cachedList1Task],
+                "list2": [list2Task],
+            ]
+        )
+        let state = makeState(api: api)
+        state.taskLists = [
+            TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "list2", title: "Work", selfLink: nil, updated: nil),
+        ]
+
+        state.selectedListId = "list1"
+        await state.refreshTasks()
+        state.selectedListId = "list2"
+        await state.refreshTasks()
+
+        await api.setTasks([freshList1Task], for: "list1")
+        await api.setDelay(.milliseconds(100), for: "list1")
+
+        let switchTask = Task { await state.selectList("list1") }
+        await Task.yield()
+
+        XCTAssertEqual(state.selectedListId, "list1")
+        XCTAssertEqual(state.tasks.map(\.id), ["list1-cached"])
+
+        await switchTask.value
+
+        XCTAssertEqual(state.tasks.map(\.id), ["list1-fresh"])
+    }
+
+    func testStaleTaskRefreshDoesNotOverwriteCurrentSelection() async {
+        let api = DelayedTasksAPI(
+            taskLists: [
+                TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil),
+                TaskList(id: "list2", title: "Work", selfLink: nil, updated: nil),
+            ],
+            tasksByListID: [
+                "list1": [makeTask(id: "list1-fresh", title: "Fresh List 1")],
+                "list2": [makeTask(id: "list2-current", title: "Current List 2")],
+            ],
+            delaysByListID: ["list1": .milliseconds(100)]
+        )
+        let state = makeState(api: api)
+        state.taskLists = [
+            TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "list2", title: "Work", selfLink: nil, updated: nil),
+        ]
+        state.selectedListId = "list1"
+        state.tasks = [makeTask(id: "list1-stale", title: "Stale List 1")]
+
+        let staleRefreshTask = Task { await state.refreshTasks() }
+        await Task.yield()
+
+        await state.selectList("list2")
+        await staleRefreshTask.value
+
+        XCTAssertEqual(state.selectedListId, "list2")
+        XCTAssertEqual(state.tasks.map(\.id), ["list2-current"])
     }
 
     // MARK: - signIn / signOut State Transitions
@@ -628,5 +701,61 @@ final class AppStateBehaviorTests: XCTestCase {
         let syncCall = await dueDateNotificationService.latestSyncCall()
         XCTAssertEqual(syncCall?.list.id, "list1")
         XCTAssertEqual(syncCall?.tasks.map(\.id), ["t1"])
+    }
+}
+
+private actor DelayedTasksAPI: TasksAPIProtocol {
+    private var taskLists: [TaskList]
+    private var tasksByListID: [String: [TaskItem]]
+    private var delaysByListID: [String: Duration]
+
+    init(
+        taskLists: [TaskList],
+        tasksByListID: [String: [TaskItem]],
+        delaysByListID: [String: Duration] = [:]
+    ) {
+        self.taskLists = taskLists
+        self.tasksByListID = tasksByListID
+        self.delaysByListID = delaysByListID
+    }
+
+    func setTasks(_ tasks: [TaskItem], for listID: String) {
+        tasksByListID[listID] = tasks
+    }
+
+    func setDelay(_ delay: Duration, for listID: String) {
+        delaysByListID[listID] = delay
+    }
+
+    func listTaskLists() async throws -> [TaskList] {
+        taskLists
+    }
+
+    func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {
+        if let delay = delaysByListID[listId] {
+            try? await Task.sleep(for: delay)
+        }
+
+        let tasks = tasksByListID[listId] ?? []
+        if showCompleted {
+            return tasks
+        }
+        return tasks.filter { !$0.isCompleted }
+    }
+
+    func createTask(listId: String, title: String, notes: String?, due: String?, parentId: String?) async throws -> TaskItem {
+        throw APIError.serverError(501, "Not implemented")
+    }
+
+    func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem {
+        throw APIError.serverError(501, "Not implemented")
+    }
+
+    func deleteTask(listId: String, taskId: String) async throws {
+        throw APIError.serverError(501, "Not implemented")
+    }
+
+    func moveTask(listId: String, taskId: String, previousId: String?, parentId: String?) async throws -> TaskItem {
+        throw APIError.serverError(501, "Not implemented")
     }
 }

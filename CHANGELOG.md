@@ -13,6 +13,7 @@
 - Moved settings into a dedicated native macOS Settings window.
 - Place the inline add-subtask field before existing subtasks.
 - Keep long subtask lists scrollable inside the task detail view.
+- Cache tasks per list so switching lists shows cached tasks immediately and ignores stale refreshes.
 
 ## v1.0.1 (2026-05-04)
 

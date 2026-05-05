@@ -192,10 +192,14 @@ final class AppState {
     private let userDefaults: UserDefaults
     private let dueDateNotificationService: any DueDateNotificationServicing
 
-    /// Whether completed tasks have been fetched for the current list
-    private var completedTasksFetched = false
-    /// In-memory cache of completed tasks for the current list
-    private var completedTasksCache: [TaskItem] = []
+    /// In-memory cache of visible tasks keyed by task list.
+    private var taskCacheByListID: [String: [TaskItem]] = [:]
+    /// Task lists whose completed tasks have been fetched at least once.
+    private var completedTasksFetchedListIDs: Set<String> = []
+    /// In-memory cache of completed tasks keyed by task list.
+    private var completedTasksCacheByListID: [String: [TaskItem]] = [:]
+    /// Monotonic token used to ignore stale task-list responses.
+    private var taskLoadRequestID = 0
 
     init(
         authService: GoogleAuthService = GoogleAuthService(),
@@ -237,8 +241,10 @@ final class AppState {
         taskLists = []
         tasks = []
         selectedListId = nil
-        completedTasksFetched = false
-        completedTasksCache = []
+        taskCacheByListID = [:]
+        completedTasksFetchedListIDs = []
+        completedTasksCacheByListID = [:]
+        taskLoadRequestID += 1
         let dueDateNotificationService = dueDateNotificationService
         Task {
             await dueDateNotificationService.removeAllNotifications()
@@ -272,38 +278,38 @@ final class AppState {
     /// Loads active tasks (always fresh) and completed tasks (from cache if available).
     func loadTasks() async {
         guard let listId = selectedListId else { return }
-        isLoading = true
-        defer { isLoading = false }
+        showCachedTasks(for: listId)
+
+        let requestID = beginTaskLoad(for: listId)
+        defer { finishTaskLoad(requestID, for: listId) }
         do {
             let activeTasks = try await api.listTasks(listId: listId, showCompleted: false, showHidden: false)
-            if completedTasksFetched {
-                tasks = activeTasks + completedTasksCache
+            let loadedTasks: [TaskItem]
+            if completedTasksFetchedListIDs.contains(listId) {
+                loadedTasks = activeTasks + (completedTasksCacheByListID[listId] ?? [])
             } else {
                 let completed = try await api.listTasks(listId: listId, showCompleted: true, showHidden: true)
                     .filter { $0.isCompleted }
-                completedTasksCache = completed
-                completedTasksFetched = true
-                tasks = activeTasks + completed
+                loadedTasks = activeTasks + completed
             }
-            await syncDueDateNotificationsIfNeeded()
+            cacheFetchedTasks(loadedTasks, for: listId)
+            await applyLoadedTasks(loadedTasks, for: listId, requestID: requestID)
         } catch {
-            handleError(error)
+            handleCurrentTaskLoadError(error, for: listId, requestID: requestID)
         }
     }
 
     /// Explicit refresh: fetches both active and completed tasks fresh from server.
     func refreshTasks() async {
         guard let listId = selectedListId else { return }
-        isLoading = true
-        defer { isLoading = false }
+        let requestID = beginTaskLoad(for: listId)
+        defer { finishTaskLoad(requestID, for: listId) }
         do {
             let allTasks = try await api.listTasks(listId: listId)
-            completedTasksCache = allTasks.filter { $0.isCompleted }
-            completedTasksFetched = true
-            tasks = allTasks
-            await syncDueDateNotificationsIfNeeded()
+            cacheFetchedTasks(allTasks, for: listId)
+            await applyLoadedTasks(allTasks, for: listId, requestID: requestID)
         } catch {
-            handleError(error)
+            handleCurrentTaskLoadError(error, for: listId, requestID: requestID)
         }
     }
 
@@ -312,6 +318,7 @@ final class AppState {
         do {
             let task = try await api.createTask(listId: listId, title: title)
             tasks.insert(task, at: 0)
+            updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
@@ -331,6 +338,7 @@ final class AppState {
             } else {
                 tasks.append(task)
             }
+            updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
@@ -345,6 +353,7 @@ final class AppState {
         // Optimistic update: immediately reflect in UI
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = updated
+            updateVisibleTaskCacheForSelectedList()
         }
         
         do {
@@ -353,19 +362,14 @@ final class AppState {
             if let index = tasks.firstIndex(where: { $0.id == result.id }) {
                 tasks[index] = result
             }
-            // Update completed tasks cache
-            if result.isCompleted {
-                if !completedTasksCache.contains(where: { $0.id == result.id }) {
-                    completedTasksCache.append(result)
-                }
-            } else {
-                completedTasksCache.removeAll { $0.id == result.id }
-            }
+            updateCompletedTaskCache(with: result, for: listId)
+            updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
         } catch {
             // Revert optimistic update on failure
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[index] = task
+                updateVisibleTaskCacheForSelectedList()
             }
             handleError(error)
         }
@@ -378,12 +382,8 @@ final class AppState {
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[index] = result
             }
-            // Keep cache in sync
-            if result.isCompleted {
-                if let idx = completedTasksCache.firstIndex(where: { $0.id == result.id }) {
-                    completedTasksCache[idx] = result
-                }
-            }
+            updateCompletedTaskCache(with: result, for: listId)
+            updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
         } catch {
             handleError(error)
@@ -397,7 +397,9 @@ final class AppState {
             let childIDs = tasks.filter { $0.parent == task.id }.map(\.id)
             let removedIDs = [task.id] + childIDs
             tasks.removeAll { removedIDs.contains($0.id) }
-            completedTasksCache.removeAll { removedIDs.contains($0.id) }
+            taskCacheByListID[listId]?.removeAll { removedIDs.contains($0.id) }
+            completedTasksCacheByListID[listId]?.removeAll { removedIDs.contains($0.id) }
+            updateVisibleTaskCacheForSelectedList()
             await dueDateNotificationService.removeNotifications(
                 forTaskIDs: removedIDs,
                 inListID: listId
@@ -415,6 +417,7 @@ final class AppState {
 
         let originalTasks = tasks
         tasks = moveContext.reorderedTasks
+        updateVisibleTaskCacheForSelectedList()
 
         do {
             let movedTask = try await api.moveTask(
@@ -425,18 +428,23 @@ final class AppState {
             )
             if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
                 tasks[index] = movedTask
+                updateVisibleTaskCacheForSelectedList()
             }
         } catch {
             tasks = originalTasks
+            updateVisibleTaskCacheForSelectedList()
             handleError(error)
         }
     }
 
     func selectList(_ listId: String) async {
         selectedListId = listId
-        completedTasksFetched = false
-        completedTasksCache = []
-        await loadTasks()
+        if let cachedTasks = taskCacheByListID[listId] {
+            tasks = cachedTasks
+        } else {
+            tasks = []
+        }
+        await refreshTasks()
     }
 
     private func handleError(_ error: Error) {
@@ -468,6 +476,66 @@ final class AppState {
     private func syncDueDateNotificationsIfNeeded() async {
         guard dueDateNotificationsEnabled, let selectedList else { return }
         await dueDateNotificationService.syncNotifications(for: tasks, in: selectedList)
+    }
+
+    private func beginTaskLoad(for listId: String) -> Int {
+        taskLoadRequestID += 1
+        isLoading = true
+        return taskLoadRequestID
+    }
+
+    private func finishTaskLoad(_ requestID: Int, for listId: String) {
+        guard isCurrentTaskLoad(requestID, for: listId) else { return }
+        isLoading = false
+    }
+
+    private func isCurrentTaskLoad(_ requestID: Int, for listId: String) -> Bool {
+        selectedListId == listId && taskLoadRequestID == requestID
+    }
+
+    private func showCachedTasks(for listId: String) {
+        guard selectedListId == listId, let cachedTasks = taskCacheByListID[listId] else { return }
+        tasks = cachedTasks
+    }
+
+    private func cacheFetchedTasks(_ fetchedTasks: [TaskItem], for listId: String) {
+        taskCacheByListID[listId] = fetchedTasks
+        completedTasksCacheByListID[listId] = fetchedTasks.filter { $0.isCompleted }
+        completedTasksFetchedListIDs.insert(listId)
+    }
+
+    private func updateVisibleTaskCacheForSelectedList() {
+        guard let listId = selectedListId else { return }
+        taskCacheByListID[listId] = tasks
+        if completedTasksFetchedListIDs.contains(listId) {
+            completedTasksCacheByListID[listId] = tasks.filter { $0.isCompleted }
+        }
+    }
+
+    private func updateCompletedTaskCache(with task: TaskItem, for listId: String) {
+        if task.isCompleted {
+            var cachedCompletedTasks = completedTasksCacheByListID[listId] ?? []
+            if let index = cachedCompletedTasks.firstIndex(where: { $0.id == task.id }) {
+                cachedCompletedTasks[index] = task
+            } else {
+                cachedCompletedTasks.append(task)
+            }
+            completedTasksCacheByListID[listId] = cachedCompletedTasks
+            completedTasksFetchedListIDs.insert(listId)
+        } else {
+            completedTasksCacheByListID[listId]?.removeAll { $0.id == task.id }
+        }
+    }
+
+    private func applyLoadedTasks(_ loadedTasks: [TaskItem], for listId: String, requestID: Int) async {
+        guard isCurrentTaskLoad(requestID, for: listId) else { return }
+        tasks = loadedTasks
+        await syncDueDateNotificationsIfNeeded()
+    }
+
+    private func handleCurrentTaskLoadError(_ error: Error, for listId: String, requestID: Int) {
+        guard isCurrentTaskLoad(requestID, for: listId) else { return }
+        handleError(error)
     }
 
     private func makeMoveContext(for taskID: String, destinationIndex: Int) -> TaskMoveContext? {
