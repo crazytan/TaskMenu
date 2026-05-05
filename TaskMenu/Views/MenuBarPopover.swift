@@ -7,7 +7,10 @@ struct MenuBarPopover: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !appState.isSignedIn {
+            if appState.isShowingInitialTaskLoad {
+                InitialTaskLoadingView()
+                    .transition(.opacity)
+            } else if !appState.isSignedIn {
                 SignInView(appState: appState)
                     .transition(.opacity)
             } else {
@@ -60,6 +63,20 @@ struct MenuBarPopover: View {
         .task {
             await appState.refreshForMenuPresentation()
         }
+    }
+}
+
+private struct InitialTaskLoadingView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.small)
+
+            Text("Loading tasks...")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

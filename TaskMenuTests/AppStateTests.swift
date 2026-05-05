@@ -61,6 +61,25 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.isSignedIn)
     }
 
+    func testInitialTaskLoadingShowsForSignedInEmptyState() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "some-refresh-token")
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+
+        XCTAssertTrue(state.isShowingInitialTaskLoad)
+
+        state.hasCompletedInitialTaskLoad = true
+
+        XCTAssertFalse(state.isShowingInitialTaskLoad)
+    }
+
+    func testInitialTaskLoadingDoesNotShowWhenSignedOut() {
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+
+        XCTAssertFalse(state.isShowingInitialTaskLoad)
+    }
+
     func testInitialStateUsesStoredDueDateNotificationPreference() {
         userDefaults.set(false, forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey)
         let authService = GoogleAuthService(keychain: keychain)

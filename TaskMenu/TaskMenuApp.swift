@@ -18,6 +18,10 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         } else if !TaskMenuApp.isUnitTesting {
             statusBarController = StatusBarController(appState: appState)
         }
+
+        Task {
+            await appState.bootstrapSignedInState()
+        }
     }
 
     private func showUITestingWindow() {

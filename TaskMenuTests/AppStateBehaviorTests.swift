@@ -632,6 +632,41 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertEqual(state.selectedListId, "l2")
     }
 
+    // MARK: - launch bootstrap
+
+    func testBootstrapSignedInStateLoadsListsAndTasksOnLaunch() async {
+        state.isSignedIn = true
+
+        MockURLProtocol.requestHandler = { request in
+            let url = request.url!.absoluteString
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+
+            if url.contains("/users/@me/lists") {
+                let json = #"{"items":[{"id":"l1","title":"My Tasks"}]}"#
+                return (response, json.data(using: .utf8)!)
+            } else {
+                let json = #"{"items":[{"id":"t1","title":"Launch Task","status":"needsAction"}]}"#
+                return (response, json.data(using: .utf8)!)
+            }
+        }
+
+        await state.bootstrapSignedInState()
+
+        XCTAssertEqual(state.selectedListId, "l1")
+        XCTAssertEqual(state.tasks.map(\.id), ["t1"])
+        XCTAssertTrue(state.hasCompletedInitialTaskLoad)
+        XCTAssertFalse(state.isShowingInitialTaskLoad)
+    }
+
+    func testBootstrapSignedInStateDoesNothingWhenSignedOut() async {
+        state.isSignedIn = false
+
+        await state.bootstrapSignedInState()
+
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertFalse(state.hasCompletedInitialTaskLoad)
+    }
+
     // MARK: - refreshForMenuPresentation
 
     func testRefreshForMenuPresentationLoadsListsWhenEmpty() async {

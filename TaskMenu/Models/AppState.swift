@@ -10,6 +10,7 @@ final class AppState {
     var taskLists: [TaskList] = []
     var selectedListId: String?
     var tasks: [TaskItem] = []
+    var hasCompletedInitialTaskLoad = false
     var collapsedTaskIDs: Set<String> = []
     var searchText: String = ""
     var dueDateNotificationsEnabled: Bool {
@@ -36,6 +37,10 @@ final class AppState {
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
+    }
+
+    var isShowingInitialTaskLoad: Bool {
+        isSignedIn && !hasCompletedInitialTaskLoad && taskLists.isEmpty && tasks.isEmpty
     }
 
     /// Root-level tasks (no parent), preserving API order.
@@ -241,6 +246,7 @@ final class AppState {
         taskLists = []
         tasks = []
         selectedListId = nil
+        hasCompletedInitialTaskLoad = false
         taskCacheByListID = [:]
         completedTasksFetchedListIDs = []
         completedTasksCacheByListID = [:]
@@ -251,9 +257,17 @@ final class AppState {
         }
     }
 
+    func bootstrapSignedInState() async {
+        guard isSignedIn, taskLists.isEmpty, selectedListId == nil, !isLoading else { return }
+        await loadTaskLists()
+    }
+
     func loadTaskLists() async {
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            hasCompletedInitialTaskLoad = true
+        }
         do {
             taskLists = try await api.listTaskLists()
             if selectedListId == nil, let first = taskLists.first {
