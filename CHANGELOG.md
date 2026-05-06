@@ -17,6 +17,7 @@
 - Keep long subtask lists scrollable inside the task detail view.
 - Cache tasks per list so switching lists shows cached tasks immediately and ignores stale refreshes.
 - Bootstrap signed-in task loading at launch and show an initial loading state.
+- Refresh the current task list each time the menu bar popover opens.
 - Close the menu bar popover more reliably when clicking outside it.
 - Verify Google Tasks due-date updates and clears sync through PATCH responses.
 - Hide completed subtasks under active parents by default with a per-parent reveal row.

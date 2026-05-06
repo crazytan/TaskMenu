@@ -60,9 +60,6 @@ struct MenuBarPopover: View {
         )
         .animation(.easeInOut(duration: 0.25), value: appState.isSignedIn)
         .animation(.easeInOut(duration: 0.2), value: appState.errorMessage != nil)
-        .task {
-            await appState.refreshForMenuPresentation()
-        }
     }
 }
 

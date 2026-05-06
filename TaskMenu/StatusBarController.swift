@@ -6,11 +6,13 @@ final class StatusBarController: NSObject {
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private let contextMenu = NSMenu()
+    private let menuPresentationRefreshTrigger: MenuPresentationRefreshTrigger
     private var outsideClickMonitors: [Any] = []
 
     init(appState: AppState) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         popover = NSPopover()
+        menuPresentationRefreshTrigger = MenuPresentationRefreshTrigger(appState: appState)
         super.init()
 
         configureStatusItem()
@@ -140,8 +142,34 @@ final class StatusBarController: NSObject {
 }
 
 extension StatusBarController: NSPopoverDelegate {
+    func popoverDidShow(_ notification: Notification) {
+        menuPresentationRefreshTrigger.menuDidOpen()
+    }
+
     func popoverDidClose(_ notification: Notification) {
         stopOutsideClickMonitoring()
+    }
+}
+
+@MainActor
+final class MenuPresentationRefreshTrigger {
+    private let refresh: @MainActor () async -> Void
+
+    init(appState: AppState) {
+        refresh = { [appState] in
+            await appState.refreshForMenuPresentation()
+        }
+    }
+
+    init(refresh: @escaping @MainActor () async -> Void) {
+        self.refresh = refresh
+    }
+
+    @discardableResult
+    func menuDidOpen() -> Task<Void, Never> {
+        Task { @MainActor in
+            await refresh()
+        }
     }
 }
 

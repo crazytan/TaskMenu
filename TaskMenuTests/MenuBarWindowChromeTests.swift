@@ -103,4 +103,16 @@ final class MenuBarWindowChromeTests: XCTestCase {
             statusItemWindow: statusWindow
         ))
     }
+
+    func testMenuPresentationRefreshTriggerRunsRefreshEveryTimeMenuOpens() async {
+        var refreshCount = 0
+        let refreshTrigger = MenuPresentationRefreshTrigger {
+            refreshCount += 1
+        }
+
+        await refreshTrigger.menuDidOpen().value
+        await refreshTrigger.menuDidOpen().value
+
+        XCTAssertEqual(refreshCount, 2)
+    }
 }
