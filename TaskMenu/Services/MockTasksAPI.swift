@@ -5,7 +5,7 @@ actor MockTasksAPI: TasksAPIProtocol {
     private var tasksByList: [String: [TaskItem]]
 
     init() {
-        let today = DateFormatting.formatRFC3339(Date())
+        let today = DateFormatting.formatGoogleTaskDueDate(Date())
 
         taskLists = [
             TaskList(id: "list1", title: "My Tasks", selfLink: nil, updated: nil),

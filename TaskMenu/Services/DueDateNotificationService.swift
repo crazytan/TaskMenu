@@ -115,7 +115,7 @@ struct DueDateNotificationService: DueDateNotificationServicing, Sendable {
     }
 
     private func notificationRequest(for task: TaskItem, in list: TaskList, now: Date) -> DueDateNotificationRequestData? {
-        guard !task.isCompleted, let dueDate = task.dueDate else { return nil }
+        guard !task.isCompleted, let dueDate = task.dueDate(in: calendar) else { return nil }
         guard let trigger = notificationTrigger(for: dueDate, now: now) else { return nil }
 
         return DueDateNotificationRequestData(
@@ -168,9 +168,7 @@ struct DueDateNotificationService: DueDateNotificationServicing, Sendable {
     }
 
     private func dueDateComponents(from dueDate: Date) -> DateComponents {
-        var utcCalendar = Calendar(identifier: .gregorian)
-        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return utcCalendar.dateComponents([.year, .month, .day], from: dueDate)
+        calendar.dateComponents([.year, .month, .day], from: dueDate)
     }
 
     static func identifier(forTaskID taskID: String, listID: String) -> String {

@@ -20,6 +20,7 @@
 - Refresh the current task list each time the menu bar popover opens.
 - Close the menu bar popover more reliably when clicking outside it.
 - Verify Google Tasks due-date updates and clears sync through PATCH responses.
+- Preserve Google Tasks due dates as local calendar days so web and app dates match across time zones.
 - Hide completed subtasks under active parents by default with a per-parent reveal row.
 - Match Google Tasks sibling ordering by task position, while keeping completed subtasks at the end when revealed.
 - Show drag insertion indicators and keep drag moves constrained to same-level tasks.

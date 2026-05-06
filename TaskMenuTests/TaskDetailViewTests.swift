@@ -62,8 +62,8 @@ final class TaskDetailViewTests: XCTestCase {
         state.enable(defaultDate: dueDate)
         let updatedTask = state.applying(to: task)
 
-        XCTAssertEqual(updatedTask.due, DateFormatting.formatRFC3339(dueDate))
-        XCTAssertEqual(updatedTask.dueDate, DateFormatting.parseRFC3339(DateFormatting.formatRFC3339(dueDate)))
+        XCTAssertEqual(updatedTask.due, DateFormatting.formatGoogleTaskDueDate(dueDate))
+        XCTAssertEqual(updatedTask.dueDate, DateFormatting.parseGoogleTaskDueDate(DateFormatting.formatGoogleTaskDueDate(dueDate)))
     }
 
     func testSubtaskListHeightIsZeroWhenEmpty() {

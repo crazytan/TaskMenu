@@ -111,7 +111,7 @@ final class GoogleTasksAPITests: XCTestCase {
         """.data(using: .utf8)!
 
         var task = try JSONDecoder().decode(TaskItem.self, from: json)
-        let date = DateFormatting.parseRFC3339("2026-12-25T00:00:00.000Z")!
+        let date = DateFormatting.parseGoogleTaskDueDate("2026-12-25T00:00:00.000Z")!
         task.dueDate = date
         XCTAssertNotNil(task.due)
         XCTAssertTrue(task.due!.contains("2026-12-25"))

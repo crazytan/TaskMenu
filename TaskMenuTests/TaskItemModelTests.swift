@@ -189,12 +189,35 @@ final class TaskItemModelTests: XCTestCase {
     func testEnableDueDateSetsDefaultWhenMissing() {
         var task = TaskItem(id: "t1", title: "Test", notes: nil, status: .needsAction, due: nil, selfLink: nil, parent: nil, position: nil, updated: nil)
         let date = Date(timeIntervalSince1970: 1_800_000_000)
-        let expectedDue = DateFormatting.formatRFC3339(date)
+        let expectedDue = DateFormatting.formatGoogleTaskDueDate(date)
 
         task.enableDueDate(defaultDate: date)
 
         XCTAssertEqual(task.due, expectedDue)
-        XCTAssertEqual(task.dueDate, DateFormatting.parseRFC3339(expectedDue))
+        XCTAssertEqual(task.dueDate, DateFormatting.parseGoogleTaskDueDate(expectedDue))
+    }
+
+    func testDueDateInCalendarPreservesGoogleTaskDueDateDay() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let task = TaskItem(
+            id: "t1",
+            title: "Test",
+            notes: nil,
+            status: .needsAction,
+            due: "2026-05-06T00:00:00.000Z",
+            selfLink: nil,
+            parent: nil,
+            position: nil,
+            updated: nil
+        )
+
+        let dueDate = task.dueDate(in: calendar)!
+        let components = calendar.dateComponents([.year, .month, .day], from: dueDate)
+
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 5)
+        XCTAssertEqual(components.day, 6)
     }
 
     func testEnableDueDatePreservesExistingDueDate() {

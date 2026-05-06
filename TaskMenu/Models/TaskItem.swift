@@ -23,12 +23,16 @@ struct TaskItem: Codable, Identifiable, Sendable {
 
     var dueDate: Date? {
         get {
-            guard let due else { return nil }
-            return DateFormatting.parseRFC3339(due)
+            dueDate(in: .current)
         }
         set {
-            due = newValue.map { DateFormatting.formatRFC3339($0) }
+            due = newValue.map { DateFormatting.formatGoogleTaskDueDate($0) }
         }
+    }
+
+    func dueDate(in calendar: Calendar) -> Date? {
+        guard let due else { return nil }
+        return DateFormatting.parseGoogleTaskDueDate(due, calendar: calendar)
     }
 
     mutating func enableDueDate(defaultDate: Date = Date()) {

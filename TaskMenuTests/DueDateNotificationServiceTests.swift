@@ -24,6 +24,25 @@ final class DueDateNotificationServiceTests: XCTestCase {
         )
     }
 
+    func testSyncSchedulesFutureDueTaskUsingLocalCalendarDay() async {
+        let center = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 3, day: 10, hour: 8))!
+        let service = DueDateNotificationService(center: center, calendar: calendar, now: { now })
+        let list = TaskList(id: "list1", title: "Work", selfLink: nil, updated: nil)
+        let task = makeTask(id: "task1", title: "File taxes", due: "2026-03-11T00:00:00.000Z")
+
+        await service.syncNotifications(for: [task], in: list)
+
+        let addedRequests = await center.addedRequests()
+        XCTAssertEqual(addedRequests.count, 1)
+        XCTAssertEqual(
+            addedRequests[0].trigger,
+            .calendar(DateComponents(calendar: calendar, timeZone: calendar.timeZone, year: 2026, month: 3, day: 11, hour: 9, minute: 0, second: 0))
+        )
+    }
+
     func testSyncSchedulesImmediateNotificationForPastDueTimeToday() async {
         let center = TestUserNotificationCenterClient(authorizationStatus: .authorized)
         var calendar = Calendar(identifier: .gregorian)
