@@ -1,146 +1,72 @@
-# TaskMenu
+# AGENTS.md
 
-## Project Overview
+Entry point for coding agents working on TaskMenu. Keep this file short and repo-wide; put folder-specific implementation notes in the nearest `README.md`.
 
-TaskMenu is a lightweight, native macOS menu bar application for quick access to Google Tasks. It is a free and open-source (GPLv3) SwiftUI app targeting macOS 14.4+ (Sonoma). The app lives entirely in the menu bar (no dock icon, no main window).
+## Project Snapshot
 
-**Current status:** Phase 1 MVP complete (v1.0.0). Phase 2 features (widgets, notifications, multiple accounts) are planned but not yet started.
+- Native macOS menu bar app for Google Tasks.
+- Swift 6, SwiftUI, macOS 14.4+, `@Observable`, strict concurrency.
+- XcodeGen build graph: edit `project.yml`, then regenerate `TaskMenu.xcodeproj`.
+- Targets: `TaskMenu` and `TaskMenuTests`.
+- App shape: no Dock icon and no main app window in normal launches; UI is presented from an AppKit status item popover, with a test-only window for UI automation.
+- External surface area: Google OAuth 2.0 with PKCE, Google Tasks REST API, Keychain token storage, UserNotifications for due-date reminders, MetricKit payload persistence.
 
-## Public Links
+## Open The Local Doc First
 
-- Website / Marketing URL: https://taskmenu.crazytan.dev/
-- Privacy Policy URL: https://taskmenu.crazytan.dev/privacy
-- Support URL: https://github.com/crazytan/TaskMenu/issues
+- `TaskMenu/README.md` - app-target map, lifecycle, and state flow.
+- `TaskMenu/Models/README.md` - app state, Google models, ordering, search, and mutation rules.
+- `TaskMenu/Services/README.md` - OAuth, Google Tasks API, keychain, notification, MetricKit, and mock-service guidance.
+- `TaskMenu/Views/README.md` - popover UI ownership, task-list interactions, settings, and view-testable helpers.
+- `TaskMenu/Utilities/README.md` - constants, OAuth config values, and date formatting expectations.
+- `TaskMenu/Resources/README.md` - Info.plist, entitlements, URL schemes, app icons, and generated asset notes.
+- `TaskMenuTests/README.md` - unit-test map, test doubles, and focused test selection.
+- `AppStorePreviews/README.md` - generated marketing/App Store preview assets.
 
-## Tech Stack
+## Repo-Wide Rules
 
-- **Language:** Swift 6 with strict concurrency (`SWIFT_STRICT_CONCURRENCY: complete`)
-- **UI:** SwiftUI — MenuBarExtra with `.window` style
-- **Build system:** XcodeGen (`project.yml`) + Xcode 16.0
-- **Auth:** OAuth 2.0 with PKCE via `ASWebAuthenticationSession.Callback.customScheme`
-- **Networking:** URLSession with async/await
-- **Token storage:** macOS Keychain via Security framework
-- **Dependencies:** Zero — Apple frameworks only
-- **Min deployment target:** macOS 14.4
+### Coding Style
 
-## Project Structure
+- Use Swift concurrency APIs that compile with `SWIFT_STRICT_CONCURRENCY: complete`.
+- Keep `AppState` on the main actor and make view-facing mutations flow through it unless a folder README names a narrower owner.
+- Keep network and token operations in services; views should call `AppState` methods, not Google APIs directly.
+- Keep models `Codable` and `Sendable`.
+- Prefer Apple frameworks and SF Symbols. Do not add package dependencies without a strong reason.
+- Avoid force unwraps on network, OAuth, keychain, notification, or plist-derived data.
 
-```
-TaskMenu/
-├── project.yml                    # XcodeGen project definition (source of truth)
-├── Config.xcconfig.example        # OAuth credential template
-├── AGENTS.md                      # Architecture & phase plan
-├── TaskMenu/
-│   ├── TaskMenuApp.swift          # @main entry point, MenuBarExtra setup
-│   ├── Models/
-│   │   ├── AppState.swift         # @Observable centralized app state (@MainActor)
-│   │   ├── TaskItem.swift         # Google Task model (Codable, Sendable)
-│   │   └── TaskList.swift         # Google Task List model (Codable, Sendable)
-│   ├── Services/
-│   │   ├── GoogleAuthService.swift    # OAuth 2.0 + PKCE flow (@MainActor)
-│   │   ├── GoogleTasksAPI.swift       # Google Tasks REST client (actor)
-│   │   └── KeychainService.swift      # Keychain CRUD wrapper (Sendable)
-│   ├── Views/
-│   │   ├── MenuBarPopover.swift       # Main popover container
-│   │   ├── TaskListView.swift         # Task list with completed section
-│   │   ├── TaskRowView.swift          # Single task row with toggle
-│   │   ├── TaskDetailView.swift       # Edit task sheet
-│   │   ├── QuickAddView.swift         # Inline task creation
-│   │   ├── ListPickerView.swift       # Task list switcher
-│   │   ├── SignInView.swift           # OAuth sign-in screen
-│   │   └── SettingsView.swift         # Settings & sign out
-│   ├── Utilities/
-│   │   ├── Constants.swift            # API URLs, OAuth config, keychain keys
-│   │   └── DateFormatting.swift       # RFC 3339 parsing/formatting
-│   └── Resources/
-│       ├── Info.plist                 # LSUIElement=YES, version, OAuth vars
-│       ├── TaskMenu.entitlements
-│       └── Assets.xcassets
-├── TaskMenuTests/
-│   ├── KeychainServiceTests.swift     # Keychain CRUD tests
-│   ├── DateFormattingTests.swift      # Date parsing/formatting tests
-│   └── GoogleTasksAPITests.swift      # Model decoding/encoding tests
-└── TaskMenu.xcodeproj/               # Generated — do not edit directly
-```
+### Workflows
 
-## Build & Test Commands
+- If you add, remove, rename, or retarget source files, update `project.yml` and run `xcodegen generate`.
+- When files are added or deleted, update the corresponding folder-local `README.md` in the same change so its file map and ownership notes stay current.
+- Keep `TaskMenu.xcodeproj` generated; do not hand-edit it.
+- Do not commit `Config.xcconfig`; it contains local OAuth values.
+- Preserve the menu-bar-only behavior for normal app launches. `TaskMenuApp.isUITesting` is the exception that creates a regular window for automation.
+- Update `CHANGELOG.md` before committing feature or bug-fix work, under `## Unreleased` when present.
+
+### Version Control Notes
+
+- Default to the current branch. When explicitly asked to commit/push, commit a focused logical change and push directly to `main` if that is the current flow.
+- Do not create a feature branch or pull request unless the user asks, or unless working from a separate worktree requires it.
+
+## Build And Test
 
 ```bash
-# Generate Xcode project from project.yml (run after changing project.yml)
 xcodegen generate
 
-# Build
-xcodebuild -scheme TaskMenu -configuration Debug build
+xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu \
+  -configuration Debug
 
-# Run tests
-xcodebuild -scheme TaskMenu -configuration Debug test
+xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
+  -configuration Debug \
+  -only-testing:TaskMenuTests/AppStateTests
 ```
 
-**OAuth setup:** Copy `Config.xcconfig.example` to `Config.xcconfig` and fill in `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` from the Google iOS OAuth client. This file is gitignored.
+- Prefer the smallest relevant `-only-testing:` slice.
+- Run the broader test target when a change touches shared app state, service protocols, Google API encoding/decoding, or date handling.
+- OAuth-enabled app launches require a local `Config.xcconfig` copied from `Config.xcconfig.example` with `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME`.
 
-## Architecture & Patterns
+## Security And Privacy Reminders
 
-### Concurrency Model (Swift 6 strict)
-- **AppState:** `@MainActor`, `@Observable` — centralized state management
-- **GoogleAuthService:** `@MainActor`, `Sendable` — auth operations
-- **GoogleTasksAPI:** `actor` — network-isolated API client
-- **KeychainService:** `struct`, `Sendable` — thread-safe keychain access
-- **All models:** `Sendable`, `Codable`, `Identifiable`
-
-### State Management
-- `AppState` is the single source of truth, injected via SwiftUI environment
-- Views use `@Bindable` for two-way binding, `@State` for local state
-- Auth state, task lists, selected list, tasks, and errors flow from AppState
-
-### Service Layer
-- `GoogleAuthService` handles the full OAuth 2.0 PKCE flow including token refresh
-- `GoogleTasksAPI` wraps all Google Tasks REST endpoints with typed errors
-- `KeychainService` abstracts macOS Keychain (SecItem APIs)
-
-### Error Handling
-- `APIError` enum: unauthorized, networkError, serverError, decodingError
-- `KeychainError` enum for storage failures
-- Errors surface to UI via `AppState.errorMessage`
-- No force unwraps on network data
-
-## Code Conventions
-
-- **Zero dependencies:** Prefer Apple frameworks. Do not add SPM packages unless absolutely necessary.
-- **Binary size:** Keep under 10MB.
-- **Strict concurrency:** All new code must compile with `SWIFT_STRICT_CONCURRENCY: complete`. Use `@Sendable`, actors, and `@MainActor` as appropriate.
-- **No force unwraps** on network/external data. Use proper error handling.
-- **System icons:** Use SF Symbols — no custom image assets for UI icons.
-- **Menu bar only:** The app has no main window (`LSUIElement = YES`). All UI is in the MenuBarExtra popover.
-- **Commit discipline:** Each commit should be a logical unit of work with a descriptive message.
-
-## Git Workflow
-
-- **Default workflow:** Commit and push directly to `main` when asked.
-- **Keep CHANGELOG.md updated**: Before committing, double-check if the current change is added as an unreleased entry in the CHANGELOG.md file.
-- **No separate PR/branch by default:** Do not create feature branches or pull requests unless explicitly requested.
-- **Worktree exception:** When working from a git worktree, use a separate branch for that worktree. Open a PR only if that worktree-based flow needs one.
-
-## Testing Guidelines
-
-- **Always update or add tests when modifying code.** Any change to models, services, or utilities must include corresponding test updates in `TaskMenuTests/`.
-- Test files follow the naming convention `<SourceFile>Tests.swift`.
-- Use a unique keychain service name in test setUp to avoid cross-test contamination (e.g., `KeychainService(service: "com.taskmenu.test.\(UUID().uuidString)")`).
-- Mark test classes that touch `@MainActor` types with `@MainActor`.
-
-## Important Files
-
-| File | Purpose |
-|------|---------|
-| `project.yml` | XcodeGen config — regenerate `.xcodeproj` after edits |
-| `Config.xcconfig` | OAuth credentials (gitignored) |
-| `Constants.swift` | All API URLs, OAuth endpoints, keychain keys |
-| `AppState.swift` | Central state — entry point for understanding app logic |
-| `AGENTS.md` | Full architecture doc and phase plan |
-
-## Things to Avoid
-
-- Do not edit `TaskMenu.xcodeproj` directly — it is generated from `project.yml` via XcodeGen
-- Do not commit `Config.xcconfig` — it contains OAuth secrets
-- Do not add SPM dependencies without strong justification
-- Do not add a dock icon or main window — this is a menu-bar-only app
-- Do not use force unwraps (`!`) on data from network or external sources
+- OAuth refresh/access tokens belong in Keychain only.
+- Keep sandbox and hardened-runtime settings intact.
+- Network access should stay limited to explicit product features: Google OAuth, Google Tasks, and token revocation.
+- MetricKit payloads are currently persisted locally; do not add upload behavior without explicit opt-in and a reviewed privacy path.
