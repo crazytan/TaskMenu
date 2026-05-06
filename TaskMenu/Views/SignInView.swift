@@ -18,14 +18,38 @@ struct SignInView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button(action: {
+            Button {
                 appState.signIn()
-            }) {
-                Label("Sign in with Google", systemImage: "person.badge.key.fill")
-                    .frame(maxWidth: .infinity)
+            } label: {
+                if appState.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Signing in...")
+                    }
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Label("Sign in with Google", systemImage: "person.badge.key.fill")
+                        .frame(maxWidth: .infinity)
+                }
             }
+            .disabled(appState.isLoading)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+
+            if let errorMessage = appState.errorMessage {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .padding(.top, 2)
+                    Text(errorMessage)
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            }
         }
         .padding(24)
         .frame(width: 320)

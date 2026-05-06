@@ -289,6 +289,57 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertNil(body["client_secret"])
     }
 
+    func testSignInReportsGoogleTokenExchangeError() async throws {
+        let webAuthenticator = MockWebAuthenticator { authURL, callbackScheme in
+            let state = try XCTUnwrap(queryItem("state", in: authURL))
+            return URL(string: "\(callbackScheme):\(Constants.googleRedirectPath)?code=auth-code-value&state=\(state)")!
+        }
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            Self.capturedRequestBody = requestBodyData(from: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!
+            let json = #"{"error":"invalid_client","error_description":"Unauthorized"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session, webAuthenticator: webAuthenticator)
+
+        do {
+            try await auth.signIn()
+            XCTFail("Expected token exchange failure")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("invalid_client"))
+            XCTAssertTrue(error.localizedDescription.contains("Unauthorized"))
+            XCTAssertNil(auth.accessToken)
+            XCTAssertNil(auth.refreshToken)
+        }
+    }
+
+    func testSignInExplainsWebOAuthClientSecretError() async throws {
+        let webAuthenticator = MockWebAuthenticator { authURL, callbackScheme in
+            let state = try XCTUnwrap(queryItem("state", in: authURL))
+            return URL(string: "\(callbackScheme):\(Constants.googleRedirectPath)?code=auth-code-value&state=\(state)")!
+        }
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            Self.capturedRequestBody = requestBodyData(from: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!
+            let json = #"{"error":"invalid_request","error_description":"client_secret is missing."}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session, webAuthenticator: webAuthenticator)
+
+        do {
+            try await auth.signIn()
+            XCTFail("Expected token exchange failure")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("client_secret is missing"))
+            XCTAssertTrue(error.localizedDescription.contains("iOS OAuth client ID"))
+            XCTAssertTrue(error.localizedDescription.contains("not a Web OAuth client"))
+        }
+    }
+
     func testDisconnectRevokesRefreshTokenBeforeClearingTokens() async throws {
         try keychain.save(key: Constants.Keychain.accessTokenKey, string: "access-token")
         try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "refresh-token")

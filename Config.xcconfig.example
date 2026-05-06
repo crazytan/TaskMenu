@@ -2,6 +2,8 @@
 // Copy this file to Config.xcconfig and fill in your values.
 // Get credentials from Google Cloud Console: https://console.cloud.google.com/apis/credentials
 // Create an iOS OAuth client using bundle ID dev.crazytan.TaskMenu.
+// Do not use a Web OAuth client or client secret; that will fail with
+// "client_secret is missing" after the browser returns to TaskMenu.
 // The redirect scheme is the client ID prefix in reverse-DNS form:
 // 1234567890-abc.apps.googleusercontent.com -> com.googleusercontent.apps.1234567890-abc
 

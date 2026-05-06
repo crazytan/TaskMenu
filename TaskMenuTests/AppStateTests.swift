@@ -1,4 +1,5 @@
 import XCTest
+import AuthenticationServices
 @testable import TaskMenu
 
 @MainActor
@@ -94,6 +95,24 @@ final class AppStateTests: XCTestCase {
         let state = makeState(authService: authService)
 
         XCTAssertTrue(state.experimentalFullWindowLiquidGlassEnabled)
+    }
+
+    func testSignInFailureShowsErrorAndStopsLoading() async {
+        let webAuthenticator = AppStateFailingWebAuthenticator(
+            error: GoogleAuthError.tokenExchangeFailed("invalid_client: Unauthorized")
+        )
+        let authService = GoogleAuthService(keychain: keychain, webAuthenticator: webAuthenticator)
+        let state = makeState(authService: authService)
+
+        state.signIn()
+
+        await waitUntil {
+            state.errorMessage != nil && !state.isLoading
+        }
+
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertFalse(state.isLoading)
+        XCTAssertTrue(state.errorMessage?.contains("invalid_client") == true)
     }
 
     func testChangingExperimentalFullWindowLiquidGlassPersistsPreference() {
@@ -208,5 +227,30 @@ final class AppStateTests: XCTestCase {
         await state.addTask(title: "New Task")
 
         XCTAssertTrue(state.tasks.isEmpty)
+    }
+
+    private func waitUntil(_ condition: @MainActor @escaping () -> Bool) async {
+        for _ in 0..<50 {
+            if condition() { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+}
+
+@MainActor
+private final class AppStateFailingWebAuthenticator: WebAuthenticating {
+    private let error: Error
+
+    init(error: Error) {
+        self.error = error
+    }
+
+    func authenticate(
+        url: URL,
+        callbackScheme: String,
+        presentationContextProvider: any ASWebAuthenticationPresentationContextProviding
+    ) async throws -> URL {
+        throw error
     }
 }

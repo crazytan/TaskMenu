@@ -228,8 +228,16 @@ final class AppState {
     private var signInTask: Task<Void, Never>?
 
     func signIn() {
+        guard signInTask == nil else { return }
+
+        errorMessage = nil
+        isLoading = true
         signInTask = Task { [weak self] in
             guard let self else { return }
+            defer {
+                self.isLoading = false
+                self.signInTask = nil
+            }
             do {
                 try await authService.signIn()
                 self.isSignedIn = true

@@ -11,6 +11,7 @@ enum GoogleAuthError: LocalizedError, Sendable {
     case canceled
     case invalidCallback
     case invalidState
+    case tokenExchangeFailed(String)
     case unableToStartAuthenticationSession
 
     var errorDescription: String? {
@@ -23,6 +24,8 @@ enum GoogleAuthError: LocalizedError, Sendable {
             return "Google returned an invalid sign-in response."
         case .invalidState:
             return "Google returned a sign-in response that did not match this session."
+        case .tokenExchangeFailed(let message):
+            return "Google token exchange failed: \(message)"
         case .unableToStartAuthenticationSession:
             return "Unable to start the Google sign-in session."
         }
@@ -90,28 +93,14 @@ final class ASWebAuthenticationSessionAuthenticator: WebAuthenticating {
         presentationContextProvider: any ASWebAuthenticationPresentationContextProviding
     ) async throws -> URL {
         finishAuthenticationSession()
+        defer { webAuthSession = nil }
 
         return try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(
+            let session = Self.makeSession(
                 url: url,
-                callback: .customScheme(callbackScheme)
-            ) { [weak self] callbackURL, error in
-                Task { @MainActor in
-                    self?.webAuthSession = nil
-                }
-
-                if let error {
-                    continuation.resume(throwing: webAuthenticationError(from: error))
-                    return
-                }
-
-                guard let callbackURL else {
-                    continuation.resume(throwing: GoogleAuthError.invalidCallback)
-                    return
-                }
-
-                continuation.resume(returning: callbackURL)
-            }
+                callbackScheme: callbackScheme,
+                continuation: continuation
+            )
             session.presentationContextProvider = presentationContextProvider
             session.prefersEphemeralWebBrowserSession = false
 
@@ -122,6 +111,29 @@ final class ASWebAuthenticationSessionAuthenticator: WebAuthenticating {
                 continuation.resume(throwing: GoogleAuthError.unableToStartAuthenticationSession)
                 return
             }
+        }
+    }
+
+    private nonisolated static func makeSession(
+        url: URL,
+        callbackScheme: String,
+        continuation: CheckedContinuation<URL, any Error>
+    ) -> ASWebAuthenticationSession {
+        ASWebAuthenticationSession(
+            url: url,
+            callback: .customScheme(callbackScheme)
+        ) { callbackURL, error in
+            if let error {
+                continuation.resume(throwing: webAuthenticationError(from: error))
+                return
+            }
+
+            guard let callbackURL else {
+                continuation.resume(throwing: GoogleAuthError.invalidCallback)
+                return
+            }
+
+            continuation.resume(returning: callbackURL)
         }
     }
 
@@ -261,7 +273,7 @@ final class GoogleAuthService: Sendable {
         request.httpBody = params.urlEncodedString().data(using: .utf8)
 
         let (data, response) = try await session.data(for: request)
-        try validateTokenResponse(response)
+        try validateTokenResponse(response, data: data)
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
 
         accessToken = tokenResponse.accessToken
@@ -307,11 +319,45 @@ final class GoogleAuthService: Sendable {
         }
     }
 
-    private func validateTokenResponse(_ response: URLResponse) throws {
+    private func validateTokenResponse(_ response: URLResponse, data: Data) throws {
         guard let httpResponse = response as? HTTPURLResponse else { return }
         guard httpResponse.statusCode == 200 else {
-            throw APIError.unauthorized
+            throw GoogleAuthError.tokenExchangeFailed(
+                tokenErrorMessage(from: data, statusCode: httpResponse.statusCode)
+            )
         }
+    }
+
+    private func tokenErrorMessage(from data: Data, statusCode: Int) -> String {
+        if let tokenError = try? JSONDecoder().decode(TokenErrorResponse.self, from: data) {
+            return tokenExchangeFailureMessage(
+                error: tokenError.error,
+                description: tokenError.errorDescription
+            )
+        }
+
+        if let body = String(data: data, encoding: .utf8),
+           !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "HTTP \(statusCode): \(body)"
+        }
+
+        return "HTTP \(statusCode)"
+    }
+
+    private func tokenExchangeFailureMessage(error: String, description: String?) -> String {
+        let message: String
+        if let description, !description.isEmpty {
+            message = "\(error): \(description)"
+        } else {
+            message = error
+        }
+
+        if message.lowercased().contains("client_secret") {
+            let bundleID = Bundle.main.bundleIdentifier ?? "this app"
+            return "\(message) Use a Google iOS OAuth client ID for bundle ID \(bundleID), not a Web OAuth client."
+        }
+
+        return message
     }
 
     private func saveTokens() {
@@ -411,6 +457,16 @@ private struct TokenResponse: Codable {
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
         case tokenType = "token_type"
+    }
+}
+
+private struct TokenErrorResponse: Codable {
+    let error: String
+    let errorDescription: String?
+
+    enum CodingKeys: String, CodingKey {
+        case error
+        case errorDescription = "error_description"
     }
 }
 
