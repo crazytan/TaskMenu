@@ -26,6 +26,7 @@
 - Show drag insertion indicators and keep drag moves constrained to same-level tasks.
 - Declare the task drag-and-drop UTI in the app bundle to silence LaunchServices warnings.
 - Updated launch-facing website, README, privacy, terms, and settings wording for public DMG distribution.
+- Exclude folder-local agent README files from Xcode targets so documentation does not get copied into the app bundle.
 
 ## v1.0.1 (2026-05-04)
 

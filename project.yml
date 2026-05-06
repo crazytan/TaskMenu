@@ -30,6 +30,7 @@ targets:
     platform: macOS
     sources:
       - path: TaskMenu
+        excludes: ["README.md", "**/README.md"]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.crazytan.TaskMenu
@@ -53,6 +54,7 @@ targets:
     platform: macOS
     sources:
       - path: TaskMenuTests
+        excludes: ["README.md"]
     dependencies:
       - target: TaskMenu
     settings:
