@@ -6,7 +6,8 @@ final class TaskListViewTests: XCTestCase {
         id: String,
         title: String = "Task",
         parent: String? = nil,
-        status: TaskItem.TaskStatus = .needsAction
+        status: TaskItem.TaskStatus = .needsAction,
+        position: String? = nil
     ) -> TaskItem {
         TaskItem(
             id: id,
@@ -16,7 +17,7 @@ final class TaskListViewTests: XCTestCase {
             due: nil,
             selfLink: nil,
             parent: parent,
-            position: nil,
+            position: position,
             updated: nil
         )
     }
@@ -187,7 +188,7 @@ final class TaskListViewTests: XCTestCase {
         let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
 
         let visible = visibleSubtasks(
-            [activeChild, completedChild],
+            [completedChild, activeChild],
             under: parent,
             isSearching: false,
             completedSubtasksRevealed: true
@@ -196,18 +197,30 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(visible.map(\.id), ["active-child", "done-child"])
     }
 
+    func testSubtasksWithCompletedLastPreservesRelativeOrderWithinGroups() {
+        let firstDone = makeTask(id: "done-1", parent: "parent", status: .completed)
+        let firstActive = makeTask(id: "active-1", parent: "parent")
+        let secondDone = makeTask(id: "done-2", parent: "parent", status: .completed)
+        let secondActive = makeTask(id: "active-2", parent: "parent")
+
+        let ordered = subtasksWithCompletedLast([firstDone, firstActive, secondDone, secondActive])
+
+        XCTAssertEqual(ordered.map(\.id), ["active-1", "active-2", "done-1", "done-2"])
+    }
+
     func testVisibleSubtasksShowsCompletedChildrenDuringSearch() {
         let parent = makeTask(id: "parent")
+        let activeChild = makeTask(id: "active-child", parent: "parent")
         let completedChild = makeTask(id: "done-child", parent: "parent", status: .completed)
 
         let visible = visibleSubtasks(
-            [completedChild],
+            [completedChild, activeChild],
             under: parent,
             isSearching: true,
             completedSubtasksRevealed: false
         )
 
-        XCTAssertEqual(visible.map(\.id), ["done-child"])
+        XCTAssertEqual(visible.map(\.id), ["active-child", "done-child"])
     }
 
     func testVisibleSubtasksDoesNotHideChildrenOfCompletedParent() {
@@ -299,6 +312,30 @@ final class TaskListViewTests: XCTestCase {
                 targetTaskID: "second",
                 placement: .after,
                 destinationSiblingIndex: 2
+            )
+        )
+    }
+
+    func testTaskDropContextUsesGooglePositionOrder() {
+        let first = makeTask(id: "first", position: "00000001")
+        let second = makeTask(id: "second", position: "00000002")
+        let third = makeTask(id: "third", position: "00000003")
+
+        let context = taskDropContext(
+            draggedTaskID: "third",
+            targetTask: first,
+            locationY: 16,
+            rowHeight: 20,
+            activeTasks: [third, first, second]
+        )
+
+        XCTAssertEqual(
+            context,
+            TaskDropContext(
+                draggedTaskID: "third",
+                targetTaskID: "first",
+                placement: .after,
+                destinationSiblingIndex: 1
             )
         )
     }

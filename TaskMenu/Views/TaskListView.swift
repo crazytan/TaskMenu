@@ -76,7 +76,9 @@ func taskDropContext(
         return nil
     }
 
-    let activeSiblings = activeTasks.filter { !$0.isCompleted && $0.parent == draggedTask.parent }
+    let activeSiblings = tasksSortedByGooglePosition(
+        activeTasks.filter { !$0.isCompleted && $0.parent == draggedTask.parent }
+    )
     guard let sourceIndex = activeSiblings.firstIndex(where: { $0.id == draggedTaskID }),
           let targetIndex = activeSiblings.firstIndex(where: { $0.id == targetTask.id })
     else {
@@ -104,7 +106,7 @@ func taskEndDropContext(draggedTaskID: String?, activeTasks: [TaskItem]) -> Task
         return nil
     }
 
-    let rootTasks = activeTasks.filter { !$0.isCompleted && $0.parent == nil }
+    let rootTasks = tasksSortedByGooglePosition(activeTasks.filter { !$0.isCompleted && $0.parent == nil })
     guard let sourceIndex = rootTasks.firstIndex(where: { $0.id == draggedTaskID }) else {
         return nil
     }
@@ -155,6 +157,10 @@ func shouldPlaceInlineSubtaskField(
     return task.id == parentID
 }
 
+func subtasksWithCompletedLast(_ subtasks: [TaskItem]) -> [TaskItem] {
+    subtasks.filter { !$0.isCompleted } + subtasks.filter(\.isCompleted)
+}
+
 func visibleSubtasks(
     _ subtasks: [TaskItem],
     under parent: TaskItem,
@@ -162,7 +168,7 @@ func visibleSubtasks(
     completedSubtasksRevealed: Bool
 ) -> [TaskItem] {
     guard !isSearching, !parent.isCompleted, !completedSubtasksRevealed else {
-        return subtasks
+        return subtasksWithCompletedLast(subtasks)
     }
 
     return subtasks.filter { !$0.isCompleted }

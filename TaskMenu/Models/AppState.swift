@@ -1,5 +1,22 @@
 import SwiftUI
 
+func tasksSortedByGooglePosition(_ tasks: [TaskItem]) -> [TaskItem] {
+    tasks.enumerated()
+        .sorted { left, right in
+            switch (left.element.position, right.element.position) {
+            case let (leftPosition?, rightPosition?) where leftPosition != rightPosition:
+                return leftPosition < rightPosition
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            default:
+                return left.offset < right.offset
+            }
+        }
+        .map(\.element)
+}
+
 @MainActor
 @Observable
 final class AppState {
@@ -43,14 +60,14 @@ final class AppState {
         isSignedIn && !hasCompletedInitialTaskLoad && taskLists.isEmpty && tasks.isEmpty
     }
 
-    /// Root-level tasks (no parent), preserving API order.
+    /// Root-level tasks (no parent), ordered by Google's sibling position.
     var rootTasks: [TaskItem] {
-        tasks.filter { $0.parent == nil }
+        tasksSortedByGooglePosition(tasks.filter { $0.parent == nil })
     }
 
-    /// Children of a given task, preserving API order.
+    /// Children of a given task, ordered by Google's sibling position.
     func subtasks(of taskID: String) -> [TaskItem] {
-        tasks.filter { $0.parent == taskID }
+        tasksSortedByGooglePosition(tasks.filter { $0.parent == taskID })
     }
 
     /// Whether a task has any children.
@@ -86,12 +103,12 @@ final class AppState {
 
     /// Root-level tasks from the search-filtered set.
     var searchFilteredRootTasks: [TaskItem] {
-        searchFilteredTasks.filter { $0.parent == nil }
+        tasksSortedByGooglePosition(searchFilteredTasks.filter { $0.parent == nil })
     }
 
     /// Subtasks of a given task from the search-filtered set.
     func searchFilteredSubtasks(of taskID: String) -> [TaskItem] {
-        searchFilteredTasks.filter { $0.parent == taskID }
+        tasksSortedByGooglePosition(searchFilteredTasks.filter { $0.parent == taskID })
     }
 
     private func taskMatchesQuery(_ task: TaskItem, query: String) -> Bool {
@@ -578,7 +595,9 @@ final class AppState {
             return nil
         }
 
-        let activeSiblings = tasks.filter { !$0.isCompleted && $0.parent == movedTask.parent }
+        let activeSiblings = tasksSortedByGooglePosition(
+            tasks.filter { !$0.isCompleted && $0.parent == movedTask.parent }
+        )
         guard let sourceIndex = activeSiblings.firstIndex(where: { $0.id == taskID }) else { return nil }
 
         let clampedDestinationIndex = min(max(destinationIndex, 0), activeSiblings.count)

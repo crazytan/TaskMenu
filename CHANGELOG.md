@@ -20,6 +20,7 @@
 - Close the menu bar popover more reliably when clicking outside it.
 - Verify Google Tasks due-date updates and clears sync through PATCH responses.
 - Hide completed subtasks under active parents by default with a per-parent reveal row.
+- Match Google Tasks sibling ordering by task position, while keeping completed subtasks at the end when revealed.
 - Show drag insertion indicators and keep drag moves constrained to same-level tasks.
 - Declare the task drag-and-drop UTI in the app bundle to silence LaunchServices warnings.
 

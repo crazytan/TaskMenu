@@ -184,7 +184,7 @@ struct TaskDetailView: View {
                     }
             }
 
-            let children = appState.subtasks(of: task.id)
+            let children = subtasksWithCompletedLast(appState.subtasks(of: task.id))
             if !children.isEmpty {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: TaskDetailLayout.subtaskRowSpacing) {

@@ -38,6 +38,26 @@ final class AppStateTests: XCTestCase {
         )
     }
 
+    private func makeTask(
+        id: String,
+        title: String = "Task",
+        parent: String? = nil,
+        status: TaskItem.TaskStatus = .needsAction,
+        position: String? = nil
+    ) -> TaskItem {
+        TaskItem(
+            id: id,
+            title: title,
+            notes: nil,
+            status: status,
+            due: nil,
+            selfLink: nil,
+            parent: parent,
+            position: position,
+            updated: nil
+        )
+    }
+
     // MARK: - Initial State
 
     func testInitialStateWhenNotSignedIn() {
@@ -178,6 +198,42 @@ final class AppStateTests: XCTestCase {
         state.selectedListId = "nonexistent"
 
         XCTAssertNil(state.selectedList)
+    }
+
+    // MARK: - Task Ordering
+
+    func testRootTasksUseGooglePositionOrder() {
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+        state.tasks = [
+            makeTask(id: "third", position: "00000003"),
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "child", parent: "first", position: "00000000"),
+            makeTask(id: "second", position: "00000002"),
+        ]
+
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "second", "third"])
+    }
+
+    func testSubtasksUseGooglePositionOrder() {
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+        state.tasks = [
+            makeTask(id: "parent", position: "00000000"),
+            makeTask(id: "child-2", parent: "parent", position: "00000002"),
+            makeTask(id: "child-1", parent: "parent", position: "00000001"),
+        ]
+
+        XCTAssertEqual(state.subtasks(of: "parent").map(\.id), ["child-1", "child-2"])
+    }
+
+    func testGooglePositionOrderingFallsBackToExistingOrderWhenPositionIsMissing() {
+        let tasks = [
+            makeTask(id: "first"),
+            makeTask(id: "second"),
+        ]
+
+        XCTAssertEqual(tasksSortedByGooglePosition(tasks).map(\.id), ["first", "second"])
     }
 
     // MARK: - Sign Out
