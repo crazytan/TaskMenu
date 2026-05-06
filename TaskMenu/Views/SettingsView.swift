@@ -57,14 +57,11 @@ struct SettingsView: View {
             .font(.caption)
             .controlSize(.small)
 
-            // TODO: Replace with actual App Store link once published
-            Text("Rate on App Store — coming soon")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            Text("Tip the Developer — coming soon")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            Link(destination: URL(string: "https://taskmenu.crazytan.dev/privacy")!) {
+                Label("Privacy Policy", systemImage: "lock")
+            }
+            .font(.caption)
+            .controlSize(.small)
 
             Divider()
 

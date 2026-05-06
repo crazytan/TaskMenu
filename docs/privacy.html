@@ -17,11 +17,11 @@
 </head>
 <body>
     <h1>TaskMenu Privacy Policy</h1>
-    <p class="updated"><strong>Last updated:</strong> April 20, 2026</p>
-    <p>TaskMenu is a free, open-source macOS menu bar app for managing Google Tasks. Your privacy matters — here's how TaskMenu handles your data.</p>
+    <p class="updated"><strong>Last updated:</strong> May 6, 2026</p>
+    <p>TaskMenu is a free, open-source macOS menu bar app for managing Google Tasks. Your privacy matters; here is how TaskMenu handles your data.</p>
 
     <h2>What TaskMenu accesses</h2>
-    <p>TaskMenu connects to the <a href="https://developers.google.com/tasks">Google Tasks API</a> to read and write your tasks and task lists. This is the only external service the app communicates with.</p>
+    <p>TaskMenu connects to Google OAuth and the <a href="https://developers.google.com/tasks">Google Tasks API</a> so you can sign in and manage your tasks and task lists. These Google services are the only external services the app communicates with.</p>
 
     <h2>Where your data is stored</h2>
     <p>All data stays on your device:</p>
@@ -29,6 +29,7 @@
         <li><strong>OAuth tokens</strong> are stored in the macOS Keychain, protected by your system's security.</li>
         <li><strong>Task data</strong> is fetched from Google on demand and displayed in the app. It is not stored in a separate local database or on TaskMenu-operated servers.</li>
         <li><strong>Due date notifications</strong> are optional. If you enable them, macOS may temporarily store notification content locally so reminders can be displayed.</li>
+        <li><strong>Diagnostic reports</strong> may be saved locally on your Mac using Apple's MetricKit framework. TaskMenu does not upload these reports or send them to the developer.</li>
     </ul>
 
     <h2>Data retention and deletion</h2>
@@ -38,15 +39,17 @@
         <li><strong>Task and task list data</strong> is kept in memory while the app is running so the interface and optional due date notifications can work. TaskMenu does not keep a separate server-side copy of your Google Tasks data.</li>
         <li>When you <strong>sign out of TaskMenu</strong>, the app deletes its stored OAuth tokens from the macOS Keychain, clears in-memory task data, and removes pending or delivered local notifications created by the app.</li>
         <li>When you <strong>delete or modify tasks in TaskMenu</strong>, those changes are sent to Google Tasks and reflected in your Google account.</li>
+        <li><strong>Local diagnostic reports</strong> remain on your Mac and may be removed by deleting TaskMenu's Application Support data.</li>
         <li><strong>Uninstalling TaskMenu</strong> does not automatically delete tasks from your Google account. Your tasks remain in Google Tasks until you delete them through TaskMenu, Google Tasks, or another Google client.</li>
         <li>You can stop TaskMenu from accessing your Google data at any time by signing out of the app or revoking access at your <a href="https://myaccount.google.com/permissions">Google Account permissions page</a>.</li>
     </ul>
 
     <h2>What TaskMenu does NOT do</h2>
     <ul>
-        <li><strong>No analytics or telemetry.</strong> The app does not track how you use it.</li>
-        <li><strong>No data collection.</strong> TaskMenu does not collect, store, or transmit any personal information beyond what is needed to authenticate with Google.</li>
-        <li><strong>No third-party services.</strong> The app only communicates with Google APIs directly. No data is sent to any other server or service.</li>
+        <li><strong>No tracking.</strong> The app does not track how you use it.</li>
+        <li><strong>No personal data collection.</strong> TaskMenu does not transmit personal information beyond what is needed to authenticate with Google and sync Google Tasks.</li>
+        <li><strong>No uploaded diagnostics.</strong> Local diagnostic reports are not uploaded to TaskMenu-operated servers or sent to third-party analytics services.</li>
+        <li><strong>No third-party analytics services.</strong> The app only communicates with Google services directly for sign-in and Google Tasks sync.</li>
         <li><strong>No ads.</strong> There are no advertisements in TaskMenu.</li>
     </ul>
 

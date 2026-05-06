@@ -25,6 +25,7 @@
 - Match Google Tasks sibling ordering by task position, while keeping completed subtasks at the end when revealed.
 - Show drag insertion indicators and keep drag moves constrained to same-level tasks.
 - Declare the task drag-and-drop UTI in the app bundle to silence LaunchServices warnings.
+- Updated launch-facing website, README, privacy, terms, and settings wording for public DMG distribution.
 
 ## v1.0.1 (2026-05-04)
 
@@ -56,6 +57,3 @@ Initial release — menu bar app for Google Tasks.
 - SwiftUI MenuBarExtra (.window style)
 - macOS 14+ (Sonoma)
 - No SPM dependencies — Apple frameworks only
-
-### Known Issues
-- Google Cloud project in "Testing" mode — OAuth consent limited to test users

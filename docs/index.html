@@ -208,18 +208,12 @@
     <div class="container">
         <header>
             <h1>TaskMenu</h1>
-            <p class="tagline">A lightweight, native macOS menu bar app for Google Tasks.</p>
+            <p class="tagline">A lightweight, native macOS menu bar app for Google Tasks. Signed, notarized, and built to stay out of your way.</p>
             <div class="cta">
-                <a href="https://github.com/crazytan/TaskMenu" class="primary">View on GitHub</a>
-                <a href="https://github.com/crazytan/TaskMenu#installation" class="secondary">Build Instructions</a>
+                <a href="https://github.com/crazytan/TaskMenu/releases/latest" class="primary">Download Latest Release</a>
+                <a href="https://github.com/crazytan/TaskMenu" class="secondary">View Source</a>
             </div>
         </header>
-
-        <div class="screenshot">
-            <div class="placeholder">
-                Screenshot coming soon
-            </div>
-        </div>
 
         <section>
             <h2>Features</h2>
@@ -263,13 +257,13 @@
             <h2>Get Started</h2>
             <div class="build-steps">
                 <ol>
-                    <li>Clone the repo: <code>git clone https://github.com/crazytan/TaskMenu.git</code></li>
-                    <li>Set up Google OAuth credentials in <code>Config.xcconfig</code></li>
-                    <li>Generate the project: <code>xcodegen generate</code></li>
-                    <li>Open in Xcode and build</li>
+                    <li>Download the latest signed DMG from <a href="https://github.com/crazytan/TaskMenu/releases/latest">GitHub Releases</a>.</li>
+                    <li>Open the DMG and drag TaskMenu into Applications.</li>
+                    <li>Launch TaskMenu and sign in with Google.</li>
+                    <li>TaskMenu will appear in the macOS menu bar.</li>
                 </ol>
                 <p style="margin-top: 12px; font-size: 0.9rem; color: var(--text-muted);">
-                    Requires macOS 14.4+, Xcode 16+, and <a href="https://github.com/yonaskolb/XcodeGen">XcodeGen</a>.
+                    Requires macOS 14.4 or later. Developers can also <a href="https://github.com/crazytan/TaskMenu#installation">build from source</a>.
                 </p>
             </div>
         </section>

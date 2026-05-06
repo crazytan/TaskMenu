@@ -21,13 +21,14 @@ TaskMenu brings Google Tasks to the macOS menu bar with a fast, native SwiftUI i
 - Secure token storage in the macOS Keychain
 - Optional launch at login
 
-## Screenshots
-
-Screenshots coming soon.
-
 ## Requirements
 
+To use TaskMenu:
+
 - macOS 14.4 or later (Sonoma)
+
+To build from source:
+
 - Xcode 16 or later
 - XcodeGen
 - A Google Cloud project with the Google Tasks API enabled
@@ -35,7 +36,7 @@ Screenshots coming soon.
 
 ## Installation
 
-Download signed DMGs from the GitHub releases page:
+Download the signed and notarized DMG from the latest GitHub release:
 
 https://github.com/crazytan/TaskMenu/releases
 
@@ -52,7 +53,6 @@ cd TaskMenu
 
 - Enable the Google Tasks API
 - Create an iOS OAuth client in Google Cloud Console for bundle ID `dev.crazytan.TaskMenu`
-- If your OAuth consent screen is in Testing mode, add your Google account as a test user
 
 3. Copy the example config and add your Google OAuth credentials:
 
