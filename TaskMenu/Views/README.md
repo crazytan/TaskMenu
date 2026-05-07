@@ -5,7 +5,7 @@ Views render the menu-bar popover and settings UI. Keep business behavior in `Ap
 ## Files
 
 - `MenuBarPopover.swift` - signed-out, initial-loading, signed-in task list, bottom error strip, settings button, and popover surface styling.
-- `TaskListView.swift` - list picker, search, quick add, active/completed sections, subtask display, inline subtasks, drag-and-drop reordering, and drop delegates.
+- `TaskListView.swift` - list picker, search, quick add, active/completed sections, subtask display, and inline subtasks.
 - `TaskRowView.swift` - row layout, completion toggle, notes preview, due-date label coloring, collapse and add-subtask actions.
 - `TaskDetailView.swift` - edit sheet, due-date state, notes, delete action, and child task preview.
 - `QuickAddView.swift` - inline root-task creation.
@@ -24,7 +24,6 @@ Views render the menu-bar popover and settings UI. Keep business behavior in `Ap
 ## Task List Interaction Rules
 
 - Active and completed rows use different identities so completion transitions do not confuse SwiftUI diffing.
-- Drag-and-drop only reorders active tasks among siblings with the same parent.
 - Inline subtask creation appears immediately after the selected parent and hides during search.
 - Completed subtasks under active parents are hidden until explicitly revealed; search reveals matching context.
 - Keep helper functions pure when possible and cover interaction logic in `TaskListViewTests`.

@@ -457,38 +457,6 @@ final class AppState {
         }
     }
 
-    func moveTask(_ task: TaskItem, toActiveIndex destinationIndex: Int) async {
-        await moveTask(task, toSiblingIndex: destinationIndex)
-    }
-
-    func moveTask(_ task: TaskItem, toSiblingIndex destinationIndex: Int) async {
-        guard let listId = selectedListId else { return }
-        guard let moveContext = makeMoveContext(for: task.id, destinationIndex: destinationIndex) else {
-            return
-        }
-
-        let originalTasks = tasks
-        tasks = moveContext.reorderedTasks
-        updateVisibleTaskCacheForSelectedList()
-
-        do {
-            let movedTask = try await api.moveTask(
-                listId: listId,
-                taskId: task.id,
-                previousId: moveContext.previousTaskID,
-                parentId: task.parent
-            )
-            if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
-                tasks[index] = movedTask
-                updateVisibleTaskCacheForSelectedList()
-            }
-        } catch {
-            tasks = originalTasks
-            updateVisibleTaskCacheForSelectedList()
-            handleError(error)
-        }
-    }
-
     func selectList(_ listId: String) async {
         selectedListId = listId
         if let cachedTasks = taskCacheByListID[listId] {
@@ -589,49 +557,4 @@ final class AppState {
         guard isCurrentTaskLoad(requestID, for: listId) else { return }
         handleError(error)
     }
-
-    private func makeMoveContext(for taskID: String, destinationIndex: Int) -> TaskMoveContext? {
-        guard let movedTask = tasks.first(where: { $0.id == taskID && !$0.isCompleted }) else {
-            return nil
-        }
-
-        let activeSiblings = tasksSortedByGooglePosition(
-            tasks.filter { !$0.isCompleted && $0.parent == movedTask.parent }
-        )
-        guard let sourceIndex = activeSiblings.firstIndex(where: { $0.id == taskID }) else { return nil }
-
-        let clampedDestinationIndex = min(max(destinationIndex, 0), activeSiblings.count)
-        var reorderedActiveSiblings = activeSiblings
-        reorderedActiveSiblings.move(
-            fromOffsets: IndexSet(integer: sourceIndex),
-            toOffset: clampedDestinationIndex
-        )
-
-        guard reorderedActiveSiblings.map(\.id) != activeSiblings.map(\.id) else {
-            return nil
-        }
-
-        guard let movedTaskIndex = reorderedActiveSiblings.firstIndex(where: { $0.id == taskID }) else {
-            return nil
-        }
-
-        let previousTaskID = movedTaskIndex > 0 ? reorderedActiveSiblings[movedTaskIndex - 1].id : nil
-        var reorderedIterator = reorderedActiveSiblings.makeIterator()
-        let reorderedTasks = tasks.map { task in
-            if !task.isCompleted && task.parent == movedTask.parent {
-                return reorderedIterator.next() ?? task
-            }
-            return task
-        }
-
-        return TaskMoveContext(
-            reorderedTasks: reorderedTasks,
-            previousTaskID: previousTaskID
-        )
-    }
-}
-
-private struct TaskMoveContext {
-    let reorderedTasks: [TaskItem]
-    let previousTaskID: String?
 }

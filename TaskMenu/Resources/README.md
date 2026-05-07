@@ -4,7 +4,7 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 
 ## Files
 
-- `Info.plist` - bundle metadata, OAuth URL scheme registration, Google config placeholders, menu-bar-only launch flag, and exported drag type.
+- `Info.plist` - bundle metadata, OAuth URL scheme registration, Google config placeholders, and menu-bar-only launch flag.
 - `TaskMenu.entitlements` - app sandbox and outbound network entitlement.
 - `Assets.xcassets` - compiled asset catalog, including app icon membership.
 - `AppIcon.svg` - source artwork for the app icon.
@@ -15,7 +15,6 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 - Preserve `LSUIElement = true` for normal launches.
 - Keep `CFBundleURLTypes` aligned with `GOOGLE_REDIRECT_SCHEME` for OAuth callbacks.
 - Keep `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` as build-setting placeholders; local values belong in `Config.xcconfig`.
-- `UTExportedTypeDeclarations` must stay aligned with the drag type in `TaskListView`.
 
 ## Entitlements
 
