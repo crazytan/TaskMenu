@@ -40,29 +40,44 @@ the next patch bump, and ask the user to confirm before editing files.
 If validation fails, explain the specific problem and ask for a corrected
 version. Do not proceed until validation passes.
 
-## Step 2: Update CHANGELOG.md
+## Step 2: Draft and Confirm Release Notes
 
 1. Read `CHANGELOG.md`.
 2. Leave `## TODO` untouched.
 3. Find `## Unreleased` and collect entries until the next `## v...` heading.
 4. If `Unreleased` is empty, warn the user and ask before creating an empty
    release section. The GitHub release workflow rejects empty notes.
-5. Move the collected entries into a new section directly below `## Unreleased`:
+5. Organize the collected entries into a small set of high-level, public
+   release-note categories. Prefer familiar headings such as `Added`, `Changed`,
+   `Fixed`, `Removed`, `Security`, or `Known Issues`; merge sparse categories
+   instead of creating many one-off headings, and omit empty categories.
+6. Strip away internal-only notes before showing or writing release notes:
+   remove implementation details, PR bookkeeping, local testing notes, debug
+   notes, file paths, refactor-only commentary, TODOs, and maintainer rationale
+   unless they directly describe user-visible behavior. Do not invent features;
+   rewrite only enough to make the notes public-facing.
+7. Present the organized release notes draft to the user and ask whether it
+   looks good. Stop until the user approves or requests edits. Do not update
+   `CHANGELOG.md`, `project.yml`, or generated files until the release notes are
+   confirmed.
+
+## Step 3: Update CHANGELOG.md
+
+Move the confirmed notes into a new section directly below `## Unreleased`:
 
 ```markdown
 ## Unreleased
 
 ## v{version} ({YYYY-MM-DD})
 
-### Features
+### Added
 - ...
 ```
 
-Preserve existing user-facing wording. If entries are uncategorized, classify
-them into appropriate subsections such as `Features`, `Fixed`, `Changes`,
-`Security`, or `Known Issues`; omit empty subsections.
+Preserve the confirmed public-facing wording exactly except for mechanical
+Markdown formatting needed to fit the changelog.
 
-## Step 3: Update project.yml
+## Step 4: Update project.yml
 
 TaskMenu keeps version settings in the global `settings.base` block.
 
@@ -72,7 +87,7 @@ TaskMenu keeps version settings in the global `settings.base` block.
 
 Use a precise edit. Do not edit `TaskMenu.xcodeproj` directly.
 
-## Step 4: Regenerate and Verify
+## Step 5: Regenerate and Verify
 
 Regenerate the project after changing `project.yml`:
 
@@ -115,7 +130,7 @@ If `Config.xcconfig` is missing locally, create a temporary untracked
 overwrite an existing config file and do not commit this file. If verification
 fails, stop, report the failure, and help fix it if asked.
 
-## Step 5: Commit, Tag, and Push
+## Step 6: Commit, Tag, and Push
 
 Only reach this step after build and tests pass.
 
