@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+## v1.1.0 (2026-05-08)
+
 ### Added
 - Task notes previews in the main task list, including subtask notes.
 - A per-parent reveal row for completed subtasks under active parents.
