@@ -71,7 +71,6 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertNil(state.selectedListId)
         XCTAssertTrue(state.dueDateNotificationsEnabled)
-        XCTAssertFalse(state.experimentalFullWindowLiquidGlassEnabled)
     }
 
     func testInitialStateReflectsSignedInStatus() throws {
@@ -109,14 +108,6 @@ final class AppStateTests: XCTestCase {
         XCTAssertFalse(state.dueDateNotificationsEnabled)
     }
 
-    func testInitialStateUsesStoredExperimentalFullWindowLiquidGlassPreference() {
-        userDefaults.set(true, forKey: Constants.UserDefaults.experimentalFullWindowLiquidGlassEnabledKey)
-        let authService = GoogleAuthService(keychain: keychain)
-        let state = makeState(authService: authService)
-
-        XCTAssertTrue(state.experimentalFullWindowLiquidGlassEnabled)
-    }
-
     func testSignInFailureShowsErrorAndStopsLoading() async {
         let webAuthenticator = AppStateFailingWebAuthenticator(
             error: GoogleAuthError.tokenExchangeFailed("invalid_client: Unauthorized")
@@ -133,18 +124,6 @@ final class AppStateTests: XCTestCase {
         XCTAssertFalse(state.isSignedIn)
         XCTAssertFalse(state.isLoading)
         XCTAssertTrue(state.errorMessage?.contains("invalid_client") == true)
-    }
-
-    func testChangingExperimentalFullWindowLiquidGlassPersistsPreference() {
-        let authService = GoogleAuthService(keychain: keychain)
-        let state = makeState(authService: authService)
-
-        state.experimentalFullWindowLiquidGlassEnabled = true
-
-        XCTAssertEqual(
-            userDefaults.object(forKey: Constants.UserDefaults.experimentalFullWindowLiquidGlassEnabledKey) as? Bool,
-            true
-        )
     }
 
     func testChangingDueDateNotificationsPersistsPreferenceAndRemovesNotificationsWhenDisabled() async {

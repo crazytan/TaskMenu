@@ -11,8 +11,8 @@ Views render the menu-bar popover and settings UI. Keep business behavior in `Ap
 - `QuickAddView.swift` - inline root-task creation.
 - `ListPickerView.swift` - selected Google task-list picker.
 - `SignInView.swift` - OAuth entry screen.
-- `SettingsView.swift` - notification preference, experimental glass toggle, launch-at-login, account disconnect, and quit controls.
-- `MenuBarWindowGlassSupport.swift` - macOS 26 full-window Liquid Glass AppKit bridge.
+- `SettingsView.swift` - notification preference, launch-at-login, account disconnect, and quit controls.
+- `MenuBarWindowGlassSupport.swift` - macOS 26 Liquid Glass window-background support.
 
 ## UI Ownership
 
@@ -32,5 +32,5 @@ Views render the menu-bar popover and settings UI. Keep business behavior in `Ap
 
 - Use SF Symbols for UI icons.
 - Preserve the compact 320-point menu-bar popover design.
-- macOS 26 Liquid Glass support is gated by availability and the experimental user default.
+- macOS 26 Liquid Glass support is gated by availability and keeps the popover on the conservative SwiftUI glass surface.
 - Avoid adding instructional text to the UI; controls should be self-explanatory in context.

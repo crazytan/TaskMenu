@@ -26,14 +26,6 @@ struct SettingsView: View {
             Toggle("Due date notifications", isOn: $appState.dueDateNotificationsEnabled)
                 .controlSize(.small)
 
-            if MenuBarWindowChrome.supportsLiquidGlass {
-                Toggle(
-                    "Full-window Liquid Glass",
-                    isOn: $appState.experimentalFullWindowLiquidGlassEnabled
-                )
-                .controlSize(.small)
-            }
-
             Divider()
 
             // About

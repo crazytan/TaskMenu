@@ -25,6 +25,7 @@
 - Match Google Tasks sibling ordering by task position, while keeping completed subtasks at the end when revealed.
 - Updated launch-facing website, README, privacy, terms, and settings wording for public DMG distribution.
 - Exclude folder-local agent README files from Xcode targets so documentation does not get copied into the app bundle.
+- Removed the experimental full-window Liquid Glass setting and kept the menu bar popover on the conservative glass surface.
 
 ## v1.0.1 (2026-05-04)
 

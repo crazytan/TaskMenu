@@ -26,7 +26,7 @@ final class MenuBarWindowChromeTests: XCTestCase {
         window.isOpaque = true
         window.backgroundColor = .windowBackgroundColor
 
-        MenuBarWindowChrome.applyLiquidGlassSupport(to: window, enabled: false)
+        MenuBarWindowChrome.applyLiquidGlassSupport(to: window)
 
         if MenuBarWindowChrome.supportsLiquidGlass {
             XCTAssertFalse(window.isOpaque)
@@ -34,34 +34,6 @@ final class MenuBarWindowChromeTests: XCTestCase {
         } else {
             XCTAssertTrue(window.isOpaque)
             XCTAssertEqual(window.backgroundColor, .windowBackgroundColor)
-        }
-    }
-
-    func testApplyingExperimentalFullWindowLiquidGlassWrapsAndUnwrapsContentView() {
-        let hostedContentView = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 480))
-        let window = NSWindow(
-            contentRect: hostedContentView.frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = hostedContentView
-
-        MenuBarWindowChrome.applyLiquidGlassSupport(to: window, enabled: true)
-
-        if MenuBarWindowChrome.supportsLiquidGlass {
-            XCTAssertTrue(MenuBarWindowChrome.isFullWindowGlassApplied(to: window))
-            XCTAssertTrue(window.contentView !== hostedContentView)
-        } else {
-            XCTAssertFalse(MenuBarWindowChrome.isFullWindowGlassApplied(to: window))
-            XCTAssertTrue(window.contentView === hostedContentView)
-        }
-
-        MenuBarWindowChrome.applyLiquidGlassSupport(to: window, enabled: false)
-
-        XCTAssertFalse(MenuBarWindowChrome.isFullWindowGlassApplied(to: window))
-        if MenuBarWindowChrome.supportsLiquidGlass {
-            XCTAssertTrue(window.contentView === hostedContentView)
         }
     }
 

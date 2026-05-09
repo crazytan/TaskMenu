@@ -52,12 +52,8 @@ struct MenuBarPopover: View {
             }
         }
         .frame(width: 320, height: appState.isSignedIn ? 480 : nil)
-        .taskMenuPopoverSurface(
-            usesFullWindowLiquidGlass: appState.experimentalFullWindowLiquidGlassEnabled
-        )
-        .taskMenuLiquidGlassWindow(
-            enabled: appState.experimentalFullWindowLiquidGlassEnabled
-        )
+        .taskMenuPopoverSurface()
+        .taskMenuLiquidGlassWindow()
         .animation(.easeInOut(duration: 0.25), value: appState.isSignedIn)
         .animation(.easeInOut(duration: 0.2), value: appState.errorMessage != nil)
     }
@@ -79,15 +75,11 @@ private struct InitialTaskLoadingView: View {
 
 private extension View {
     @ViewBuilder
-    func taskMenuPopoverSurface(usesFullWindowLiquidGlass: Bool) -> some View {
+    func taskMenuPopoverSurface() -> some View {
         if #available(macOS 26.0, *) {
-            if usesFullWindowLiquidGlass {
-                self.containerBackground(.clear, for: .window)
-            } else {
-                self
-                    .containerBackground(.clear, for: .window)
-                    .glassEffect(.regular, in: Rectangle())
-            }
+            self
+                .containerBackground(.clear, for: .window)
+                .glassEffect(.regular, in: Rectangle())
         } else {
             self.background(.regularMaterial)
         }
