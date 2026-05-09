@@ -8,24 +8,26 @@
 
 ## Unreleased
 
-- Added MetricKit collection
-- Use ASWebAuthenticationSession's modern callback API for Google OAuth, remove the local callback server, and drop the incoming network entitlement.
-- Fix Google OAuth callback crash handling and surface token exchange configuration errors during sign-in.
-- Show task notes previews in the main task list, including subtask notes.
+### Added
+- Task notes previews in the main task list, including subtask notes.
+- A per-parent reveal row for completed subtasks under active parents.
+
+### Changed
 - Moved settings into a dedicated native macOS Settings window.
-- Place the inline add-subtask field before existing subtasks.
-- Keep long subtask lists scrollable inside the task detail view.
-- Cache tasks per list so switching lists shows cached tasks immediately and ignores stale refreshes.
-- Bootstrap signed-in task loading at launch and show an initial loading state.
-- Refresh the current task list each time the menu bar popover opens.
-- Close the menu bar popover more reliably when clicking outside it.
-- Verify Google Tasks due-date updates and clears sync through PATCH responses.
-- Preserve Google Tasks due dates as local calendar days so web and app dates match across time zones.
-- Hide completed subtasks under active parents by default with a per-parent reveal row.
-- Match Google Tasks sibling ordering by task position, while keeping completed subtasks at the end when revealed.
-- Updated launch-facing website, README, privacy, terms, and settings wording for public DMG distribution.
-- Exclude folder-local agent README files from Xcode targets so documentation does not get copied into the app bundle.
-- Removed the experimental full-window Liquid Glass setting and kept the menu bar popover on the conservative glass surface.
+- Placed the inline add-subtask field before existing subtasks.
+- Kept long subtask lists scrollable inside the task detail view.
+- Improved task loading by showing cached lists immediately, refreshing the current list when the popover opens, and showing an initial loading state at launch.
+- Matched Google Tasks sibling ordering by task position, while keeping completed subtasks at the end when revealed.
+- Updated public website, privacy, terms, and settings wording for DMG distribution.
+
+### Fixed
+- Improved Google sign-in reliability and error handling.
+- Closed the menu bar popover more reliably when clicking outside it.
+- Synced Google Tasks due-date updates and clears more reliably.
+- Preserved Google Tasks due dates as local calendar days so web and app dates match across time zones.
+
+### Removed
+- The experimental full-window Liquid Glass setting.
 
 ## v1.0.1 (2026-05-04)
 
