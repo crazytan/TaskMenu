@@ -6,7 +6,7 @@ TaskMenu brings Google Tasks to the macOS menu bar with a fast, native SwiftUI i
 
 <p align="center">
   <img src="screenshots/task-list.png" alt="TaskMenu task list popover with quick add and filtering" width="360">
-  <img src="screenshots/task-detail.png" alt="TaskMenu edit task view with due date and subtasks" width="335">
+  <img src="screenshots/task-detail.png" alt="TaskMenu edit task view with due date and subtasks" width="360">
 </p>
 
 ## Links
