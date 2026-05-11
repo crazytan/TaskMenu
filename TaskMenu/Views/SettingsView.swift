@@ -43,8 +43,8 @@ struct SettingsView: View {
             .font(.caption)
             .controlSize(.small)
 
-            Link(destination: URL(string: "https://github.com/crazytan/TaskMenu/issues/new")!) {
-                Label("Report an Issue", systemImage: "exclamationmark.bubble")
+            Link(destination: URL(string: "https://taskmenu.crazytan.dev/support")!) {
+                Label("Support", systemImage: "questionmark.circle")
             }
             .font(.caption)
             .controlSize(.small)

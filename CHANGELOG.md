@@ -8,6 +8,13 @@
 
 ## Unreleased
 
+### Changed
+- Added a dedicated support page and updated public support links for App Store review.
+- Removed third-party product naming from generated App Store preview copy.
+
+### Fixed
+- Added a visible Quit TaskMenu control to the signed-out view.
+
 ## v1.1.0 (2026-05-08)
 
 ### Added

@@ -37,6 +37,15 @@ struct SignInView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
 
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                Label("Quit TaskMenu", systemImage: "power")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+
             if let errorMessage = appState.errorMessage {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")

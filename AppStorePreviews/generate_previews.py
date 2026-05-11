@@ -195,7 +195,7 @@ def main() -> None:
             0,
             images[0],
             "Tasks, one click away",
-            "Open Google Tasks from the menu bar.\nAdd, filter, and complete work without breaking flow.",
+            "Open your task lists from the menu bar.\nAdd, filter, and complete work without breaking flow.",
             "taskmenu-preview-01-tasks.png",
         ),
         (

@@ -13,7 +13,7 @@ TaskMenu brings Google Tasks to the macOS menu bar with a fast, native SwiftUI i
 
 - Website: [taskmenu.crazytan.dev](https://taskmenu.crazytan.dev/)
 - Privacy Policy: [taskmenu.crazytan.dev/privacy](https://taskmenu.crazytan.dev/privacy)
-- Support: [GitHub Issues](https://github.com/crazytan/TaskMenu/issues)
+- Support: [taskmenu.crazytan.dev/support](https://taskmenu.crazytan.dev/support)
 
 ## Features
 

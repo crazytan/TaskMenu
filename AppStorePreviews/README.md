@@ -25,8 +25,9 @@ python3 AppStorePreviews/generate_previews.py
 
 The script composites each source screenshot into a 16:10 macOS desktop-style
 marketing frame. It adds short product copy, places the menu bar popover in
-context, masks the captured popover edges for clean rounded corners, and
-replaces any real task names in task-related screenshots with fake sample data.
+context, masks the captured popover edges for clean rounded corners, avoids
+third-party product names in screenshot copy, and replaces any real task names
+in task-related screenshots with fake sample data.
 
 The script creates three App Store-ready PNGs at `2880x1800`, plus resized
 copies in:
