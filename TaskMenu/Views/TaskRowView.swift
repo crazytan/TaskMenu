@@ -121,7 +121,6 @@ struct TaskRowView: View {
             }
             .onDisappear(perform: clearCheckboxHover)
             .help(task.isCompleted ? "Mark as incomplete" : "Mark as complete")
-            .accessibilityIdentifier("task.checkbox.\(task.id)")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
@@ -129,14 +128,12 @@ struct TaskRowView: View {
                     .lineLimit(2)
                     .strikethrough(task.isCompleted)
                     .foregroundStyle(isGrayedOut ? .secondary : .primary)
-                    .accessibilityIdentifier("task.title.\(task.id)")
 
                 if let notes = taskNotesPreview(for: task) {
                     Text(notes)
                         .font(.caption)
                         .lineLimit(indentLevel > 0 ? 2 : 1)
                         .foregroundStyle(isGrayedOut ? .tertiary : .secondary)
-                        .accessibilityIdentifier("task.notes.\(task.id)")
                 }
 
                 if let date = task.dueDate {
@@ -186,7 +183,6 @@ struct TaskRowView: View {
                 .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
         )
         .contentShape(Rectangle())
-        .accessibilityIdentifier("task.row.\(task.id)")
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering

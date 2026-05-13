@@ -104,7 +104,6 @@ struct TaskDetailView: View {
                     .font(.system(size: 13, weight: .medium))
             }
             .buttonStyle(.borderless)
-            .accessibilityIdentifier("detail.back.button")
 
             Text("Edit Task")
                 .font(.headline)
@@ -118,7 +117,6 @@ struct TaskDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .accessibilityIdentifier("detail.done.button")
         }
     }
 
@@ -126,7 +124,6 @@ struct TaskDetailView: View {
         TextField("Title", text: $task.title)
             .textFieldStyle(.roundedBorder)
             .font(.body)
-            .accessibilityIdentifier("detail.title.field")
     }
 
     private var notesField: some View {
@@ -195,7 +192,6 @@ struct TaskDetailView: View {
                     .padding(.vertical, TaskDetailLayout.subtaskListVerticalPadding)
                 }
                 .frame(height: TaskDetailLayout.subtaskListHeight(forCount: children.count))
-                .accessibilityIdentifier("detail.subtasks.scroll")
             }
         }
     }

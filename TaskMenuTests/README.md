@@ -22,7 +22,6 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `MockURLProtocol.swift` provides a URLSession that records requests and returns stubbed responses.
 - `InMemoryKeychainService.swift` provides keychain success/failure doubles.
 - `TestDueDateNotificationService.swift` records notification sync and removal calls for `AppState`.
-- `MockTasksAPI` in the app target is used by UI-testing app state and can be reused for deterministic app flows.
 
 ## Running Focused Tests
 

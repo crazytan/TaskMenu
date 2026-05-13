@@ -1,10 +1,10 @@
 # TaskMenu App Target
 
-This folder is the macOS application target. Normal launches install an `NSStatusItem` and show all UI from an `NSPopover`; the `Settings` scene is the only SwiftUI scene in `TaskMenuApp`.
+This folder is the macOS application target. Launches install an `NSStatusItem` and show all task UI from an `NSPopover`; the `Settings` scene is the only SwiftUI scene in `TaskMenuApp`.
 
 ## Files
 
-- `TaskMenuApp.swift` - `@main`, app delegate wiring, MetricKit startup, signed-in bootstrap, and the UI-testing window path.
+- `TaskMenuApp.swift` - `@main`, app delegate wiring, MetricKit startup, signed-in bootstrap, and settings scene ownership.
 - `StatusBarController.swift` - AppKit status item, popover presentation, right-click quit menu, outside-click closing, and menu-open refresh trigger.
 - `Models/` - `@MainActor` app state and Google Tasks data models.
 - `Services/` - OAuth, API, keychain, notification, metrics, and test/demo API implementations.
@@ -14,8 +14,7 @@ This folder is the macOS application target. Normal launches install an `NSStatu
 
 ## Lifecycle Notes
 
-- `TaskMenuAppDelegate` owns the shared `AppState`. Pass that same instance into status-bar, settings, and UI-test windows.
-- `TaskMenuApp.makeAppState()` injects `MockTasksAPI` only for `-ui-testing`; production and unit-test defaults should keep real construction paths lightweight.
+- `TaskMenuAppDelegate` owns the shared `AppState`. Pass that same instance into status-bar and settings UI.
 - `applicationDidFinishLaunching` calls `bootstrapSignedInState()` asynchronously. Avoid blocking launch with network work.
 - `StatusBarController` calls `refreshForMenuPresentation()` when the popover opens. Keep this fast and tolerant of cached data.
 

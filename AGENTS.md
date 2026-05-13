@@ -8,7 +8,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 - Swift 6, SwiftUI, macOS 14.4+, `@Observable`, strict concurrency.
 - XcodeGen build graph: edit `project.yml`, then regenerate `TaskMenu.xcodeproj`.
 - Targets: `TaskMenu` and `TaskMenuTests`.
-- App shape: no Dock icon and no main app window in normal launches; UI is presented from an AppKit status item popover, with a test-only window for UI automation.
+- App shape: no Dock icon and no main app window; UI is presented from an AppKit status item popover.
 - External surface area: Google OAuth 2.0 with PKCE, Google Tasks REST API, Keychain token storage, UserNotifications for due-date reminders, MetricKit payload persistence.
 
 ## Open The Local Doc First
@@ -39,7 +39,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 - When files are added or deleted, update the corresponding folder-local `README.md` in the same change so its file map and ownership notes stay current.
 - Keep `TaskMenu.xcodeproj` generated; do not hand-edit it.
 - Do not commit `Config.xcconfig`; it contains local OAuth values.
-- Preserve the menu-bar-only behavior for normal app launches. `TaskMenuApp.isUITesting` is the exception that creates a regular window for automation.
+- Preserve the menu-bar-only behavior for app launches.
 - Update `CHANGELOG.md` before committing feature or bug-fix work, under `## Unreleased` when present.
 
 ### Version Control Notes

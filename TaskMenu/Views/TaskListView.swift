@@ -228,7 +228,6 @@ struct TaskListView: View {
                 TextField("Filter tasks…", text: $appState.searchText)
                     .textFieldStyle(.plain)
                     .font(.callout)
-                    .accessibilityIdentifier("search.field")
                 if !appState.searchText.isEmpty {
                     Button {
                         appState.searchText = ""
@@ -347,7 +346,6 @@ struct TaskListView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 14)
                             .padding(.top, TaskListLayout.completedHeaderTopPadding)
-                            .accessibilityIdentifier("completed.toggle")
 
                             if showCompleted || appState.isSearching {
                                 let flatCompleted = flattenedListEntries(roots: completedRootTasks, section: .completed)
@@ -617,7 +615,6 @@ private struct CompletedSubtasksRevealRow: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
-        .accessibilityIdentifier("completed.subtasks.toggle.\(entry.parentID)")
     }
 }
 
@@ -643,7 +640,6 @@ private struct InlineSubtaskField: View {
                 .textFieldStyle(.plain)
                 .font(.body)
                 .focused($isFocused)
-                .accessibilityIdentifier("inline.subtask.field")
                 .onSubmit {
                     let trimmed = title.trimmingCharacters(in: .whitespaces)
                     guard !trimmed.isEmpty else { return }

@@ -6,8 +6,7 @@ Services isolate external systems and side effects from SwiftUI views. Keep prot
 
 - `GoogleAuthService.swift` - `@MainActor` OAuth 2.0 PKCE flow, web-auth callback parsing, token exchange/refresh/revocation, and Keychain-backed token loading.
 - `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, updates, deletes, pagination, and moves.
-- `TasksAPIProtocol.swift` - async API contract used by `AppState`, tests, and `MockTasksAPI`.
-- `MockTasksAPI.swift` - actor-backed in-memory API for UI testing and local deterministic flows.
+- `TasksAPIProtocol.swift` - async API contract used by `AppState`, production API code, and unit-test doubles.
 - `KeychainService.swift` - Sendable wrapper around Security framework item CRUD.
 - `DueDateNotificationService.swift` - UserNotifications abstraction and due-date reminder syncing.
 - `MetricKitService.swift` - local persistence of delivered and past MetricKit payloads.
@@ -37,5 +36,4 @@ Services isolate external systems and side effects from SwiftUI views. Keep prot
 ## Testing Hooks
 
 - Prefer protocol injection over conditional production logic.
-- Use `MockTasksAPI` for UI tests and targeted app-state flows.
 - Use test doubles for keychain, web authentication, URL loading, and notification center behavior.

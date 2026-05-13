@@ -18,6 +18,9 @@
 ### Fixed
 - Added a visible Quit TaskMenu control to the signed-out view.
 
+### Removed
+- Removed the abandoned UI-testing launch path, mock API, UI automation identifiers, and related documentation.
+
 ## v1.1.0 (2026-05-08)
 
 ### Added
