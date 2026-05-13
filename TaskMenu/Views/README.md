@@ -4,8 +4,8 @@ Views render the menu-bar popover and settings UI. Keep business behavior in `Ap
 
 ## Files
 
-- `MenuBarPopover.swift` - signed-out, initial-loading, signed-in task list, bottom error strip, settings button, and popover surface styling.
-- `TaskListView.swift` - list picker, search, quick add, active/completed sections, subtask display, and inline subtasks.
+- `MenuBarPopover.swift` - signed-out, initial-loading, signed-in task list, bottom error strip, and popover surface styling.
+- `TaskListView.swift` - list picker, top settings and refresh controls, search, quick add, active/completed sections, subtask display, and inline subtasks.
 - `TaskRowView.swift` - row layout, completion toggle, notes preview, due-date label coloring, collapse and add-subtask actions.
 - `TaskDetailView.swift` - edit sheet, due-date state, notes, delete action, and child task preview.
 - `QuickAddView.swift` - inline root-task creation.

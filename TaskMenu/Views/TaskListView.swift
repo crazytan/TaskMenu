@@ -9,6 +9,11 @@ enum TaskListLayout {
     static let completedHeaderTopPadding: CGFloat = 2
 }
 
+private enum TaskListHeaderControlLayout {
+    static let buttonSize: CGFloat = 24
+    static let iconSize: CGFloat = 15
+}
+
 func taskRowSection(for task: TaskItem) -> TaskRowSection {
     task.isCompleted ? .completed : .active
 }
@@ -66,6 +71,8 @@ func completedSubtasksRevealTitle(count: Int, isRevealed: Bool) -> String {
 
 struct TaskListView: View {
     @Bindable var appState: AppState
+    var onOpenSettings: () -> Void = {}
+
     @State private var selectedTask: TaskItem?
     @State private var showCompleted = false
     @State private var inlineSubtaskParentID: String?
@@ -144,15 +151,34 @@ struct TaskListView: View {
             HStack {
                 ListPickerView(appState: appState)
                 Spacer()
+                Button(action: onOpenSettings) {
+                    Image(systemName: "gear")
+                        .font(.system(size: TaskListHeaderControlLayout.iconSize, weight: .medium))
+                        .frame(
+                            width: TaskListHeaderControlLayout.buttonSize,
+                            height: TaskListHeaderControlLayout.buttonSize
+                        )
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+
                 if appState.isLoading {
                     ProgressView()
                         .controlSize(.small)
+                        .frame(
+                            width: TaskListHeaderControlLayout.buttonSize,
+                            height: TaskListHeaderControlLayout.buttonSize
+                        )
                 } else {
                     Button {
                         Task { await appState.refreshTasks() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: TaskListHeaderControlLayout.iconSize, weight: .medium))
+                            .frame(
+                                width: TaskListHeaderControlLayout.buttonSize,
+                                height: TaskListHeaderControlLayout.buttonSize
+                            )
                     }
                     .buttonStyle(.borderless)
                     .controlSize(.small)

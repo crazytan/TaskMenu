@@ -14,12 +14,16 @@ struct MenuBarPopover: View {
                 SignInView(appState: appState)
                     .transition(.opacity)
             } else {
-                TaskListView(appState: appState)
+                TaskListView(appState: appState) {
+                    openSettings()
+                    NSApp.activate(ignoringOtherApps: true)
+                    onRequestClose?()
+                }
 
-                Divider()
+                if let error = appState.errorMessage {
+                    Divider()
 
-                HStack(spacing: 8) {
-                    if let error = appState.errorMessage {
+                    HStack(spacing: 8) {
                         HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.caption2)
@@ -34,21 +38,14 @@ struct MenuBarPopover: View {
                             }
                         }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+
+                        Spacer()
                     }
-                    Spacer()
-                    Button {
-                        openSettings()
-                        NSApp.activate(ignoringOtherApps: true)
-                        onRequestClose?()
-                    } label: {
-                        Image(systemName: "gear")
-                            .font(.system(size: 13, weight: .medium))
-                    }
-                    .buttonStyle(.borderless)
+
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .transition(.opacity)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .transition(.opacity)
             }
         }
         .frame(width: 320, height: appState.isSignedIn ? 480 : nil)

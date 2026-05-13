@@ -11,6 +11,8 @@
 ### Changed
 - Added a dedicated support page and updated public support links for App Store review.
 - Removed third-party product naming from generated App Store preview copy.
+- Moved the signed-in popover settings button next to the top refresh control.
+- Enlarged and aligned the signed-in popover header controls.
 
 ### Fixed
 - Added a visible Quit TaskMenu control to the signed-out view.
