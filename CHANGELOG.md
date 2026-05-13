@@ -13,6 +13,7 @@
 - Tightened hover action spacing in task rows.
 - Moved the signed-in popover settings button next to the top refresh control.
 - Enlarged and aligned the signed-in popover header controls.
+- Made subtask folding and unfolding animate vertically instead of sliding sideways.
 
 ### Fixed
 - Added a visible Quit TaskMenu control to the signed-out view.

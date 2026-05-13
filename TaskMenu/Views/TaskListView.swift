@@ -23,6 +23,24 @@ private enum TaskListHeaderControlLayout {
     static let iconSize: CGFloat = 15
 }
 
+private enum TaskListAnimation {
+    static let disclosure = Animation.easeInOut(duration: 0.18)
+
+    static func activeRootTaskTransition() -> AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .move(edge: .trailing).combined(with: .opacity)
+        )
+    }
+
+    static func subtaskDisclosureTransition() -> AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .move(edge: .top).combined(with: .opacity)
+        )
+    }
+}
+
 func taskRowSection(for task: TaskItem) -> TaskRowSection {
     task.isCompleted ? .completed : .active
 }
@@ -297,6 +315,7 @@ struct TaskListView: View {
                                     )
                                     .padding(.leading, 4)
                                     .padding(.trailing, 10)
+                                    .transition(TaskListAnimation.subtaskDisclosureTransition())
                                 }
                             case .completedSubtasksReveal(let revealEntry):
                                 CompletedSubtasksRevealRow(entry: revealEntry) {
@@ -304,6 +323,7 @@ struct TaskListView: View {
                                 }
                                 .padding(.leading, 4)
                                 .padding(.trailing, 10)
+                                .transition(TaskListAnimation.subtaskDisclosureTransition())
                             }
                         }
 
@@ -341,6 +361,7 @@ struct TaskListView: View {
                                         }
                                         .padding(.leading, 4)
                                         .padding(.trailing, 10)
+                                        .transition(TaskListAnimation.subtaskDisclosureTransition())
                                     }
                                 }
                             }
@@ -412,7 +433,7 @@ struct TaskListView: View {
     }
 
     private func toggleCompletedSubtasksReveal(for parentID: String) {
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(TaskListAnimation.disclosure) {
             if revealedCompletedSubtaskParentIDs.contains(parentID) {
                 revealedCompletedSubtaskParentIDs.remove(parentID)
             } else {
@@ -423,7 +444,7 @@ struct TaskListView: View {
 
     private func triggerInlineSubtask(for task: TaskItem) {
         if appState.collapsedTaskIDs.contains(task.id) {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(TaskListAnimation.disclosure) {
                 appState.toggleCollapsed(task.id)
             }
         }
@@ -441,7 +462,7 @@ struct TaskListView: View {
             isCollapsed: appState.collapsedTaskIDs.contains(task.id),
             onToggle: { Task { await appState.toggleTask(task) } },
             onDelete: { Task { await appState.deleteTask(task) } },
-            onCollapseToggle: hasChildren ? { withAnimation(.easeInOut(duration: 0.2)) { appState.toggleCollapsed(task.id) } } : nil,
+            onCollapseToggle: hasChildren ? { withAnimation(TaskListAnimation.disclosure) { appState.toggleCollapsed(task.id) } } : nil,
             onAddSubtask: task.parent == nil && !task.isCompleted ? { triggerInlineSubtask(for: task) } : nil
         )
         .padding(.leading, 4)
@@ -496,17 +517,30 @@ struct TaskListView: View {
         } else {
             taskRowBase(for: entry, hasChildren: hasChildren)
                 .id(entry.id)
-                .transition(.opacity)
+                .transition(completedTaskRowTransition(for: entry))
         }
     }
 
     private func activeTaskRow(for entry: FlattenedTaskEntry, hasChildren: Bool) -> some View {
         taskRowBase(for: entry, hasChildren: hasChildren)
             .id(entry.id)
-            .transition(.asymmetric(
-                insertion: .move(edge: .top).combined(with: .opacity),
-                removal: .move(edge: .trailing).combined(with: .opacity)
-            ))
+            .transition(activeTaskRowTransition(for: entry))
+    }
+
+    private func activeTaskRowTransition(for entry: FlattenedTaskEntry) -> AnyTransition {
+        if entry.indentLevel > 0 {
+            return TaskListAnimation.subtaskDisclosureTransition()
+        }
+
+        return TaskListAnimation.activeRootTaskTransition()
+    }
+
+    private func completedTaskRowTransition(for entry: FlattenedTaskEntry) -> AnyTransition {
+        if entry.indentLevel > 0 {
+            return TaskListAnimation.subtaskDisclosureTransition()
+        }
+
+        return .opacity
     }
 
     private func shouldShowInlineSubtaskField(after entry: FlattenedTaskEntry) -> Bool {
