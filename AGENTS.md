@@ -60,8 +60,7 @@ xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
   -only-testing:TaskMenuTests/AppStateTests
 ```
 
-- Prefer the smallest relevant `-only-testing:` slice.
-- Run the broader test target when a change touches shared app state, service protocols, Google API encoding/decoding, or date handling.
+- When verifying a fix or new feature, run only the minimal relevant `-only-testing:` slice.
 - OAuth-enabled app launches require a local `Config.xcconfig` copied from `Config.xcconfig.example` with `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME`.
 
 ## Security And Privacy Reminders
