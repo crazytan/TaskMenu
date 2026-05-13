@@ -76,6 +76,16 @@ final class MenuBarWindowChromeTests: XCTestCase {
         ))
     }
 
+    func testStatusItemHighlightingFollowsPopoverVisibility() {
+        let button = NSButton(frame: .zero)
+
+        StatusItemHighlighting.apply(true, to: button)
+        XCTAssertTrue(button.isHighlighted)
+
+        StatusItemHighlighting.apply(false, to: button)
+        XCTAssertFalse(button.isHighlighted)
+    }
+
     func testMenuPresentationRefreshTriggerRunsRefreshEveryTimeMenuOpens() async {
         var refreshCount = 0
         let refreshTrigger = MenuPresentationRefreshTrigger {

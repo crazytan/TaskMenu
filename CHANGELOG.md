@@ -21,6 +21,7 @@
 
 ### Fixed
 - Added a visible Quit TaskMenu control to the signed-out view.
+- Kept the menu bar icon highlighted while the popover is open.
 
 ### Removed
 - Removed the abandoned UI-testing launch path, mock API, UI automation identifiers, and related documentation.

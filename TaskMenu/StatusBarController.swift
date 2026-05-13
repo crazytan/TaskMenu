@@ -67,17 +67,16 @@ final class StatusBarController: NSObject {
 
     private func togglePopover(from button: NSStatusBarButton) {
         if popover.isShown {
-            popover.performClose(nil)
-            stopOutsideClickMonitoring()
+            closePopover()
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            setStatusItemHighlighted(true)
             startOutsideClickMonitoring()
         }
     }
 
     private func showContextMenu(from button: NSStatusBarButton) {
-        popover.performClose(nil)
-        stopOutsideClickMonitoring()
+        closePopover()
 
         statusItem.menu = contextMenu
         button.performClick(nil)
@@ -129,11 +128,21 @@ final class StatusBarController: NSObject {
     private func closePopoverFromOutsideClick() {
         guard popover.isShown else {
             stopOutsideClickMonitoring()
+            setStatusItemHighlighted(false)
             return
         }
 
+        closePopover()
+    }
+
+    private func closePopover() {
         popover.performClose(nil)
         stopOutsideClickMonitoring()
+        setStatusItemHighlighted(false)
+    }
+
+    private func setStatusItemHighlighted(_ isHighlighted: Bool) {
+        StatusItemHighlighting.apply(isHighlighted, to: statusItem.button)
     }
 
     @objc private func quit() {
@@ -143,11 +152,13 @@ final class StatusBarController: NSObject {
 
 extension StatusBarController: NSPopoverDelegate {
     func popoverDidShow(_ notification: Notification) {
+        setStatusItemHighlighted(true)
         menuPresentationRefreshTrigger.menuDidOpen()
     }
 
     func popoverDidClose(_ notification: Notification) {
         stopOutsideClickMonitoring()
+        setStatusItemHighlighted(false)
     }
 }
 
@@ -183,5 +194,12 @@ enum PopoverClickHandling {
         if let popoverWindow, eventWindow === popoverWindow { return false }
         if let statusItemWindow, eventWindow === statusItemWindow { return false }
         return true
+    }
+}
+
+@MainActor
+enum StatusItemHighlighting {
+    static func apply(_ isHighlighted: Bool, to button: NSButton?) {
+        button?.highlight(isHighlighted)
     }
 }
