@@ -13,6 +13,7 @@ func taskNotesPreview(for task: TaskItem) -> String? {
 private enum TaskRowLayout {
     static let spacing: CGFloat = 8
     static let disclosureWidth: CGFloat = 10
+    static let disclosureHitSize: CGFloat = 24
     static let verticalPadding: CGFloat = 6
     static let leadingPadding: CGFloat = 2
     static let trailingPadding: CGFloat = 4
@@ -75,22 +76,7 @@ struct TaskRowView: View {
 
     var body: some View {
         HStack(spacing: TaskRowLayout.spacing) {
-            if hasChildren {
-                Button {
-                    onCollapseToggle?()
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isCollapsed ? 0 : 90))
-                        .animation(.easeInOut(duration: 0.15), value: isCollapsed)
-                }
-                .buttonStyle(.plain)
-                .frame(width: TaskRowLayout.disclosureWidth)
-            } else {
-                Spacer()
-                    .frame(width: TaskRowLayout.disclosureWidth)
-            }
+            disclosureSlot
 
             Button {
                 if !task.isCompleted {
@@ -188,6 +174,32 @@ struct TaskRowView: View {
                 isHovering = hovering
             }
         }
+    }
+
+    private var disclosureSlot: some View {
+        Color.clear
+            .frame(width: TaskRowLayout.disclosureWidth, height: TaskRowLayout.disclosureHitSize)
+            .overlay {
+                if hasChildren {
+                    Button {
+                        onCollapseToggle?()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(isCollapsed ? 0 : 90))
+                            .animation(.easeInOut(duration: 0.15), value: isCollapsed)
+                            .frame(
+                                width: TaskRowLayout.disclosureHitSize,
+                                height: TaskRowLayout.disclosureHitSize
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(isCollapsed ? "Expand subtasks" : "Collapse subtasks")
+                    .accessibilityLabel(isCollapsed ? "Expand subtasks" : "Collapse subtasks")
+                }
+            }
     }
 
     private func dueDateColor(_ date: Date) -> Color {
