@@ -9,6 +9,7 @@
 ## Unreleased
 
 ### Changed
+- Tightened hover action spacing in task rows.
 - Moved the signed-in popover settings button next to the top refresh control.
 - Enlarged and aligned the signed-in popover header controls.
 

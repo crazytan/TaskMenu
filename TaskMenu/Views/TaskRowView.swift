@@ -18,6 +18,7 @@ private enum TaskRowLayout {
     static let trailingPadding: CGFloat = 4
     static let indentWidth: CGFloat = 20
     static let checkboxHitSize: CGFloat = 26
+    static let hoverActionSpacing: CGFloat = 4
 }
 
 struct TaskRowView: View {
@@ -151,27 +152,29 @@ struct TaskRowView: View {
 
             Spacer()
 
-            if let onAddSubtask {
-                Button(action: onAddSubtask) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
+            HStack(spacing: TaskRowLayout.hoverActionSpacing) {
+                if let onAddSubtask {
+                    Button(action: onAddSubtask) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add subtask")
+                    .opacity(isHovering ? 1 : 0)
                 }
-                .buttonStyle(.plain)
-                .help("Add subtask")
-                .opacity(isHovering ? 1 : 0)
-            }
 
-            if isHovering && !task.isCompleted {
-                Button(action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
+                if isHovering && !task.isCompleted {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Delete task")
                 }
-                .buttonStyle(.plain)
-                .help("Delete task")
             }
         }
         .padding(.vertical, TaskRowLayout.verticalPadding)
