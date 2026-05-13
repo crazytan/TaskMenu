@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum TaskRowSection: String {
@@ -7,6 +8,14 @@ enum TaskRowSection: String {
 
 enum TaskListLayout {
     static let completedHeaderTopPadding: CGFloat = 2
+}
+
+@MainActor
+func configureTaskListScrollIndicators(_ scrollView: NSScrollView) {
+    scrollView.hasVerticalScroller = true
+    scrollView.hasHorizontalScroller = false
+    scrollView.autohidesScrollers = true
+    scrollView.scrollerStyle = .overlay
 }
 
 private enum TaskListHeaderControlLayout {
@@ -269,6 +278,10 @@ struct TaskListView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
+                        TaskListScrollIndicatorConfigurator()
+                            .frame(width: 0, height: 0)
+                            .accessibilityHidden(true)
+
                         let flatIncomplete = flattenedListEntries(roots: incompleteRootTasks, section: .active)
                         ForEach(flatIncomplete) { entry in
                             switch entry {
@@ -505,6 +518,42 @@ struct TaskListView: View {
         )
     }
 
+}
+
+private struct TaskListScrollIndicatorConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> TaskListScrollIndicatorConfigurationView {
+        let view = TaskListScrollIndicatorConfigurationView()
+        view.scheduleConfiguration()
+        return view
+    }
+
+    func updateNSView(_ nsView: TaskListScrollIndicatorConfigurationView, context: Context) {
+        nsView.scheduleConfiguration()
+    }
+}
+
+private final class TaskListScrollIndicatorConfigurationView: NSView {
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        scheduleConfiguration()
+    }
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        scheduleConfiguration()
+    }
+
+    func scheduleConfiguration() {
+        DispatchQueue.main.async { [weak self] in
+            self?.configureEnclosingScrollView()
+        }
+    }
+
+    private func configureEnclosingScrollView() {
+        guard let scrollView = enclosingScrollView else { return }
+
+        configureTaskListScrollIndicators(scrollView)
+    }
 }
 
 private struct CompletedSubtasksRevealRow: View {

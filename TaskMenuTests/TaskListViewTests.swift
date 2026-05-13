@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import TaskMenu
 
@@ -63,6 +64,21 @@ final class TaskListViewTests: XCTestCase {
 
     func testCompletedSectionSpacingStaysCompact() {
         XCTAssertLessThanOrEqual(TaskListLayout.completedHeaderTopPadding, 2)
+    }
+
+    @MainActor
+    func testTaskListScrollIndicatorsUseTransientOverlayStyle() {
+        let scrollView = NSScrollView()
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = false
+        scrollView.scrollerStyle = .legacy
+
+        configureTaskListScrollIndicators(scrollView)
+
+        XCTAssertTrue(scrollView.hasVerticalScroller)
+        XCTAssertFalse(scrollView.hasHorizontalScroller)
+        XCTAssertTrue(scrollView.autohidesScrollers)
+        XCTAssertEqual(scrollView.scrollerStyle, .overlay)
     }
 
     func testTaskNotesPreviewTrimsWhitespace() {
