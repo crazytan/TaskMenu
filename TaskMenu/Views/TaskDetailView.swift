@@ -84,12 +84,6 @@ struct TaskDetailView: View {
             .padding(.horizontal, 16)
 
             Spacer(minLength: 0)
-
-            Divider()
-
-            actions
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
         }
         .frame(width: 300)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -108,6 +102,16 @@ struct TaskDetailView: View {
             Text("Edit Task")
                 .font(.headline)
             Spacer()
+            Button(role: .destructive) {
+                Task {
+                    await appState.deleteTask(task)
+                    onDismiss()
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+            .controlSize(.small)
+
             Button("Done") {
                 let updatedTask = dueDateState.applying(to: task)
                 Task {
@@ -142,14 +146,29 @@ struct TaskDetailView: View {
                 .font(.callout)
             Spacer()
             if dueDateState.isEnabled {
-                DatePicker(
-                    "",
-                    selection: $dueDateState.selection,
-                    displayedComponents: .date
-                )
-                .labelsHidden()
-                .datePickerStyle(.stepperField)
-                .controlSize(.small)
+                HStack(spacing: 6) {
+                    DatePicker(
+                        "",
+                        selection: $dueDateState.selection,
+                        displayedComponents: .date
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.stepperField)
+                    .controlSize(.small)
+
+                    Button {
+                        dueDateState.clear()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear due date")
+                    .accessibilityLabel("Clear due date")
+                }
             } else {
                 Button("Add due date") {
                     dueDateState.enable()
@@ -208,29 +227,6 @@ struct TaskDetailView: View {
                 .foregroundStyle(child.isCompleted ? .secondary : .primary)
         }
         .frame(maxWidth: .infinity, minHeight: TaskDetailLayout.subtaskRowHeight, alignment: .leading)
-    }
-
-    private var actions: some View {
-        HStack {
-            if dueDateState.isEnabled {
-                Button("Clear due date") {
-                    dueDateState.clear()
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .controlSize(.small)
-            }
-            Spacer()
-            Button(role: .destructive) {
-                Task {
-                    await appState.deleteTask(task)
-                    onDismiss()
-                }
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-            .controlSize(.small)
-        }
     }
 
     private func addSubtask() {

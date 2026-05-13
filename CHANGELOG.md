@@ -15,6 +15,8 @@
 - Enlarged and aligned the signed-in popover header controls.
 - Made subtask folding and unfolding animate vertically instead of sliding sideways.
 - Enlarged the subtask expand/fold button click target.
+- Moved the task detail clear-due-date action beside the date picker as an icon button.
+- Moved the task detail delete action beside the Done button.
 
 ### Fixed
 - Added a visible Quit TaskMenu control to the signed-out view.
