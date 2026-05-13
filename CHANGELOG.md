@@ -10,6 +10,7 @@
 
 ### Changed
 - Made the task list scrollbar hidden at rest and visible only while scrolling.
+- Extended the task detail subtask list to use the remaining popover height.
 - Tightened hover action spacing in task rows.
 - Moved the signed-in popover settings button next to the top refresh control.
 - Enlarged and aligned the signed-in popover header controls.

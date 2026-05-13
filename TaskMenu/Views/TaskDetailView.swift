@@ -39,14 +39,16 @@ enum TaskDetailLayout {
     static let subtaskRowHeight: CGFloat = 24
     static let subtaskRowSpacing: CGFloat = 6
     static let subtaskListVerticalPadding: CGFloat = 1
-    static let subtaskListMaxHeight: CGFloat = 144
+    static let subtaskListMinimumVisibleRows = 3
+    static let contentBottomPadding: CGFloat = 16
 
-    static func subtaskListHeight(forCount count: Int) -> CGFloat {
+    static func subtaskListMinimumHeight(forCount count: Int) -> CGFloat {
         guard count > 0 else { return 0 }
-        let rowHeights = CGFloat(count) * subtaskRowHeight
-        let rowSpacing = CGFloat(count - 1) * subtaskRowSpacing
+        let visibleRowCount = min(count, subtaskListMinimumVisibleRows)
+        let rowHeights = CGFloat(visibleRowCount) * subtaskRowHeight
+        let rowSpacing = CGFloat(visibleRowCount - 1) * subtaskRowSpacing
         let verticalPadding = subtaskListVerticalPadding * 2
-        return min(rowHeights + rowSpacing + verticalPadding, subtaskListMaxHeight)
+        return rowHeights + rowSpacing + verticalPadding
     }
 }
 
@@ -82,8 +84,8 @@ struct TaskDetailView: View {
                 }
             }
             .padding(.horizontal, 16)
-
-            Spacer(minLength: 0)
+            .padding(.bottom, TaskDetailLayout.contentBottomPadding)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(width: 300)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -210,9 +212,14 @@ struct TaskDetailView: View {
                     }
                     .padding(.vertical, TaskDetailLayout.subtaskListVerticalPadding)
                 }
-                .frame(height: TaskDetailLayout.subtaskListHeight(forCount: children.count))
+                .frame(
+                    minHeight: TaskDetailLayout.subtaskListMinimumHeight(forCount: children.count),
+                    maxHeight: .infinity,
+                    alignment: .top
+                )
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private func subtaskRow(for child: TaskItem) -> some View {
