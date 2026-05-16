@@ -8,32 +8,21 @@
 
 ## Unreleased
 
+## v1.2.0 (2026-05-16)
+
 ### Added
-- Added a dedicated settings Support section with a Discord invite link for bugs and feature requests.
-- Added lightweight GitHub release update checks with a Settings toggle, manual check button, and launch alert for new versions.
+- Added a Support section in Settings with a Discord invite for bugs and feature requests.
+- Added GitHub release update checks, including a Settings toggle, manual check button, and launch alert for new versions.
 
 ### Changed
-- Reworked the settings window into clearer General, Account, Support, and About sections.
-- Added the signed-in Google account email and a prominent Buy Me a Coffee support link to settings.
-- Renamed the settings support callout for voluntary contributions to Tips.
-- Updated the settings Discord link to use the Discord brand icon.
-- Made settings disconnect and quit controls visually destructive, with confirmation before disconnecting.
-- Made the task list scrollbar hidden at rest and visible only while scrolling.
-- Extended the task detail subtask list to use the remaining popover height.
-- Tightened hover action spacing in task rows.
-- Moved the signed-in popover settings button next to the top refresh control.
-- Enlarged and aligned the signed-in popover header controls.
-- Made subtask folding and unfolding animate vertically instead of sliding sideways.
-- Enlarged the subtask expand/fold button click target.
-- Moved the task detail clear-due-date action beside the date picker as an icon button.
-- Moved the task detail delete action beside the Done button.
+- Reworked Settings into clearer General, Account, Support, and About sections.
+- Added signed-in account details and clearer support options in Settings.
+- Improved task list, task row, subtask, and task detail controls for better spacing, placement, scrolling, and animation.
+- Made destructive Settings actions clearer and added confirmation before disconnecting.
 
 ### Fixed
 - Added a visible Quit TaskMenu control to the signed-out view.
 - Kept the menu bar icon highlighted while the popover is open.
-
-### Removed
-- Removed the abandoned UI-testing launch path, mock API, UI automation identifiers, and related documentation.
 
 ## v1.1.0 (2026-05-08)
 
