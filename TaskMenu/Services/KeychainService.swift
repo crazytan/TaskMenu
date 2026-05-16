@@ -162,7 +162,12 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
         }
 
         // Delete known keys individually for reliability across macOS versions
-        for key in [Constants.Keychain.accessTokenKey, Constants.Keychain.refreshTokenKey, Constants.Keychain.expirationKey] {
+        for key in [
+            Constants.Keychain.accessTokenKey,
+            Constants.Keychain.refreshTokenKey,
+            Constants.Keychain.expirationKey,
+            Constants.Keychain.accountProfileKey,
+        ] {
             try delete(key: key)
         }
     }

@@ -23,8 +23,14 @@ enum Constants {
     static let googleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
     static let googleTokenURL = "https://oauth2.googleapis.com/token"
     static let googleRevocationURL = "https://oauth2.googleapis.com/revoke"
+    static let googleUserInfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
     static let googleTasksBaseURL = "https://tasks.googleapis.com/tasks/v1"
     static let googleTasksScope = "https://www.googleapis.com/auth/tasks"
+    static let googleAuthScopes = [
+        "openid",
+        "email",
+        googleTasksScope,
+    ].joined(separator: " ")
     static let googleRedirectPath = "/oauth2redirect"
     static let googleRedirectURI = "\(googleRedirectScheme):\(googleRedirectPath)"
 
@@ -33,6 +39,7 @@ enum Constants {
         static let accessTokenKey = "access_token"
         static let refreshTokenKey = "refresh_token"
         static let expirationKey = "token_expiration"
+        static let accountProfileKey = "account_profile"
     }
 
     enum UserDefaults {

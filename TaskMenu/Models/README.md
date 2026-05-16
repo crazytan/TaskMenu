@@ -4,7 +4,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 ## Files
 
-- `AppState.swift` - `@MainActor @Observable` source of truth for auth state, task lists, selected list, visible tasks, caches, search, due-date notification preference, and task mutations.
+- `AppState.swift` - `@MainActor @Observable` source of truth for auth state, signed-in account email, task lists, selected list, visible tasks, caches, search, due-date notification preference, and task mutations.
 - `TaskItem.swift` - Google Task model, completion helpers, parent/subtask fields, Google due-date conversion, and paged task-list response model.
 - `TaskList.swift` - Google Task List model and collection response model.
 

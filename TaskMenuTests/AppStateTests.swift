@@ -10,6 +10,7 @@ final class AppStateTests: XCTestCase {
     private var dueDateNotificationService: TestDueDateNotificationService!
 
     override func setUp() async throws {
+        MockURLProtocol.reset()
         keychain = InMemoryKeychainService()
         userDefaultsSuiteName = "dev.crazytan.TaskMenu.tests.appstate.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: userDefaultsSuiteName)
@@ -18,6 +19,7 @@ final class AppStateTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        MockURLProtocol.reset()
         try? keychain.deleteAll()
         if let userDefaultsSuiteName {
             userDefaults.removePersistentDomain(forName: userDefaultsSuiteName)
@@ -79,6 +81,20 @@ final class AppStateTests: XCTestCase {
         let state = makeState(authService: authService)
 
         XCTAssertTrue(state.isSignedIn)
+    }
+
+    func testInitialStateReflectsStoredGoogleAccountProfile() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "some-refresh-token")
+        try keychain.save(
+            key: Constants.Keychain.accountProfileKey,
+            data: JSONEncoder().encode(GoogleAccountProfile(email: "tan@example.com"))
+        )
+
+        let authService = GoogleAuthService(keychain: keychain)
+        let state = makeState(authService: authService)
+
+        XCTAssertEqual(state.googleAccountProfile?.displayEmail, "tan@example.com")
+        XCTAssertEqual(state.googleAccountProfile?.email, "tan@example.com")
     }
 
     func testInitialTaskLoadingShowsForSignedInEmptyState() throws {
@@ -219,6 +235,10 @@ final class AppStateTests: XCTestCase {
 
     func testSignOutResetsAllState() throws {
         try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        try keychain.save(
+            key: Constants.Keychain.accountProfileKey,
+            data: JSONEncoder().encode(GoogleAccountProfile(email: "tan@example.com"))
+        )
         let authService = GoogleAuthService(keychain: keychain)
         let state = makeState(authService: authService)
 
@@ -233,9 +253,58 @@ final class AppStateTests: XCTestCase {
         state.signOut()
 
         XCTAssertFalse(state.isSignedIn)
+        XCTAssertNil(state.googleAccountProfile)
         XCTAssertTrue(state.taskLists.isEmpty)
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertNil(state.selectedListId)
+    }
+
+    func testDisconnectClearsCredentialsLocalTaskDataAndNotifications() async throws {
+        try keychain.save(key: Constants.Keychain.accessTokenKey, string: "access-token")
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "refresh-token")
+        try keychain.save(
+            key: Constants.Keychain.accountProfileKey,
+            data: JSONEncoder().encode(GoogleAccountProfile(email: "tan@example.com"))
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        let authService = GoogleAuthService(keychain: keychain, session: MockURLProtocol.mockSession())
+        let notificationService = TestDueDateNotificationService()
+        let state = makeState(
+            authService: authService,
+            dueDateNotificationService: notificationService
+        )
+
+        state.taskLists = [
+            TaskList(id: "list1", title: "Work", selfLink: nil, updated: nil),
+        ]
+        state.selectedListId = "list1"
+        state.tasks = [
+            TaskItem(id: "t1", title: "Task", notes: nil, status: .needsAction, due: nil, selfLink: nil, parent: nil, position: nil, updated: nil),
+        ]
+        state.hasCompletedInitialTaskLoad = true
+
+        await state.disconnectGoogleAccount()
+        await waitUntil {
+            await notificationService.removeAllCallCount == 1
+        }
+
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertNil(state.googleAccountProfile)
+        XCTAssertTrue(state.taskLists.isEmpty)
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertNil(state.selectedListId)
+        XCTAssertFalse(state.hasCompletedInitialTaskLoad)
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.accessTokenKey))
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
+        XCTAssertNil(try keychain.read(key: Constants.Keychain.accountProfileKey))
+
+        let revokeRequest = try XCTUnwrap(MockURLProtocol.requestLog.last)
+        XCTAssertEqual(revokeRequest.url?.absoluteString, Constants.googleRevocationURL)
     }
 
     // MARK: - loadTasks guard
@@ -267,6 +336,14 @@ final class AppStateTests: XCTestCase {
     private func waitUntil(_ condition: @MainActor @escaping () -> Bool) async {
         for _ in 0..<50 {
             if condition() { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    private func waitUntil(_ condition: @escaping () async -> Bool) async {
+        for _ in 0..<50 {
+            if await condition() { return }
             await Task.yield()
             try? await Task.sleep(nanoseconds: 10_000_000)
         }

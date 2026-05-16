@@ -67,11 +67,17 @@ final class GoogleAuthServiceTests: XCTestCase {
         try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "my-refresh-token")
         let expiration = Date().addingTimeInterval(7200)
         try keychain.save(key: Constants.Keychain.expirationKey, string: String(expiration.timeIntervalSince1970))
+        try keychain.save(
+            key: Constants.Keychain.accountProfileKey,
+            data: JSONEncoder().encode(GoogleAccountProfile(email: "tan@example.com"))
+        )
 
         let auth = GoogleAuthService(keychain: keychain)
         XCTAssertEqual(auth.accessToken, "my-access-token")
         XCTAssertEqual(auth.refreshToken, "my-refresh-token")
         XCTAssertNotNil(auth.tokenExpiration)
+        XCTAssertEqual(auth.accountProfile?.displayEmail, "tan@example.com")
+        XCTAssertEqual(auth.accountProfile?.email, "tan@example.com")
     }
 
     func testLoadTokensWithInvalidExpirationString() throws {
@@ -110,6 +116,10 @@ final class GoogleAuthServiceTests: XCTestCase {
     func testSignOutClearsKeychain() throws {
         try keychain.save(key: Constants.Keychain.accessTokenKey, string: "access")
         try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "refresh")
+        try keychain.save(
+            key: Constants.Keychain.accountProfileKey,
+            data: JSONEncoder().encode(GoogleAccountProfile(email: "tan@example.com"))
+        )
 
         let auth = GoogleAuthService(keychain: keychain)
         auth.signOut()
@@ -118,6 +128,7 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertNil(try keychain.readString(key: Constants.Keychain.accessTokenKey))
         XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
         XCTAssertNil(try keychain.readString(key: Constants.Keychain.expirationKey))
+        XCTAssertNil(try keychain.read(key: Constants.Keychain.accountProfileKey))
     }
 
     // MARK: - validAccessToken
@@ -253,9 +264,15 @@ final class GoogleAuthServiceTests: XCTestCase {
         }
         let session = MockURLProtocol.mockSession()
         MockURLProtocol.requestHandler = { request in
-            Self.capturedRequestBody = requestBodyData(from: request)
             let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let json = #"{"access_token":"new-access-token","refresh_token":"new-refresh-token","expires_in":3600,"token_type":"Bearer"}"#
+
+            if request.url?.absoluteString == Constants.googleTokenURL {
+                Self.capturedRequestBody = requestBodyData(from: request)
+                let json = #"{"access_token":"new-access-token","refresh_token":"new-refresh-token","expires_in":3600,"token_type":"Bearer"}"#
+                return (response, json.data(using: .utf8)!)
+            }
+
+            let json = #"{"email":"tan@example.com"}"#
             return (response, json.data(using: .utf8)!)
         }
 
@@ -267,18 +284,21 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertEqual(queryItem("client_id", in: authURL), Constants.googleClientId)
         XCTAssertEqual(queryItem("redirect_uri", in: authURL), Constants.googleRedirectURI)
         XCTAssertEqual(queryItem("response_type", in: authURL), "code")
-        XCTAssertEqual(queryItem("scope", in: authURL), Constants.googleTasksScope)
+        XCTAssertEqual(queryItem("scope", in: authURL), Constants.googleAuthScopes)
         XCTAssertEqual(queryItem("code_challenge_method", in: authURL), "S256")
         XCTAssertEqual(queryItem("access_type", in: authURL), "offline")
         XCTAssertEqual(queryItem("prompt", in: authURL), "consent")
         XCTAssertNotNil(queryItem("state", in: authURL))
+        XCTAssertNotNil(queryItem("nonce", in: authURL))
         XCTAssertNotNil(queryItem("code_challenge", in: authURL))
 
         XCTAssertEqual(auth.accessToken, "new-access-token")
         XCTAssertEqual(auth.refreshToken, "new-refresh-token")
+        XCTAssertEqual(auth.accountProfile?.displayEmail, "tan@example.com")
+        XCTAssertEqual(auth.accountProfile?.email, "tan@example.com")
         XCTAssertFalse(auth.isTokenExpired)
 
-        let tokenRequest = try XCTUnwrap(MockURLProtocol.requestLog.last)
+        let tokenRequest = try XCTUnwrap(MockURLProtocol.requestLog.first)
         XCTAssertEqual(tokenRequest.url?.absoluteString, Constants.googleTokenURL)
         let body = formParameters(from: try XCTUnwrap(Self.capturedRequestBody))
         XCTAssertEqual(body["code"], "auth-code-value")
@@ -287,6 +307,10 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertEqual(body["redirect_uri"], Constants.googleRedirectURI)
         XCTAssertNotNil(body["code_verifier"])
         XCTAssertNil(body["client_secret"])
+
+        let profileRequest = try XCTUnwrap(MockURLProtocol.requestLog.last)
+        XCTAssertEqual(profileRequest.url?.absoluteString, Constants.googleUserInfoURL)
+        XCTAssertEqual(profileRequest.value(forHTTPHeaderField: "Authorization"), "Bearer new-access-token")
     }
 
     func testSignInReportsGoogleTokenExchangeError() async throws {

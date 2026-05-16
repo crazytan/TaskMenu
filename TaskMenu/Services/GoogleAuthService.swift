@@ -32,6 +32,19 @@ enum GoogleAuthError: LocalizedError, Sendable {
     }
 }
 
+struct GoogleAccountProfile: Codable, Equatable, Sendable {
+    var email: String?
+
+    var displayEmail: String? {
+        return trimmedNonEmpty(email)
+    }
+
+    private func trimmedNonEmpty(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+}
+
 enum OAuthCallbackParser {
     static func authorizationCode(
         from callbackURL: URL,
@@ -153,6 +166,7 @@ final class GoogleAuthService: Sendable {
     private(set) var accessToken: String?
     private(set) var refreshToken: String?
     private(set) var tokenExpiration: Date?
+    private(set) var accountProfile: GoogleAccountProfile?
 
     var isSignedIn: Bool {
         refreshToken != nil
@@ -180,6 +194,7 @@ final class GoogleAuthService: Sendable {
         let codeVerifier = generateCodeVerifier()
         let codeChallenge = generateCodeChallenge(from: codeVerifier)
         let state = generateState()
+        let nonce = generateState()
         let redirectScheme = Constants.googleRedirectScheme
         let redirectURI = Constants.googleRedirectURI
 
@@ -188,12 +203,13 @@ final class GoogleAuthService: Sendable {
             URLQueryItem(name: "client_id", value: Constants.googleClientId),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
             URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: Constants.googleTasksScope),
+            URLQueryItem(name: "scope", value: Constants.googleAuthScopes),
             URLQueryItem(name: "code_challenge", value: codeChallenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "access_type", value: "offline"),
             URLQueryItem(name: "prompt", value: "consent"),
             URLQueryItem(name: "state", value: state),
+            URLQueryItem(name: "nonce", value: nonce),
         ]
 
         guard let authURL = components.url else {
@@ -234,6 +250,7 @@ final class GoogleAuthService: Sendable {
         accessToken = nil
         refreshToken = nil
         tokenExpiration = nil
+        accountProfile = nil
         try? keychain.deleteAll()
     }
 
@@ -254,6 +271,16 @@ final class GoogleAuthService: Sendable {
             throw APIError.unauthorized
         }
         return token
+    }
+
+    func refreshAccountProfile() async {
+        do {
+            let token = try await validAccessToken()
+            accountProfile = try await fetchAccountProfile(accessToken: token)
+            saveAccountProfile()
+        } catch {
+            logger.error("Failed to load Google account profile: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Private
@@ -280,6 +307,7 @@ final class GoogleAuthService: Sendable {
         refreshToken = tokenResponse.refreshToken ?? refreshToken
         tokenExpiration = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
         saveTokens()
+        await refreshAccountProfile()
     }
 
     private func refreshAccessToken(refreshToken: String) async throws {
@@ -316,6 +344,33 @@ final class GoogleAuthService: Sendable {
         let (_, response) = try await session.data(for: request)
         if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {
             throw APIError.unauthorized
+        }
+    }
+
+    private func fetchAccountProfile(accessToken: String) async throws -> GoogleAccountProfile {
+        var request = URLRequest(url: URL(string: Constants.googleUserInfoURL)!)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError {
+            throw APIError.networkError(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.networkError(URLError(.badServerResponse))
+        }
+
+        switch httpResponse.statusCode {
+        case 200...299:
+            return try JSONDecoder().decode(GoogleAccountProfile.self, from: data)
+        case 401:
+            throw APIError.unauthorized
+        default:
+            throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
         }
     }
 
@@ -374,6 +429,19 @@ final class GoogleAuthService: Sendable {
         }
     }
 
+    private func saveAccountProfile() {
+        do {
+            if let accountProfile {
+                let data = try JSONEncoder().encode(accountProfile)
+                try keychain.save(key: Constants.Keychain.accountProfileKey, data: data)
+            } else {
+                try keychain.delete(key: Constants.Keychain.accountProfileKey)
+            }
+        } catch {
+            logger.error("Failed to save Google account profile to keychain: \(error.localizedDescription)")
+        }
+    }
+
     private func loadTokens() {
         do {
             accessToken = try keychain.readString(key: Constants.Keychain.accessTokenKey)
@@ -387,6 +455,20 @@ final class GoogleAuthService: Sendable {
             accessToken = nil
             refreshToken = nil
             tokenExpiration = nil
+        }
+        loadAccountProfile()
+    }
+
+    private func loadAccountProfile() {
+        do {
+            guard let data = try keychain.read(key: Constants.Keychain.accountProfileKey) else {
+                accountProfile = nil
+                return
+            }
+            accountProfile = try JSONDecoder().decode(GoogleAccountProfile.self, from: data)
+        } catch {
+            logger.error("Failed to load Google account profile from keychain: \(error.localizedDescription)")
+            accountProfile = nil
         }
     }
 

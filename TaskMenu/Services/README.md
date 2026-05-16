@@ -4,7 +4,7 @@ Services isolate external systems and side effects from SwiftUI views. Keep prot
 
 ## Files
 
-- `GoogleAuthService.swift` - `@MainActor` OAuth 2.0 PKCE flow, web-auth callback parsing, token exchange/refresh/revocation, and Keychain-backed token loading.
+- `GoogleAuthService.swift` - `@MainActor` OAuth 2.0 PKCE flow, web-auth callback parsing, token exchange/refresh/revocation, Keychain-backed token loading, and signed-in account email loading.
 - `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, updates, deletes, pagination, and moves.
 - `TasksAPIProtocol.swift` - async API contract used by `AppState`, production API code, and unit-test doubles.
 - `KeychainService.swift` - Sendable wrapper around Security framework item CRUD.
@@ -14,8 +14,9 @@ Services isolate external systems and side effects from SwiftUI views. Keep prot
 ## OAuth And Token Handling
 
 - `GoogleAuthService` stays on the main actor because `ASWebAuthenticationSession` and presentation context are UI-facing.
-- Store access tokens, refresh tokens, and expiration in Keychain through `KeychainServiceProtocol`.
+- Store access tokens, refresh tokens, expiration, and signed-in account display metadata in Keychain through `KeychainServiceProtocol`.
 - `validAccessToken()` is the gateway for API calls. Do not let API clients read token properties directly.
+- Load the signed-in account email through Google's OpenID Connect userinfo endpoint after requesting `openid email`.
 - Callback parsing must validate scheme, path, state, Google error responses, and non-empty authorization code.
 
 ## Google Tasks API

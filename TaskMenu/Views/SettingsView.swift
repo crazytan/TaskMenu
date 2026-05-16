@@ -4,79 +4,142 @@ import ServiceManagement
 struct SettingsView: View {
     @Bindable var appState: AppState
     @State private var launchAtLogin = false
+    @State private var isConfirmingDisconnect = false
+
+    private let coffeeURL = URL(string: "https://buymeacoffee.com/crazytan")!
+    private let githubURL = URL(string: "https://github.com/crazytan/TaskMenu")!
+    private let supportURL = URL(string: "https://taskmenu.crazytan.dev/support")!
+    private let privacyURL = URL(string: "https://taskmenu.crazytan.dev/privacy")!
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Settings")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 16) {
+            preferencesSection
 
             Divider()
 
-            // General
+            accountSection
+
+            Divider()
+
+            supportSection
+
+            Divider()
+
+            aboutSection
+
+            Divider()
+
+            Button("Quit TaskMenu", role: .destructive) {
+                NSApplication.shared.terminate(nil)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 2)
+        }
+        .font(.body)
+        .padding(20)
+        .frame(width: 360, alignment: .topLeading)
+        .onAppear {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+        .task {
+            await appState.refreshGoogleAccountProfileIfNeeded()
+        }
+        .alert("Disconnect Google Account?", isPresented: $isConfirmingDisconnect) {
+            Button("Cancel", role: .cancel) {}
+            Button("Disconnect", role: .destructive) {
+                disconnectGoogleAccount()
+            }
+        } message: {
+            Text("TaskMenu will clear its stored Google credentials and remove local task data from this Mac.")
+        }
+    }
+
+    private var preferencesSection: some View {
+        SettingsSection("General") {
             Toggle("Launch at login", isOn: $launchAtLogin)
-                .controlSize(.small)
                 .onChange(of: launchAtLogin) { _, newValue in
                     setLaunchAtLogin(newValue)
                 }
 
             Toggle("Due date notifications", isOn: $appState.dueDateNotificationsEnabled)
-                .controlSize(.small)
+        }
+    }
 
-            Divider()
+    private var accountSection: some View {
+        SettingsSection("Account") {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(accountTitle)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
 
-            // About
-            Text("About")
-                .font(.subheadline.weight(.medium))
+                Spacer()
+
+                Button("Disconnect", role: .destructive) {
+                    isConfirmingDisconnect = true
+                }
+                .disabled(!appState.isSignedIn)
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            }
+        }
+    }
+
+    private var supportSection: some View {
+        SettingsSection("Support") {
+            Text("TaskMenu will stay free forever. If it saves you time, support is deeply appreciated.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Link(destination: coffeeURL) {
+                Label("Buy Me a Coffee", systemImage: "heart.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+    }
+
+    private var aboutSection: some View {
+        SettingsSection("About") {
+            Text("TaskMenu v\(appVersion)")
+                .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Text("TaskMenu v\(appVersion)")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 12) {
+                Link(destination: githubURL) {
+                    Label("GitHub", systemImage: "link")
+                }
 
-            Link(destination: URL(string: "https://github.com/crazytan/TaskMenu")!) {
-                Label("GitHub", systemImage: "link")
-            }
-            .font(.caption)
-            .controlSize(.small)
+                Link(destination: supportURL) {
+                    Label("Support", systemImage: "questionmark.circle")
+                }
 
-            Link(destination: URL(string: "https://taskmenu.crazytan.dev/support")!) {
-                Label("Support", systemImage: "questionmark.circle")
-            }
-            .font(.caption)
-            .controlSize(.small)
-
-            Link(destination: URL(string: "https://taskmenu.crazytan.dev/privacy")!) {
-                Label("Privacy Policy", systemImage: "lock")
-            }
-            .font(.caption)
-            .controlSize(.small)
-
-            Divider()
-
-            // Account & App
-            Button("Disconnect Google Account") {
-                Task {
-                    await appState.disconnectGoogleAccount()
+                Link(destination: privacyURL) {
+                    Label("Privacy", systemImage: "lock")
                 }
             }
-            .controlSize(.small)
-            .foregroundStyle(.red)
-
-            Button("Quit TaskMenu") {
-                NSApplication.shared.terminate(nil)
-            }
-            .controlSize(.small)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.top, 4)
+            .font(.callout)
         }
-        .padding(16)
-        .frame(width: 320, alignment: .topLeading)
-        .onAppear {
-            launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    private var accountTitle: String {
+        guard appState.isSignedIn else { return "Not signed in" }
+        return appState.googleAccountProfile?.displayEmail ?? "Google Account"
+    }
+
+    private func disconnectGoogleAccount() {
+        Task {
+            await appState.disconnectGoogleAccount()
         }
     }
 
@@ -89,6 +152,26 @@ struct SettingsView: View {
             }
         } catch {
             // Silently fail — user can retry
+        }
+    }
+}
+
+private struct SettingsSection<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            content
         }
     }
 }

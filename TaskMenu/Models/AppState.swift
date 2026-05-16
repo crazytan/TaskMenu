@@ -23,6 +23,7 @@ final class AppState {
     var isSignedIn = false
     var isLoading = false
     var errorMessage: String?
+    var googleAccountProfile: GoogleAccountProfile?
 
     var taskLists: [TaskList] = []
     var selectedListId: String?
@@ -229,6 +230,7 @@ final class AppState {
             forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey
         ) as? Bool ?? true
         self.isSignedIn = authService.isSignedIn
+        self.googleAccountProfile = authService.accountProfile
     }
 
     private var signInTask: Task<Void, Never>?
@@ -247,6 +249,7 @@ final class AppState {
             do {
                 try await authService.signIn()
                 self.isSignedIn = true
+                self.googleAccountProfile = authService.accountProfile
                 await self.loadTaskLists()
             } catch {
                 self.errorMessage = "Sign in failed: \(error.localizedDescription)"
@@ -264,8 +267,15 @@ final class AppState {
         clearSignedInState()
     }
 
+    func refreshGoogleAccountProfileIfNeeded() async {
+        guard isSignedIn, googleAccountProfile == nil else { return }
+        await authService.refreshAccountProfile()
+        googleAccountProfile = authService.accountProfile
+    }
+
     private func clearSignedInState() {
         isSignedIn = false
+        googleAccountProfile = nil
         taskLists = []
         tasks = []
         selectedListId = nil

@@ -9,6 +9,9 @@
 ## Unreleased
 
 ### Changed
+- Reworked the settings window into clearer General, Account, Support, and About sections.
+- Added the signed-in Google account email and a prominent Buy Me a Coffee support link to settings.
+- Made settings disconnect and quit controls visually destructive, with confirmation before disconnecting.
 - Made the task list scrollbar hidden at rest and visible only while scrolling.
 - Extended the task detail subtask list to use the remaining popover height.
 - Tightened hover action spacing in task rows.
