@@ -88,6 +88,40 @@ xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
   -only-testing:TaskMenuTests/AppStateTests
 ```
 
+## FAQ: Google Tasks API Limitations
+
+### Why does TaskMenu not match every feature in the Google Tasks web app?
+
+TaskMenu uses the public Google Tasks API, which is smaller than the Google Tasks and Google Calendar web interfaces. The API can manage task lists and core task fields such as title, notes, completion status, ordering, subtasks, and due dates, but not every first-party UI feature is exposed as a public read/write field.
+
+For reference, Google documents the public task resource in the [Tasks API reference](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks), while the web app can also create tasks with features like date/time, deadlines, repeating schedules, and notifications in [Google Tasks Help](https://support.google.com/tasks/answer/7675838?co=GENIE.Platform%3DDesktop&hl=en).
+
+### Why can I set a date, but not an exact task time?
+
+The API's `due` field is date-only. Google accepts it as an RFC 3339 timestamp, but discards the time portion when the due date is set, and the API cannot read or write the time a task is due. TaskMenu therefore syncs calendar days, not task times.
+
+### Are TaskMenu reminders the same as Google Tasks notifications?
+
+No. Google Tasks and Google Calendar can send their own notifications for tasks, including tasks with a date and time. TaskMenu can only see the date-only value exposed by the API, so its due-date reminders are local macOS notifications scheduled by TaskMenu. They do not create or edit Google Tasks notification settings.
+
+### Can TaskMenu create or edit repeating tasks?
+
+Not currently. Google Tasks and Google Calendar can create repeating tasks, but the public Tasks API task resource does not expose a recurrence rule field that TaskMenu can read and write. Google's API documentation also calls out special restrictions for recurrent tasks in task moves. TaskMenu treats repeating tasks conservatively and does not create or edit repeat schedules.
+
+See Google's [repeating tasks help](https://support.google.com/tasks/answer/12132599?co=GENIE.Platform%3DDesktop&hl=en) and the Tasks API [`move` method](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/move).
+
+### Why does TaskMenu not show starred tasks or a Starred list?
+
+Stars are available in Google's Tasks UI, but starred status and the Starred smart list are not fields on the public `Task` or `TaskList` resources. Without an official API field, TaskMenu cannot reliably sync, set, or filter starred tasks.
+
+See Google's [starred tasks help](https://support.google.com/tasks/answer/12718779?co=GENIE.Platform%3DDesktop&hl=en).
+
+### What about tasks from Gmail, Docs, Chat, or Keep?
+
+Google's web apps can create tasks from other Workspace products. The Tasks API exposes some of that context as read-only links or assignment metadata, and assigned tasks from Docs or Chat are not returned by default unless an API client explicitly requests them. TaskMenu currently focuses on regular Google Tasks lists, so some source links, assignment details, and shared-task behaviors may be unavailable or read-only.
+
+See the [`tasks.list` reference](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list) and [Tasks API usage limits](https://developers.google.com/workspace/tasks/limits).
+
 ## Contributing
 
 Contributions are welcome. If you have a bug report, feature request, or a focused improvement, open an issue or submit a pull request.
