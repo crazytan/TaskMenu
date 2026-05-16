@@ -7,7 +7,7 @@ struct SettingsView: View {
     @State private var isConfirmingDisconnect = false
 
     private let coffeeURL = URL(string: "https://buymeacoffee.com/crazytan")!
-    private let discordURL = URL(string: "https://discord.gg/xEmdgGm7")!
+    private let discordURL = URL(string: "https://discord.gg/2QaR8xVJJm")!
     private let githubURL = URL(string: "https://github.com/crazytan/TaskMenu")!
     private let supportURL = URL(string: "https://taskmenu.crazytan.dev/support")!
     private let privacyURL = URL(string: "https://taskmenu.crazytan.dev/privacy")!
