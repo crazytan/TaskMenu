@@ -25,6 +25,7 @@ enum Constants {
     static let googleRevocationURL = "https://oauth2.googleapis.com/revoke"
     static let googleUserInfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
     static let googleTasksBaseURL = "https://tasks.googleapis.com/tasks/v1"
+    static let githubLatestReleaseURL = "https://api.github.com/repos/crazytan/TaskMenu/releases/latest"
     static let googleTasksScope = "https://www.googleapis.com/auth/tasks"
     static let googleAuthScopes = [
         "openid",
@@ -44,6 +45,9 @@ enum Constants {
 
     enum UserDefaults {
         static let dueDateNotificationsEnabledKey = "dueDateNotificationsEnabled"
+        static let automaticUpdateChecksEnabledKey = "automaticUpdateChecksEnabled"
+        static let lastUpdateCheckDateKey = "lastUpdateCheckDate"
+        static let lastAlertedUpdateVersionKey = "lastAlertedUpdateVersion"
     }
 
     enum Notifications {

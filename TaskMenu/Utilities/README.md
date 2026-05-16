@@ -4,7 +4,7 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 
 ## Files
 
-- `Constants.swift` - Google OAuth/API URLs and scopes, Keychain keys, UserDefaults keys, notification identifier prefix, and plist-backed OAuth config.
+- `Constants.swift` - Google OAuth/API URLs and scopes, GitHub release URL, Keychain keys, UserDefaults keys, notification identifier prefix, and plist-backed OAuth config.
 - `DateFormatting.swift` - RFC 3339 parsing, Google Tasks due-date formatting, display strings, and relative date labels.
 
 ## Constants
@@ -12,6 +12,7 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 - `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` come from `Info.plist`, which gets values from `Config.xcconfig`.
 - `googleRedirectScheme` can derive the custom scheme from an iOS OAuth client ID ending in `.apps.googleusercontent.com`.
 - `googleAuthScopes` includes OpenID Connect email scope plus Google Tasks access so settings can show the signed-in Google account email.
+- `githubLatestReleaseURL` is the unauthenticated GitHub Releases endpoint used by the lightweight update checker.
 - Keep Keychain service/key names stable unless you are intentionally migrating stored credentials or signed-in account display metadata.
 - Add new UserDefaults keys under `Constants.UserDefaults` and cover default behavior in `AppStateTests`.
 

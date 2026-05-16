@@ -44,6 +44,27 @@ final class AppState {
             }
         }
     }
+    var automaticUpdateChecksEnabled: Bool {
+        didSet {
+            userDefaults.set(
+                automaticUpdateChecksEnabled,
+                forKey: Constants.UserDefaults.automaticUpdateChecksEnabledKey
+            )
+        }
+    }
+    var lastUpdateCheckDate: Date? {
+        didSet {
+            if let lastUpdateCheckDate {
+                userDefaults.set(lastUpdateCheckDate, forKey: Constants.UserDefaults.lastUpdateCheckDateKey)
+            } else {
+                userDefaults.removeObject(forKey: Constants.UserDefaults.lastUpdateCheckDateKey)
+            }
+        }
+    }
+    var latestAvailableUpdate: AppUpdateRelease?
+    var isCheckingForUpdates = false
+    var updateCheckErrorMessage: String?
+    let currentAppVersion: String
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
@@ -206,6 +227,8 @@ final class AppState {
     private let api: any TasksAPIProtocol
     private let userDefaults: UserDefaults
     private let dueDateNotificationService: any DueDateNotificationServicing
+    private let updateChecker: any UpdateChecking
+    private let updateCheckInterval: TimeInterval = 24 * 60 * 60
 
     /// In-memory cache of visible tasks keyed by task list.
     private var taskCacheByListID: [String: [TaskItem]] = [:]
@@ -220,15 +243,25 @@ final class AppState {
         authService: GoogleAuthService = GoogleAuthService(),
         api: (any TasksAPIProtocol)? = nil,
         userDefaults: UserDefaults = .standard,
-        dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService()
+        dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService(),
+        updateChecker: any UpdateChecking = GitHubUpdateChecker(),
+        currentAppVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     ) {
         self.authService = authService
         self.api = api ?? GoogleTasksAPI(authService: authService)
         self.userDefaults = userDefaults
         self.dueDateNotificationService = dueDateNotificationService
+        self.updateChecker = updateChecker
+        self.currentAppVersion = currentAppVersion
         self.dueDateNotificationsEnabled = userDefaults.object(
             forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey
         ) as? Bool ?? true
+        self.automaticUpdateChecksEnabled = userDefaults.object(
+            forKey: Constants.UserDefaults.automaticUpdateChecksEnabledKey
+        ) as? Bool ?? true
+        self.lastUpdateCheckDate = userDefaults.object(
+            forKey: Constants.UserDefaults.lastUpdateCheckDateKey
+        ) as? Date
         self.isSignedIn = authService.isSignedIn
         self.googleAccountProfile = authService.accountProfile
     }
@@ -271,6 +304,21 @@ final class AppState {
         guard isSignedIn, googleAccountProfile == nil else { return }
         await authService.refreshAccountProfile()
         googleAccountProfile = authService.accountProfile
+    }
+
+    func checkForUpdatesManually() async {
+        _ = await performUpdateCheck()
+    }
+
+    func checkForUpdatesIfNeeded() async -> AppUpdateRelease? {
+        guard automaticUpdateChecksEnabled, isAutomaticUpdateCheckDue else { return nil }
+        let release = await performUpdateCheck()
+        guard let release, release.version != lastAlertedUpdateVersion else { return nil }
+        return release
+    }
+
+    func markUpdateAlertShown(for release: AppUpdateRelease) {
+        userDefaults.set(release.version, forKey: Constants.UserDefaults.lastAlertedUpdateVersionKey)
     }
 
     private func clearSignedInState() {
@@ -464,6 +512,43 @@ final class AppState {
             tasks = []
         }
         await refreshTasks()
+    }
+
+    private var isAutomaticUpdateCheckDue: Bool {
+        guard let lastUpdateCheckDate else { return true }
+        return Date().timeIntervalSince(lastUpdateCheckDate) >= updateCheckInterval
+    }
+
+    private var lastAlertedUpdateVersion: String? {
+        userDefaults.string(forKey: Constants.UserDefaults.lastAlertedUpdateVersionKey)
+    }
+
+    private func performUpdateCheck() async -> AppUpdateRelease? {
+        guard !isCheckingForUpdates else { return latestAvailableUpdate }
+
+        isCheckingForUpdates = true
+        defer { isCheckingForUpdates = false }
+
+        do {
+            let release = try await updateChecker.latestUpdate(currentVersion: currentAppVersion)
+            lastUpdateCheckDate = Date()
+            latestAvailableUpdate = release
+            updateCheckErrorMessage = nil
+            return release
+        } catch {
+            lastUpdateCheckDate = Date()
+            updateCheckErrorMessage = messageForUpdateCheckError(error)
+            return nil
+        }
+    }
+
+    private func messageForUpdateCheckError(_ error: Error) -> String {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription {
+            return description
+        }
+
+        return error.localizedDescription
     }
 
     private func handleError(_ error: Error) {

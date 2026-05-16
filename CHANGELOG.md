@@ -10,6 +10,7 @@
 
 ### Added
 - Added a dedicated settings Support section with a Discord invite link for bugs and feature requests.
+- Added lightweight GitHub release update checks with a Settings toggle, manual check button, and launch alert for new versions.
 
 ### Changed
 - Reworked the settings window into clearer General, Account, Support, and About sections.

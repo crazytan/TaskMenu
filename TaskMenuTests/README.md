@@ -12,6 +12,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `GoogleAuthServiceTests.swift` - token loading, refresh/sign-in callback behavior, token exchange errors, revocation, and web-auth test doubles.
 - `KeychainServiceTests.swift` - production wrapper behavior and XCTest in-memory isolation.
 - `DueDateNotificationServiceTests.swift` - authorization, scheduling, stale-removal, and identifier targeting.
+- `GitHubUpdateCheckerTests.swift` - semantic-version parsing, GitHub release decoding, update-check persistence, throttling, and AppState update outcomes.
 - `DateFormattingTests.swift` - RFC 3339, Google due-date, display, and relative-date behavior.
 - `TaskListViewTests.swift`, `TaskDetailViewTests.swift`, and `MenuBarWindowChromeTests.swift` - pure view helpers and AppKit glass/window behavior.
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.
