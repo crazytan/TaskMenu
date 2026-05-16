@@ -26,3 +26,4 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 
 - Menu bar artwork should be template-compatible.
 - Prefer SF Symbols in SwiftUI for in-app controls; use custom assets only for app identity or status-bar needs.
+- `DiscordIcon` is the official Discord symbol used for the settings support link.

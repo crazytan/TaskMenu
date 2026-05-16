@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var isConfirmingDisconnect = false
 
     private let coffeeURL = URL(string: "https://buymeacoffee.com/crazytan")!
+    private let discordURL = URL(string: "https://discord.gg/xEmdgGm7")!
     private let githubURL = URL(string: "https://github.com/crazytan/TaskMenu")!
     private let supportURL = URL(string: "https://taskmenu.crazytan.dev/support")!
     private let privacyURL = URL(string: "https://taskmenu.crazytan.dev/privacy")!
@@ -22,6 +23,10 @@ struct SettingsView: View {
             Divider()
 
             accountSection
+
+            Divider()
+
+            tipsSection
 
             Divider()
 
@@ -93,15 +98,39 @@ struct SettingsView: View {
         }
     }
 
-    private var supportSection: some View {
-        SettingsSection("Support") {
-            Text("TaskMenu will stay free forever. If it saves you time, support is deeply appreciated.")
+    private var tipsSection: some View {
+        SettingsSection("Tips") {
+            Text("TaskMenu will stay free forever and is developed by one person. If it saves you time, tips are deeply appreciated.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Link(destination: coffeeURL) {
                 Label("Buy Me a Coffee", systemImage: "heart.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+    }
+
+    private var supportSection: some View {
+        SettingsSection("Support") {
+            Text("Noticed a bug or have a feature request? Join our Discord server with the developer and other users!")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Link(destination: discordURL) {
+                Label {
+                    Text("Join Discord")
+                } icon: {
+                    Image("DiscordIcon")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                }
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
