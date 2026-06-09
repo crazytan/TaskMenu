@@ -4,9 +4,10 @@ description: >
   Prepare and publish a TaskMenu macOS release. Bumps the XcodeGen project version,
   updates CHANGELOG.md, regenerates TaskMenu.xcodeproj, runs macOS build/test
   verification, commits, tags, and pushes to trigger the GitHub Actions release
-  workflow that signs, notarizes, packages, and publishes the DMG. Use whenever
-  the user wants to cut a release, create a release candidate, bump the version,
-  ship a new version, prepare a build, or push a new TaskMenu release.
+  workflow that signs, notarizes, packages, and publishes the DMG, then updates
+  the Homebrew cask in crazytan/homebrew-tap. Use whenever the user wants to cut
+  a release, create a release candidate, bump the version, ship a new version,
+  prepare a build, or push a new TaskMenu release.
 ---
 
 # TaskMenu Release Workflow
@@ -161,10 +162,62 @@ git push origin main "v{version}"
 After pushing, tell the user that GitHub Actions will build the signed archive,
 notarize the DMG, upload the checksum, and publish or update the GitHub release.
 The workflow validates that the tag version matches `MARKETING_VERSION` and that
-`CHANGELOG.md` contains a non-empty matching section.
+`CHANGELOG.md` contains a non-empty matching section. Do not call the release
+complete until Step 7 updates the Homebrew cask, or until you have clearly told
+the user that the release workflow is still running and the Homebrew update is
+pending.
+
+## Step 7: Update Homebrew Cask
+
+Only reach this step after the GitHub release has published the DMG and
+`TaskMenu-{version}.dmg.sha256` assets. If the release workflow is still
+running, check its status with `gh run list` or `gh run watch` and wait when the
+user asked you to complete the release end to end.
+
+1. Verify the GitHub release and checksum asset exist:
+
+```bash
+gh release view "v{version}" --repo crazytan/TaskMenu
+curl -LfsS \
+  "https://github.com/crazytan/TaskMenu/releases/download/v{version}/TaskMenu-{version}.dmg.sha256"
+```
+
+2. Update the cask in the Homebrew tap:
+
+```bash
+brew tap crazytan/tap
+cd "$(brew --repository crazytan/tap)"
+
+sha256="$(curl -LfsS "https://github.com/crazytan/TaskMenu/releases/download/v{version}/TaskMenu-{version}.dmg.sha256" | awk '{print $1}')"
+
+perl -0pi -e 's/version "[^"]+"/version "{version}"/' Casks/taskmenu.rb
+perl -0pi -e "s/sha256 \"[0-9a-f]+\"/sha256 \"${sha256}\"/" Casks/taskmenu.rb
+```
+
+3. Validate the updated cask:
+
+```bash
+brew audit --cask --strict crazytan/tap/taskmenu
+brew livecheck --cask crazytan/tap/taskmenu
+```
+
+4. Commit and push only the cask change:
+
+```bash
+git add Casks/taskmenu.rb
+git commit -m "Update TaskMenu to {version}"
+git push
+```
+
+Report the Homebrew install command in the final release summary:
+
+```bash
+brew install --cask crazytan/tap/taskmenu
+```
 
 ## Manual Dispatch Alternative
 
 If the user explicitly wants a manual workflow dispatch instead of pushing a tag,
 ensure `project.yml` and `CHANGELOG.md` already match the version, then use the
 GitHub Actions `Release` workflow with the version input without the leading `v`.
+After the workflow publishes the release assets, still complete Step 7.

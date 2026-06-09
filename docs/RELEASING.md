@@ -2,6 +2,8 @@
 
 TaskMenu releases are published from GitHub Actions when a `vX.Y.Z` tag is pushed. The release workflow builds a signed archive, packages it into a DMG, notarizes the DMG with Apple, and uploads the DMG plus a SHA-256 checksum to the GitHub release.
 
+Homebrew cask distribution is maintained in the public [`crazytan/homebrew-tap`](https://github.com/crazytan/homebrew-tap) repository.
+
 ## One-time GitHub setup
 
 Add these repository secrets in GitHub under **Settings -> Secrets and variables -> Actions -> Secrets**:
@@ -113,6 +115,26 @@ git push origin main v1.0.1
 ```
 
 The release workflow validates that the tag version matches `MARKETING_VERSION` and that `CHANGELOG.md` has a matching section before it publishes anything.
+
+7. After the GitHub release publishes, update the Homebrew cask in `crazytan/homebrew-tap`:
+
+```bash
+brew tap crazytan/tap
+cd "$(brew --repository crazytan/tap)"
+
+version="${VERSION:-$(gh release view --repo crazytan/TaskMenu --json tagName --jq '.tagName | sub("^v"; "")')}"
+sha256="$(curl -LfsS "https://github.com/crazytan/TaskMenu/releases/download/v${version}/TaskMenu-${version}.dmg.sha256" | awk '{print $1}')"
+
+perl -0pi -e "s/version \"[^\"]+\"/version \"${version}\"/" Casks/taskmenu.rb
+perl -0pi -e "s/sha256 \"[0-9a-f]+\"/sha256 \"${sha256}\"/" Casks/taskmenu.rb
+
+brew audit --cask --strict crazytan/tap/taskmenu
+brew livecheck --cask crazytan/tap/taskmenu
+
+git add Casks/taskmenu.rb
+git commit -m "Update TaskMenu to ${version}"
+git push
+```
 
 ## Manual workflow dispatch
 

@@ -40,7 +40,13 @@ To build from source:
 
 ## Installation
 
-Download the signed and notarized DMG from the [latest GitHub release](https://github.com/crazytan/TaskMenu/releases).
+Install with Homebrew:
+
+```bash
+brew install --cask crazytan/tap/taskmenu
+```
+
+Or download the signed and notarized DMG from the [latest GitHub release](https://github.com/crazytan/TaskMenu/releases).
 
 ## Build From Source
 

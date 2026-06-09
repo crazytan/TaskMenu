@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+### Added
+- Added Homebrew tap installation instructions and release maintenance notes.
+
 ## v1.2.0 (2026-05-16)
 
 ### Added
