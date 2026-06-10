@@ -13,6 +13,7 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 ## Info.plist Rules
 
 - Preserve `LSUIElement = true` for normal launches.
+- Testing-window launches switch activation policy at runtime; keep `LSUIElement = true` in the bundle plist.
 - Keep `CFBundleURLTypes` aligned with `GOOGLE_REDIRECT_SCHEME` for OAuth callbacks.
 - Keep `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` as build-setting placeholders; local values belong in `Config.xcconfig`.
 

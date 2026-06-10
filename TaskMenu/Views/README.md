@@ -12,6 +12,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - `TaskRowAppKitView.swift` - row layout, completion toggle, notes preview, due-date label coloring, collapse, hover actions, and context menu actions.
 - `TaskDetailAppKitViewController.swift` - task edit screen, due-date state, notes, delete action, and child task preview.
 - `TaskPresentation.swift` - pure task-list, notes preview, completed-subtask, and task-detail helper logic.
+- `TestingWindowController.swift` - opt-in testing-mode window that hosts the popover UI outside the status item.
 - `SettingsView.swift` - AppKit settings window/controller, notification preference, launch-at-login, update checks, signed-in account email display, account disconnect confirmation, support links, and quit controls.
 - `MenuBarWindowGlassSupport.swift` - macOS 26 Liquid Glass window-background support.
 
@@ -20,6 +21,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - AppKit popover and settings controllers hold the shared `AppState`, observe only the state they render, and call `AppState` methods for mutations.
 - Keep network, keychain, OAuth, and notification calls out of views.
 - `TaskPopoverViewController` owns the popover's fixed signed-in size. Avoid growing the popover dynamically unless all task-list states are checked.
+- `TestingWindowController` is only for opt-in local testing mode; do not route normal launches through it.
 - `SettingsWindowController` is a settings window, not the main task UI.
 
 ## Task List Interaction Rules

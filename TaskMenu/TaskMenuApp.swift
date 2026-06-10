@@ -1,8 +1,25 @@
 import AppKit
 
+enum TaskMenuUIMode: Equatable {
+    case menuBar
+    case testingWindow
+}
+
 @MainActor
 enum TaskMenuApp {
     static let isUnitTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
+    static var currentUIMode: TaskMenuUIMode {
+        uiMode(arguments: CommandLine.arguments)
+    }
+
+    static func uiMode(arguments: [String]) -> TaskMenuUIMode {
+        if arguments.contains("--testing-window") {
+            return .testingWindow
+        }
+
+        return .menuBar
+    }
 }
 
 @main
@@ -24,18 +41,31 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     lazy var appState = AppState()
 
     private var statusBarController: StatusBarController?
+    private var testingWindowController: TestingWindowController?
     private var settingsWindowController: SettingsWindowController?
     private let metricKitService = MetricKitService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !TaskMenuApp.isUnitTesting {
-            metricKitService.start()
-            statusBarController = StatusBarController(appState: appState)
-            startAutomaticUpdateCheck()
+            configureUserInterface(for: TaskMenuApp.currentUIMode)
         }
 
         Task {
             await appState.bootstrapSignedInState()
+        }
+    }
+
+    private func configureUserInterface(for uiMode: TaskMenuUIMode) {
+        switch uiMode {
+        case .menuBar:
+            metricKitService.start()
+            statusBarController = StatusBarController(appState: appState)
+            startAutomaticUpdateCheck()
+        case .testingWindow:
+            _ = NSApp.setActivationPolicy(.regular)
+            testingWindowController = TestingWindowController(appState: appState)
+            testingWindowController?.showWindow(nil)
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 

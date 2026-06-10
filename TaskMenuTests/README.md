@@ -16,7 +16,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `DateFormattingTests.swift` - RFC 3339, Google due-date, display, and relative-date behavior.
 - `TaskListViewTests.swift`, `TaskDetailViewTests.swift`, and `MenuBarWindowChromeTests.swift` - shared task presentation helpers and AppKit glass/window behavior.
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.
-- `TaskMenuAppTests.swift` - app/app-delegate construction seams.
+- `TaskMenuAppTests.swift` - app/app-delegate construction seams and launch UI mode parsing.
 
 ## Test Doubles
 

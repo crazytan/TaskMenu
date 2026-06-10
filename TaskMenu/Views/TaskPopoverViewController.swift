@@ -10,6 +10,7 @@ final class TaskPopoverViewController: NSViewController {
 
     private let appState: AppState
     private let onRequestClose: () -> Void
+    private let onContentSizeChanged: (NSSize) -> Void
     private let backgroundView = NSVisualEffectView()
     private let rootStack = NSStackView()
     private var currentMode: Mode?
@@ -18,9 +19,14 @@ final class TaskPopoverViewController: NSViewController {
     private var errorStrip: NSView?
     private let appStateObserver = TaskMenuAppStateObserver()
 
-    init(appState: AppState, onRequestClose: @escaping () -> Void) {
+    init(
+        appState: AppState,
+        onRequestClose: @escaping () -> Void,
+        onContentSizeChanged: @escaping (NSSize) -> Void = { _ in }
+    ) {
         self.appState = appState
         self.onRequestClose = onRequestClose
+        self.onContentSizeChanged = onContentSizeChanged
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -74,7 +80,9 @@ final class TaskPopoverViewController: NSViewController {
         } else {
             updateErrorStrip()
         }
-        preferredContentSize = contentSize(for: mode)
+        let contentSize = contentSize(for: mode)
+        preferredContentSize = contentSize
+        onContentSizeChanged(contentSize)
     }
 
     private func render(_ mode: Mode) {

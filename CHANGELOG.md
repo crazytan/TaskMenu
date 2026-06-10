@@ -10,6 +10,7 @@
 
 ### Added
 - Added Homebrew tap installation instructions and release maintenance notes.
+- Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
 
 ### Changed
 - Reimplemented the Settings window with AppKit and removed SwiftUI from the app target.

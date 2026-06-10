@@ -8,6 +8,20 @@ final class TaskMenuAppTests: XCTestCase {
         XCTAssertTrue(TaskMenuApp.isUnitTesting)
     }
 
+    func testUIModeDefaultsToMenuBar() {
+        XCTAssertEqual(
+            TaskMenuApp.uiMode(arguments: ["TaskMenu"]),
+            .menuBar
+        )
+    }
+
+    func testUIModeDetectsTestingWindowArgument() {
+        XCTAssertEqual(
+            TaskMenuApp.uiMode(arguments: ["TaskMenu", "--testing-window"]),
+            .testingWindow
+        )
+    }
+
     func testApplicationMainInstallsDelegate() throws {
         let delegate = try XCTUnwrap(TaskMenuApplication.installedDelegate)
 

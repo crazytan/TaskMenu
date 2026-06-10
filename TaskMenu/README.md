@@ -4,7 +4,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 
 ## Files
 
-- `TaskMenuApp.swift` - `@main`, app delegate wiring, MetricKit startup, signed-in bootstrap, and settings window ownership.
+- `TaskMenuApp.swift` - `@main`, app delegate wiring, UI mode selection, MetricKit startup, signed-in bootstrap, and settings window ownership.
 - `StatusBarController.swift` - AppKit status item, popover presentation, right-click quit menu, outside-click closing, and menu-open refresh trigger.
 - `Models/` - `@MainActor` app state and Google Tasks data models.
 - `Services/` - OAuth, API, keychain, notification, metrics, and test/demo API implementations.
@@ -17,6 +17,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 - `TaskMenuAppDelegate` owns the shared `AppState`. Pass that same instance into status-bar and settings UI.
 - `applicationDidFinishLaunching` calls `bootstrapSignedInState()` asynchronously. Avoid blocking launch with network work.
 - `StatusBarController` calls `refreshForMenuPresentation()` when the popover opens. Keep this fast and tolerant of cached data.
+- `--testing-window` launches the same task UI in a regular AppKit window for local interaction/testing. Normal launches remain menu-bar-only.
 
 ## AppKit Boundaries
 
