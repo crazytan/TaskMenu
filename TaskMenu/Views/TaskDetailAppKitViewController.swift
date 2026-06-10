@@ -1,6 +1,19 @@
 import AppKit
 
 @MainActor
+private enum TaskDetailViewMetrics {
+    static let horizontalInset: CGFloat = 16
+    static let subtaskIconWidth: CGFloat = 16
+    static let subtaskAddSpacing: CGFloat = 6
+    static var contentWidth: CGFloat {
+        TaskMenuMetrics.popoverWidth - horizontalInset * 2
+    }
+    static var subtaskTitleWidth: CGFloat {
+        contentWidth - subtaskIconWidth - subtaskAddSpacing
+    }
+}
+
+@MainActor
 final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate {
     private let appState: AppState
     private var task: TaskItem
@@ -20,7 +33,6 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         self.dueDateState = TaskDetailDueDateState(task: task)
         self.onDismiss = onDismiss
         super.init(nibName: nil, bundle: nil)
-        preferredContentSize = NSSize(width: 300, height: TaskMenuMetrics.signedInPopoverHeight)
     }
 
     @available(*, unavailable)
@@ -31,14 +43,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     override func loadView() {
         let root = NSStackView()
         root.orientation = .vertical
-        root.alignment = .leading
+        root.alignment = .width
         root.spacing = 0
         root.translatesAutoresizingMaskIntoConstraints = false
         view = root
-
-        NSLayoutConstraint.activate([
-            root.widthAnchor.constraint(equalToConstant: 300)
-        ])
 
         root.addArrangedSubview(header())
         root.addArrangedSubview(content())
@@ -61,7 +69,12 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         TaskMenuAppKit.pin(
             stack,
             to: container,
-            insets: NSEdgeInsets(top: 14, left: 16, bottom: 12, right: 16)
+            insets: NSEdgeInsets(
+                top: 14,
+                left: TaskDetailViewMetrics.horizontalInset,
+                bottom: 12,
+                right: TaskDetailViewMetrics.horizontalInset
+            )
         )
 
         stack.addArrangedSubview(TaskMenuActionButton(
@@ -98,13 +111,18 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         container.translatesAutoresizingMaskIntoConstraints = false
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.alignment = .leading
+        stack.alignment = .width
         stack.spacing = 14
         container.addSubview(stack)
         TaskMenuAppKit.pin(
             stack,
             to: container,
-            insets: NSEdgeInsets(top: 0, left: 16, bottom: TaskDetailLayout.contentBottomPadding, right: 16)
+            insets: NSEdgeInsets(
+                top: 0,
+                left: TaskDetailViewMetrics.horizontalInset,
+                bottom: TaskDetailLayout.contentBottomPadding,
+                right: TaskDetailViewMetrics.horizontalInset
+            )
         )
 
         configureTitleField()
@@ -129,7 +147,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         titleField.font = .systemFont(ofSize: NSFont.systemFontSize)
         titleField.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            titleField.widthAnchor.constraint(equalToConstant: 268)
+            titleField.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth)
         ])
     }
 
@@ -149,7 +167,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         scrollView.documentView = notesTextView
 
         NSLayoutConstraint.activate([
-            scrollView.widthAnchor.constraint(equalToConstant: 268),
+            scrollView.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
             scrollView.heightAnchor.constraint(equalToConstant: 84)
         ])
         return scrollView
@@ -205,7 +223,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private func subtaskSection() -> NSView {
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.alignment = .leading
+        stack.alignment = .width
         stack.spacing = 6
         stack.translatesAutoresizingMaskIntoConstraints = false
 
@@ -213,7 +231,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         separator.boxType = .separator
         separator.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(separator)
-        separator.widthAnchor.constraint(equalToConstant: 268).isActive = true
+        separator.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
 
         stack.addArrangedSubview(TaskMenuAppKit.label(
             "Subtasks",
@@ -224,13 +242,13 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let addStack = NSStackView()
         addStack.orientation = .horizontal
         addStack.alignment = .centerY
-        addStack.spacing = 6
+        addStack.spacing = TaskDetailViewMetrics.subtaskAddSpacing
         let plus = NSImageView(image: TaskMenuAppKit.symbol("plus.circle", pointSize: 14) ?? NSImage())
         plus.contentTintColor = .systemBlue
         plus.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            plus.widthAnchor.constraint(equalToConstant: 16),
-            plus.heightAnchor.constraint(equalToConstant: 16)
+            plus.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskIconWidth),
+            plus.heightAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskIconWidth)
         ])
         addStack.addArrangedSubview(plus)
         subtaskTitleField.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -239,7 +257,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         }
         addStack.addArrangedSubview(subtaskTitleField)
         NSLayoutConstraint.activate([
-            subtaskTitleField.widthAnchor.constraint(equalToConstant: 246)
+            subtaskTitleField.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskTitleWidth)
         ])
         stack.addArrangedSubview(addStack)
 
@@ -255,7 +273,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         subtaskListStack.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(scrollView)
         NSLayoutConstraint.activate([
-            scrollView.widthAnchor.constraint(equalToConstant: 268),
+            scrollView.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
             scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: TaskDetailLayout.subtaskListMinimumHeight(forCount: appState.subtasks(of: task.id).count))
         ])
 

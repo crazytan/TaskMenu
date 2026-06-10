@@ -13,6 +13,7 @@
 
 ### Changed
 - Reimplemented the Settings window with AppKit and removed SwiftUI from the app target.
+- Simplified popover layout ownership so the shell owns sizing and child views fill the available space.
 
 ## v1.2.0 (2026-05-16)
 

@@ -13,8 +13,7 @@ final class TaskPopoverViewController: NSViewController {
     private let backgroundView = NSVisualEffectView()
     private let rootStack = NSStackView()
     private var currentMode: Mode?
-    private var currentTaskListController: TaskListAppKitViewController?
-    private var taskListContainerHeightConstraint: NSLayoutConstraint?
+    private var signedInContentHeightConstraint: NSLayoutConstraint?
     private var errorSeparator: NSView?
     private var errorStrip: NSView?
     private let appStateObserver = TaskMenuAppStateObserver()
@@ -38,7 +37,7 @@ final class TaskPopoverViewController: NSViewController {
         view = backgroundView
 
         rootStack.orientation = .vertical
-        rootStack.alignment = .leading
+        rootStack.alignment = .width
         rootStack.spacing = 0
         backgroundView.addSubview(rootStack)
         TaskMenuAppKit.pin(rootStack, to: backgroundView)
@@ -80,8 +79,7 @@ final class TaskPopoverViewController: NSViewController {
 
     private func render(_ mode: Mode) {
         currentMode = mode
-        currentTaskListController = nil
-        taskListContainerHeightConstraint = nil
+        signedInContentHeightConstraint = nil
         children.forEach { child in
             child.view.removeFromSuperview()
             child.removeFromParent()
@@ -100,33 +98,19 @@ final class TaskPopoverViewController: NSViewController {
             let listController = TaskListAppKitViewController(appState: appState) { [weak self] in
                 self?.openSettings()
             }
-            currentTaskListController = listController
             addChild(listController)
-            let container = taskListContainer(for: listController)
-            rootStack.addArrangedSubview(container)
+            rootStack.addArrangedSubview(listController.view)
+            let heightConstraint = listController.view.heightAnchor.constraint(equalToConstant: signedInContentHeight())
+            heightConstraint.isActive = true
+            signedInContentHeightConstraint = heightConstraint
             updateErrorStrip()
         }
-    }
-
-    private func taskListContainer(for listController: TaskListAppKitViewController) -> NSView {
-        let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(listController.view)
-        TaskMenuAppKit.pin(listController.view, to: container)
-        let heightConstraint = container.heightAnchor.constraint(equalToConstant: taskListHeightForCurrentErrorState())
-        taskListContainerHeightConstraint = heightConstraint
-        NSLayoutConstraint.activate([
-            container.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth),
-            heightConstraint
-        ])
-        return container
     }
 
     private func loadingView() -> NSView {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            container.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth),
             container.heightAnchor.constraint(equalToConstant: TaskMenuMetrics.loadingPopoverHeight)
         ])
 
@@ -157,7 +141,6 @@ final class TaskPopoverViewController: NSViewController {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            container.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth),
             container.heightAnchor.constraint(equalToConstant: TaskMenuMetrics.signedOutPopoverHeight)
         ])
 
@@ -221,7 +204,7 @@ final class TaskPopoverViewController: NSViewController {
     private func updateErrorStrip() {
         guard currentMode == .signedIn else { return }
 
-        taskListContainerHeightConstraint?.constant = taskListHeightForCurrentErrorState()
+        signedInContentHeightConstraint?.constant = signedInContentHeight()
 
         if let errorStrip {
             rootStack.removeArrangedSubview(errorStrip)
@@ -241,9 +224,8 @@ final class TaskPopoverViewController: NSViewController {
         rootStack.addArrangedSubview(separator)
         errorSeparator = separator
 
-        let strip = TaskMenuHoverView()
+        let strip = NSView()
         strip.translatesAutoresizingMaskIntoConstraints = false
-        strip.onHoverChanged = { _ in }
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -279,7 +261,7 @@ final class TaskPopoverViewController: NSViewController {
         self.errorStrip = strip
     }
 
-    private func taskListHeightForCurrentErrorState() -> CGFloat {
+    private func signedInContentHeight() -> CGFloat {
         if appState.errorMessage == nil {
             return TaskMenuMetrics.signedInPopoverHeight
         }

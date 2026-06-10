@@ -21,10 +21,6 @@ final class TaskListAppKitViewController: NSViewController {
         self.appState = appState
         self.onOpenSettings = onOpenSettings
         super.init(nibName: nil, bundle: nil)
-        preferredContentSize = NSSize(
-            width: TaskMenuMetrics.popoverWidth,
-            height: TaskMenuMetrics.signedInPopoverHeight
-        )
     }
 
     @available(*, unavailable)
@@ -40,14 +36,10 @@ final class TaskListAppKitViewController: NSViewController {
 
     override func loadView() {
         rootStack.orientation = .vertical
-        rootStack.alignment = .leading
+        rootStack.alignment = .width
         rootStack.spacing = 0
         rootStack.translatesAutoresizingMaskIntoConstraints = false
         view = rootStack
-
-        NSLayoutConstraint.activate([
-            rootStack.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth)
-        ])
     }
 
     override func viewDidLoad() {
@@ -111,7 +103,6 @@ final class TaskListAppKitViewController: NSViewController {
         rootStack.addArrangedSubview(TaskMenuAppKit.separator())
         rootStack.addArrangedSubview(contentView)
         NSLayoutConstraint.activate([
-            contentView.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 1)
         ])
 

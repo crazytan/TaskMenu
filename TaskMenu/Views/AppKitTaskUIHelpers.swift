@@ -158,6 +158,7 @@ final class TaskMenuActionButton: NSButton {
         super.updateTrackingAreas()
         if let hoverTrackingArea {
             removeTrackingArea(hoverTrackingArea)
+            self.hoverTrackingArea = nil
         }
         guard onHoverChanged != nil else { return }
         let area = NSTrackingArea(
@@ -238,7 +239,9 @@ class TaskMenuHoverView: NSView {
         super.updateTrackingAreas()
         if let trackingArea {
             removeTrackingArea(trackingArea)
+            self.trackingArea = nil
         }
+        guard onHoverChanged != nil else { return }
         let area = NSTrackingArea(
             rect: bounds,
             options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect],
