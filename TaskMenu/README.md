@@ -8,7 +8,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem` 
 - `StatusBarController.swift` - AppKit status item, popover presentation, right-click quit menu, outside-click closing, and menu-open refresh trigger.
 - `Models/` - `@MainActor` app state and Google Tasks data models.
 - `Services/` - OAuth, API, keychain, notification, metrics, and test/demo API implementations.
-- `Views/` - SwiftUI popover, settings, task list, row, detail, quick-add, and sign-in UI.
+- `Views/` - AppKit popover/task UI, shared task presentation helpers, and SwiftUI settings UI.
 - `Utilities/` - app constants and Google due-date formatting.
 - `Resources/` - plist, entitlements, icons, and asset catalog.
 
@@ -21,5 +21,5 @@ This folder is the macOS application target. Launches install an `NSStatusItem` 
 ## AppKit Boundaries
 
 - Keep status item, popover, event monitors, and activation-policy work in this folder.
-- SwiftUI views should not directly reach into `NSStatusItem` or own popover lifetime.
+- Views should not directly reach into `NSStatusItem` or own popover lifetime outside `StatusBarController`.
 - Any new normal-launch window is a product decision. The current app is menu-bar-only.

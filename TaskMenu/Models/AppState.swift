@@ -1,4 +1,5 @@
-import SwiftUI
+import Foundation
+import Observation
 
 func tasksSortedByGooglePosition(_ tasks: [TaskItem]) -> [TaskItem] {
     tasks.enumerated()

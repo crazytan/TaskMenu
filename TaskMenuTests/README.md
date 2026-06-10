@@ -14,7 +14,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `DueDateNotificationServiceTests.swift` - authorization, scheduling, stale-removal, and identifier targeting.
 - `GitHubUpdateCheckerTests.swift` - semantic-version parsing, GitHub release decoding, update-check persistence, throttling, and AppState update outcomes.
 - `DateFormattingTests.swift` - RFC 3339, Google due-date, display, and relative-date behavior.
-- `TaskListViewTests.swift`, `TaskDetailViewTests.swift`, and `MenuBarWindowChromeTests.swift` - pure view helpers and AppKit glass/window behavior.
+- `TaskListViewTests.swift`, `TaskDetailViewTests.swift`, and `MenuBarWindowChromeTests.swift` - shared task presentation helpers and AppKit glass/window behavior.
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.
 - `TaskMenuAppTests.swift` - app/app-delegate construction seams.
 

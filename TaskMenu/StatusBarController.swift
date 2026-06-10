@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 @MainActor
 final class StatusBarController: NSObject {
@@ -37,8 +36,9 @@ final class StatusBarController: NSObject {
     private func configurePopover(appState: AppState) {
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentViewController = NSHostingController(
-            rootView: MenuBarPopover(appState: appState) { [weak self] in
+        popover.contentViewController = TaskPopoverViewController(
+            appState: appState,
+            onRequestClose: { [weak self] in
                 self?.popover.performClose(nil)
                 self?.stopOutsideClickMonitoring()
             }
