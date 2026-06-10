@@ -1,6 +1,6 @@
 # Views
 
-Views render the AppKit menu-bar popover and SwiftUI settings UI. Keep business behavior in `AppState`; keep view files focused on presentation, local interaction state, and small pure helpers that can be unit-tested.
+Views render the AppKit menu-bar popover and settings UI. Keep business behavior in `AppState`; keep view files focused on presentation, local interaction state, and small pure helpers that can be unit-tested.
 
 ## Files
 
@@ -12,16 +12,15 @@ Views render the AppKit menu-bar popover and SwiftUI settings UI. Keep business 
 - `TaskRowAppKitView.swift` - row layout, completion toggle, notes preview, due-date label coloring, collapse, hover actions, and context menu actions.
 - `TaskDetailAppKitViewController.swift` - task edit screen, due-date state, notes, delete action, and child task preview.
 - `TaskPresentation.swift` - pure task-list, notes preview, completed-subtask, and task-detail helper logic.
-- `SettingsView.swift` - notification preference, launch-at-login, update checks, signed-in account email display, account disconnect confirmation, support links, and quit controls.
+- `SettingsView.swift` - AppKit settings window/controller, notification preference, launch-at-login, update checks, signed-in account email display, account disconnect confirmation, support links, and quit controls.
 - `MenuBarWindowGlassSupport.swift` - macOS 26 Liquid Glass window-background support.
 
 ## UI Ownership
 
-- AppKit popover controllers hold the shared `AppState`, observe only the state they render, and call `AppState` methods for mutations.
-- `SettingsView` remains SwiftUI and receives `@Bindable var appState: AppState`.
+- AppKit popover and settings controllers hold the shared `AppState`, observe only the state they render, and call `AppState` methods for mutations.
 - Keep network, keychain, OAuth, and notification calls out of views.
 - `TaskPopoverViewController` owns the popover's fixed signed-in size. Avoid growing the popover dynamically unless all task-list states are checked.
-- `SettingsView` is a settings scene, not the main task UI.
+- `SettingsWindowController` is a settings window, not the main task UI.
 
 ## Task List Interaction Rules
 

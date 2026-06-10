@@ -2,7 +2,7 @@
 
 > A lightweight, native macOS menu bar app for Google Tasks.
 
-TaskMenu brings Google Tasks to the macOS menu bar with a fast, native SwiftUI interface. It stays out of the Dock, opens as a compact popover, and keeps everyday task management close without pulling you out of your work.
+TaskMenu brings Google Tasks to the macOS menu bar with a fast, native AppKit interface. It stays out of the Dock, opens as a compact popover, and keeps everyday task management close without pulling you out of your work.
 
 <p align="center">
   <img src="screenshots/task-list.png" alt="TaskMenu task list popover with quick add and filtering" width="360">
@@ -81,7 +81,7 @@ Or download the signed and notarized DMG from the [latest GitHub release](https:
 ## Development
 
 - Swift 6
-- SwiftUI
+- AppKit
 - XcodeGen-generated project
 - Apple frameworks only, with zero third-party dependencies
 - Strict concurrency enabled

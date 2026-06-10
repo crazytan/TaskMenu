@@ -1,10 +1,17 @@
+import AppKit
 import XCTest
 @testable import TaskMenu
 
 @MainActor
 final class TaskMenuAppTests: XCTestCase {
-    func testAppInitializes() {
-        _ = TaskMenuApp()
+    func testRuntimeDetectsUnitTesting() {
+        XCTAssertTrue(TaskMenuApp.isUnitTesting)
+    }
+
+    func testApplicationMainInstallsDelegate() throws {
+        let delegate = try XCTUnwrap(TaskMenuApplication.installedDelegate)
+
+        XCTAssertTrue(NSApplication.shared.delegate === delegate)
     }
 
     func testAppDelegateReusesSharedAppState() {

@@ -33,6 +33,6 @@ xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
 ```
 
 - Use `-only-testing:` for the nearest suite first.
-- Mark test classes `@MainActor` when they touch `AppState`, `GoogleAuthService`, AppKit, or SwiftUI main-actor helpers.
+- Mark test classes `@MainActor` when they touch `AppState`, `GoogleAuthService`, AppKit, or other main-actor helpers.
 - Keychain tests must use unique service names or the in-memory XCTest path to avoid cross-test contamination.
 - When changing source file membership, regenerate with `xcodegen generate` before running tests.

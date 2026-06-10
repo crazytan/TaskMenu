@@ -1,10 +1,30 @@
-import SwiftUI
+import AppKit
+
+@MainActor
+enum TaskMenuApp {
+    static let isUnitTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+}
+
+@main
+@MainActor
+enum TaskMenuApplication {
+    private(set) static var installedDelegate: TaskMenuAppDelegate?
+
+    static func main() {
+        let application = NSApplication.shared
+        let delegate = TaskMenuAppDelegate()
+        installedDelegate = delegate
+        application.delegate = delegate
+        application.run()
+    }
+}
 
 @MainActor
 final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     lazy var appState = AppState()
 
     private var statusBarController: StatusBarController?
+    private var settingsWindowController: SettingsWindowController?
     private let metricKitService = MetricKitService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -46,17 +66,12 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.open(release.releaseURL)
         }
     }
-}
 
-@main
-struct TaskMenuApp: App {
-    @NSApplicationDelegateAdaptor(TaskMenuAppDelegate.self) private var appDelegate
-
-    static let isUnitTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-
-    var body: some Scene {
-        Settings {
-            SettingsView(appState: appDelegate.appState)
+    @objc func showSettingsWindow(_ sender: Any?) {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController(appState: appState)
         }
+
+        settingsWindowController?.showSettings()
     }
 }

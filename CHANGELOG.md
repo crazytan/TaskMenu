@@ -12,7 +12,7 @@
 - Added Homebrew tap installation instructions and release maintenance notes.
 
 ### Changed
-- Reimplemented the menu-bar task popover with AppKit while keeping Settings in SwiftUI.
+- Reimplemented the Settings window with AppKit and removed SwiftUI from the app target.
 
 ## v1.2.0 (2026-05-16)
 

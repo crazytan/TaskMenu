@@ -1,6 +1,6 @@
 # Services
 
-Services isolate external systems and side effects from SwiftUI views. Keep protocols narrow and inject concrete implementations through `AppState` or service initializers.
+Services isolate external systems and side effects from views. Keep protocols narrow and inject concrete implementations through `AppState` or service initializers.
 
 ## Files
 
