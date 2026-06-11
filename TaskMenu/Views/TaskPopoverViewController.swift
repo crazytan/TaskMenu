@@ -103,9 +103,15 @@ final class TaskPopoverViewController: NSViewController {
         case .signedOut:
             rootStack.addArrangedSubview(signInView())
         case .signedIn:
-            let listController = TaskListAppKitViewController(appState: appState) { [weak self] in
-                self?.openSettings()
-            }
+            let listController = TaskListAppKitViewController(
+                appState: appState,
+                onOpenSettings: { [weak self] in
+                    self?.openSettings()
+                },
+                onRequestClose: { [weak self] in
+                    self?.onRequestClose()
+                }
+            )
             addChild(listController)
             rootStack.addArrangedSubview(listController.view)
             let heightConstraint = listController.view.heightAnchor.constraint(equalToConstant: signedInContentHeight())
@@ -126,6 +132,7 @@ final class TaskPopoverViewController: NSViewController {
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),

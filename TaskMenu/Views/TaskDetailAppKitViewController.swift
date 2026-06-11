@@ -2,14 +2,9 @@ import AppKit
 
 @MainActor
 private enum TaskDetailViewMetrics {
-    static let horizontalInset: CGFloat = 16
-    static let subtaskIconWidth: CGFloat = 16
-    static let subtaskAddSpacing: CGFloat = 6
+    static let horizontalInset: CGFloat = 12
     static var contentWidth: CGFloat {
         TaskMenuMetrics.popoverWidth - horizontalInset * 2
-    }
-    static var subtaskTitleWidth: CGFloat {
-        contentWidth - subtaskIconWidth - subtaskAddSpacing
     }
 }
 
@@ -20,11 +15,13 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private var dueDateState: TaskDetailDueDateState
     private let onDismiss: () -> Void
 
+    private let rootStack = NSStackView()
     private let titleField = NSTextField()
     private let notesTextView = NSTextView()
-    private let dueDateContainer = NSStackView()
-    private let subtaskTitleField = TaskMenuTextField(placeholder: "Add subtask...")
+    private let dueDateControls = NSStackView()
+    private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let subtaskListStack = NSStackView()
+    private var addSubtaskField: TaskMenuTextField?
     private let appStateObserver = TaskMenuAppStateObserver()
 
     init(appState: AppState, task: TaskItem, onDismiss: @escaping () -> Void) {
@@ -41,15 +38,16 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     override func loadView() {
-        let root = NSStackView()
-        root.orientation = .vertical
-        root.alignment = .width
-        root.spacing = 0
-        root.translatesAutoresizingMaskIntoConstraints = false
-        view = root
+        rootStack.orientation = .vertical
+        rootStack.alignment = .width
+        rootStack.spacing = 0
+        rootStack.translatesAutoresizingMaskIntoConstraints = false
+        view = rootStack
 
-        root.addArrangedSubview(header())
-        root.addArrangedSubview(content())
+        rootStack.addArrangedSubview(header())
+        rootStack.addArrangedSubview(TaskMenuAppKit.separator())
+        rootStack.addArrangedSubview(content())
+        rootStack.addArrangedSubview(footer())
     }
 
     override func viewDidLoad() {
@@ -58,9 +56,14 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         observeAppState()
     }
 
+    override func cancelOperation(_ sender: Any?) {
+        onDismiss()
+    }
+
     private func header() -> NSView {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
+
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -69,38 +72,29 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         TaskMenuAppKit.pin(
             stack,
             to: container,
-            insets: NSEdgeInsets(
-                top: 14,
-                left: TaskDetailViewMetrics.horizontalInset,
-                bottom: 12,
-                right: TaskDetailViewMetrics.horizontalInset
-            )
+            insets: NSEdgeInsets(top: 9, left: 10, bottom: 8, right: 10)
         )
 
-        stack.addArrangedSubview(TaskMenuActionButton(
-            symbolName: "chevron.left",
-            pointSize: 13,
-            weight: .medium,
-            accessibilityDescription: "Back"
-        ) { [weak self] in
+        let backButton = TaskMenuActionButton(title: appState.selectedList?.title ?? "Tasks", symbolName: "chevron.left", pointSize: 12, weight: .medium, accessibilityDescription: "Back") { [weak self] in
             self?.onDismiss()
-        })
+        }
+        backButton.imagePosition = .imageLeading
+        backButton.contentTintColor = .controlAccentColor
+        stack.addArrangedSubview(backButton)
 
-        stack.addArrangedSubview(TaskMenuAppKit.label(
-            "Edit Task",
-            font: .boldSystemFont(ofSize: NSFont.systemFontSize)
-        ))
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
 
-        let deleteButton = NSButton(title: "Delete", target: self, action: #selector(deleteTask))
-        deleteButton.bezelStyle = .rounded
-        deleteButton.controlSize = .small
-        stack.addArrangedSubview(deleteButton)
+        let title = TaskMenuAppKit.label(
+            "Edit Task",
+            font: .boldSystemFont(ofSize: 13),
+            color: .labelColor
+        )
+        stack.addArrangedSubview(title)
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
 
         let doneButton = NSButton(title: "Done", target: self, action: #selector(saveTask))
         doneButton.bezelStyle = .rounded
         doneButton.controlSize = .small
-        doneButton.keyEquivalent = "\r"
         stack.addArrangedSubview(doneButton)
 
         return container
@@ -109,34 +103,39 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private func content() -> NSView {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
+
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.alignment = .width
-        stack.spacing = 14
+        stack.spacing = 10
         container.addSubview(stack)
         TaskMenuAppKit.pin(
             stack,
             to: container,
             insets: NSEdgeInsets(
-                top: 0,
+                top: 12,
                 left: TaskDetailViewMetrics.horizontalInset,
-                bottom: TaskDetailLayout.contentBottomPadding,
+                bottom: 8,
                 right: TaskDetailViewMetrics.horizontalInset
             )
         )
 
         configureTitleField()
         stack.addArrangedSubview(titleField)
-
         stack.addArrangedSubview(notesFieldContainer())
-        stack.addArrangedSubview(dueDateRow())
+        stack.addArrangedSubview(metaGroup())
 
         if task.parent == nil {
+            stack.addArrangedSubview(TaskMenuAppKit.label(
+                "Subtasks",
+                font: .boldSystemFont(ofSize: 11),
+                color: .secondaryLabelColor
+            ))
             stack.addArrangedSubview(subtaskSection())
         }
 
         NSLayoutConstraint.activate([
-            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 360)
+            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 386)
         ])
         return container
     }
@@ -144,11 +143,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private func configureTitleField() {
         titleField.stringValue = task.title
         titleField.placeholderString = "Title"
-        titleField.font = .systemFont(ofSize: NSFont.systemFontSize)
+        titleField.font = .systemFont(ofSize: 13, weight: .medium)
+        titleField.bezelStyle = .roundedBezel
         titleField.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            titleField.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth)
-        ])
+        titleField.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
     }
 
     private func notesFieldContainer() -> NSView {
@@ -157,66 +155,108 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .bezelBorder
+        scrollView.drawsBackground = false
 
         notesTextView.string = task.notes ?? ""
-        notesTextView.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        notesTextView.font = .systemFont(ofSize: 13)
+        notesTextView.textColor = .labelColor
         notesTextView.isRichText = false
         notesTextView.allowsUndo = true
         notesTextView.delegate = self
-        notesTextView.textContainerInset = NSSize(width: 4, height: 4)
+        notesTextView.textContainerInset = NSSize(width: 6, height: 5)
+        notesTextView.backgroundColor = .textBackgroundColor
         scrollView.documentView = notesTextView
 
         NSLayoutConstraint.activate([
             scrollView.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
-            scrollView.heightAnchor.constraint(equalToConstant: 84)
+            scrollView.heightAnchor.constraint(equalToConstant: 62)
         ])
         return scrollView
     }
 
-    private func dueDateRow() -> NSView {
-        dueDateContainer.orientation = .horizontal
-        dueDateContainer.alignment = .centerY
-        dueDateContainer.spacing = 8
-        renderDueDateControls()
-        return dueDateContainer
+    private func metaGroup() -> NSView {
+        let group = NSStackView()
+        group.orientation = .vertical
+        group.alignment = .width
+        group.spacing = 0
+        group.wantsLayer = true
+        group.layer?.cornerRadius = 8
+        group.layer?.borderWidth = 1
+        group.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
+        group.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
+        group.translatesAutoresizingMaskIntoConstraints = false
+
+        group.addArrangedSubview(metaRow(label: "Due date", control: dueDateControls))
+        group.addArrangedSubview(TaskMenuAppKit.separator())
+        group.addArrangedSubview(metaRow(label: "List", control: configuredListPopup()))
+        return group
+    }
+
+    private func metaRow(label: String, control: NSView) -> NSView {
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        stack.addArrangedSubview(TaskMenuAppKit.label(label, font: .systemFont(ofSize: 13)))
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+        stack.addArrangedSubview(control)
+
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+        TaskMenuAppKit.pin(
+            stack,
+            to: container,
+            insets: NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        )
+        container.heightAnchor.constraint(greaterThanOrEqualToConstant: 34).isActive = true
+        return container
+    }
+
+    private func configuredListPopup() -> NSPopUpButton {
+        listPopup.removeAllItems()
+        listPopup.addItems(withTitles: appState.taskLists.map(\.title))
+        if let selectedList = appState.selectedList {
+            listPopup.selectItem(withTitle: selectedList.title)
+        }
+        listPopup.controlSize = .small
+        listPopup.isEnabled = false
+        listPopup.toolTip = "Moving tasks between lists is not wired yet."
+        return listPopup
     }
 
     private func renderDueDateControls() {
-        dueDateContainer.arrangedSubviews.forEach { view in
-            dueDateContainer.removeArrangedSubview(view)
+        dueDateControls.arrangedSubviews.forEach { view in
+            dueDateControls.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
+        dueDateControls.orientation = .horizontal
+        dueDateControls.alignment = .centerY
+        dueDateControls.spacing = 6
 
-        dueDateContainer.addArrangedSubview(TaskMenuAppKit.label(
-            "Due date",
-            font: .systemFont(ofSize: NSFont.systemFontSize)
-        ))
-        dueDateContainer.addArrangedSubview(TaskMenuAppKit.spacer())
+        let picker = NSDatePicker()
+        picker.datePickerElements = .yearMonthDay
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.controlSize = .small
+        picker.dateValue = dueDateState.selection
+        picker.isEnabled = dueDateState.isEnabled
+        picker.target = self
+        picker.action = #selector(dueDateChanged(_:))
+        dueDateControls.addArrangedSubview(picker)
 
         if dueDateState.isEnabled {
-            let picker = NSDatePicker()
-            picker.datePickerElements = .yearMonthDay
-            picker.datePickerStyle = .textFieldAndStepper
-            picker.controlSize = .small
-            picker.dateValue = dueDateState.selection
-            picker.target = self
-            picker.action = #selector(dueDateChanged(_:))
-            dueDateContainer.addArrangedSubview(picker)
-
-            dueDateContainer.addArrangedSubview(TaskMenuActionButton(
-                symbolName: "xmark",
-                pointSize: 10,
-                weight: .semibold,
-                accessibilityDescription: "Clear due date"
-            ) { [weak self] in
-                self?.dueDateState.clear()
-                self?.renderDueDateControls()
-            })
+            let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearDueDate))
+            clearButton.isBordered = false
+            clearButton.controlSize = .small
+            clearButton.contentTintColor = .controlAccentColor
+            dueDateControls.addArrangedSubview(clearButton)
         } else {
-            let addButton = NSButton(title: "Add due date", target: self, action: #selector(enableDueDate))
-            addButton.controlSize = .small
-            addButton.bezelStyle = .rounded
-            dueDateContainer.addArrangedSubview(addButton)
+            let setButton = NSButton(title: "Set", target: self, action: #selector(enableDueDate))
+            setButton.controlSize = .small
+            setButton.bezelStyle = .rounded
+            dueDateControls.addArrangedSubview(setButton)
         }
     }
 
@@ -224,111 +264,106 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.alignment = .width
-        stack.spacing = 6
+        stack.spacing = 0
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        let separator = NSBox()
-        separator.boxType = .separator
-        separator.translatesAutoresizingMaskIntoConstraints = false
-        stack.addArrangedSubview(separator)
-        separator.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
-
-        stack.addArrangedSubview(TaskMenuAppKit.label(
-            "Subtasks",
-            font: .systemFont(ofSize: NSFont.smallSystemFontSize),
-            color: .secondaryLabelColor
-        ))
-
-        let addStack = NSStackView()
-        addStack.orientation = .horizontal
-        addStack.alignment = .centerY
-        addStack.spacing = TaskDetailViewMetrics.subtaskAddSpacing
-        let plus = NSImageView(image: TaskMenuAppKit.symbol("plus.circle", pointSize: 14) ?? NSImage())
-        plus.contentTintColor = .systemBlue
-        plus.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            plus.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskIconWidth),
-            plus.heightAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskIconWidth)
-        ])
-        addStack.addArrangedSubview(plus)
-        subtaskTitleField.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        subtaskTitleField.onCommit = { [weak self] _ in
-            self?.addSubtask()
-        }
-        addStack.addArrangedSubview(subtaskTitleField)
-        NSLayoutConstraint.activate([
-            subtaskTitleField.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskTitleWidth)
-        ])
-        stack.addArrangedSubview(addStack)
-
-        let scrollView = NSScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.documentView = subtaskListStack
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.borderType = .noBorder
         subtaskListStack.orientation = .vertical
-        subtaskListStack.alignment = .leading
-        subtaskListStack.spacing = TaskDetailLayout.subtaskRowSpacing
-        subtaskListStack.translatesAutoresizingMaskIntoConstraints = false
-        stack.addArrangedSubview(scrollView)
-        NSLayoutConstraint.activate([
-            scrollView.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
-            scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: TaskDetailLayout.subtaskListMinimumHeight(forCount: appState.subtasks(of: task.id).count))
-        ])
-
+        subtaskListStack.alignment = .width
+        subtaskListStack.spacing = 0
+        stack.addArrangedSubview(subtaskListStack)
         return stack
     }
 
     private func renderSubtasks() {
+        renderDueDateControls()
         subtaskListStack.arrangedSubviews.forEach { view in
             subtaskListStack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
 
-        let children = subtasksWithCompletedLast(appState.subtasks(of: task.id))
-        for child in children {
+        for child in subtasksWithCompletedLast(appState.subtasks(of: task.id)) {
             subtaskListStack.addArrangedSubview(subtaskRow(for: child))
         }
+        subtaskListStack.addArrangedSubview(addSubtaskGhostRow())
     }
 
     private func subtaskRow(for child: TaskItem) -> NSView {
+        let row = TaskDetailSubtaskRow(task: child) { [weak self] in
+            Task {
+                await self?.appState.toggleTask(child)
+            }
+        }
+        return row
+    }
+
+    private func addSubtaskGhostRow() -> NSView {
+        if let addSubtaskField {
+            let stack = NSStackView()
+            stack.orientation = .horizontal
+            stack.alignment = .centerY
+            stack.spacing = 8
+            stack.addArrangedSubview(TaskMenuAppKit.label("+", font: .systemFont(ofSize: 14), color: .tertiaryLabelColor))
+            stack.addArrangedSubview(addSubtaskField)
+            addSubtaskField.onCommit = { [weak self] _ in
+                self?.addSubtask()
+            }
+            addSubtaskField.onEscape = { [weak self] in
+                self?.addSubtaskField = nil
+                self?.renderSubtasks()
+            }
+            DispatchQueue.main.async { [weak addSubtaskField] in
+                addSubtaskField?.window?.makeFirstResponder(addSubtaskField)
+            }
+            return paddedRow(stack)
+        }
+
+        let button = TaskMenuActionButton(title: "Add subtask", symbolName: "plus", pointSize: 11, weight: .medium, accessibilityDescription: "Add subtask") { [weak self] in
+            self?.addSubtaskField = TaskMenuTextField(placeholder: "Add subtask")
+            self?.renderSubtasks()
+        }
+        button.alignment = .left
+        button.imagePosition = .imageLeading
+        button.contentTintColor = .tertiaryLabelColor
+        return paddedRow(button)
+    }
+
+    private func paddedRow(_ child: NSView) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(child)
+        TaskMenuAppKit.pin(
+            child,
+            to: container,
+            insets: NSEdgeInsets(top: 5, left: 8, bottom: 5, right: 8)
+        )
+        container.heightAnchor.constraint(greaterThanOrEqualToConstant: 30).isActive = true
+        return container
+    }
+
+    private func footer() -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
+
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 6
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.heightAnchor.constraint(greaterThanOrEqualToConstant: TaskDetailLayout.subtaskRowHeight)
-        ])
-
-        let symbol = child.isCompleted ? "checkmark.circle.fill" : "circle"
-        let icon = NSImageView(image: TaskMenuAppKit.symbol(symbol, pointSize: 14, weight: .light) ?? NSImage())
-        icon.contentTintColor = child.isCompleted ? .systemGreen : .secondaryLabelColor
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 16),
-            icon.heightAnchor.constraint(equalToConstant: 16)
-        ])
-        stack.addArrangedSubview(icon)
-
-        let label = TaskMenuAppKit.label(
-            child.title,
-            font: .systemFont(ofSize: NSFont.smallSystemFontSize),
-            color: child.isCompleted ? .secondaryLabelColor : .labelColor
+        stack.spacing = 8
+        container.addSubview(stack)
+        TaskMenuAppKit.pin(
+            stack,
+            to: container,
+            insets: NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
         )
-        if child.isCompleted {
-            let text = NSMutableAttributedString(string: child.title)
-            text.addAttribute(
-                .strikethroughStyle,
-                value: NSUnderlineStyle.single.rawValue,
-                range: NSRange(location: 0, length: text.length)
-            )
-            label.attributedStringValue = text
-        }
-        stack.addArrangedSubview(label)
 
-        return stack
+        let deleteButton = NSButton(title: "Delete Task", target: self, action: #selector(deleteTask))
+        deleteButton.bezelStyle = .rounded
+        deleteButton.controlSize = .small
+        deleteButton.contentTintColor = .systemRed
+        stack.addArrangedSubview(deleteButton)
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+        return container
     }
 
     private func observeAppState() {
@@ -336,12 +371,23 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             _ = appState.tasks
             _ = appState.subtasks(of: task.id)
         } onChange: { [weak self] in
+            self?.syncTaskFromAppState()
             self?.renderSubtasks()
         }
     }
 
+    private func syncTaskFromAppState() {
+        guard let updated = appState.tasks.first(where: { $0.id == task.id }) else { return }
+        task = updated
+    }
+
     @objc private func enableDueDate() {
         dueDateState.enable()
+        renderDueDateControls()
+    }
+
+    @objc private func clearDueDate() {
+        dueDateState.clear()
         renderDueDateControls()
     }
 
@@ -350,7 +396,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     @objc private func saveTask() {
-        task.title = titleField.stringValue
+        task.title = titleField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let notes = notesTextView.string.trimmingCharacters(in: .whitespacesAndNewlines)
         task.notes = notes.isEmpty ? nil : notesTextView.string
         let updatedTask = dueDateState.applying(to: task)
@@ -369,11 +415,75 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func addSubtask() {
-        let title = subtaskTitleField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let field = addSubtaskField else { return }
+        let title = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        subtaskTitleField.stringValue = ""
+        field.stringValue = ""
         Task { [appState, task] in
             await appState.addSubtask(title: title, parentId: task.id)
         }
+    }
+}
+
+@MainActor
+private final class TaskDetailSubtaskRow: NSView {
+    init(task: TaskItem, onToggle: @escaping () -> Void) {
+        super.init(frame: .zero)
+        setup(task: task, onToggle: onToggle)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setup(task: TaskItem, onToggle: @escaping () -> Void) {
+        translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        addSubview(stack)
+        TaskMenuAppKit.pin(
+            stack,
+            to: self,
+            insets: NSEdgeInsets(top: 5, left: 8, bottom: 5, right: 8)
+        )
+
+        let toggle = TaskMenuActionButton(
+            symbolName: task.isCompleted ? "checkmark.circle.fill" : "circle",
+            pointSize: 16,
+            accessibilityDescription: task.isCompleted ? "Mark incomplete" : "Mark complete",
+            onPress: onToggle
+        )
+        toggle.contentTintColor = task.isCompleted ? .controlAccentColor : .secondaryLabelColor
+        NSLayoutConstraint.activate([
+            toggle.widthAnchor.constraint(equalToConstant: 22),
+            toggle.heightAnchor.constraint(equalToConstant: 22)
+        ])
+        stack.addArrangedSubview(toggle)
+
+        let label = TaskMenuAppKit.label(
+            task.title,
+            font: .systemFont(ofSize: 12.5),
+            color: task.isCompleted ? .tertiaryLabelColor : .labelColor
+        )
+        if task.isCompleted {
+            let attributed = NSMutableAttributedString(string: task.title)
+            attributed.addAttribute(
+                .strikethroughStyle,
+                value: NSUnderlineStyle.single.rawValue,
+                range: NSRange(location: 0, length: attributed.length)
+            )
+            attributed.addAttribute(
+                .foregroundColor,
+                value: NSColor.tertiaryLabelColor,
+                range: NSRange(location: 0, length: attributed.length)
+            )
+            label.attributedStringValue = attributed
+        }
+        stack.addArrangedSubview(label)
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
     }
 }

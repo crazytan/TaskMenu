@@ -1,29 +1,44 @@
 import AppKit
 
 @MainActor
-final class TaskListContentView: NSView {
+final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate {
     var onOpenTask: ((TaskItem) -> Void)?
     var onToggleTask: ((TaskItem) -> Void)?
     var onDeleteTask: ((TaskItem) -> Void)?
     var onToggleCollapsed: ((String) -> Void)?
-    var onAddSubtaskRequested: ((TaskItem) -> Void)?
-    var onIndentTask: ((TaskItem) -> Void)?
-    var onOutdentTask: ((TaskItem) -> Void)?
     var onToggleCompletedSection: (() -> Void)?
-    var onToggleCompletedSubtasksReveal: ((String) -> Void)?
-    var onInlineSubtaskCommit: ((String, String) -> Void)?
-    var onInlineSubtaskDismiss: (() -> Void)?
+
+    private let scrollView = NSScrollView()
+    private let outlineView = NSOutlineView()
+    private let emptyStateContainer = NSView()
+    private var nodes: [TaskOutlineNode] = []
+    private var nodeByTaskID: [String: TaskOutlineNode] = [:]
+    private var completedGroupNode: TaskOutlineNode?
+    private var pendingFlashTitles: Set<String> = []
+    private var flashingTaskIDs: Set<String> = []
+    private var suppressExpansionCallbacks = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        translatesAutoresizingMaskIntoConstraints = false
-        setContentHuggingPriority(.defaultLow, for: .vertical)
-        setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        setup()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    var scrollOffset: NSPoint {
+        scrollView.contentView.bounds.origin
+    }
+
+    func restoreScrollOffset(_ offset: NSPoint) {
+        scrollView.contentView.scroll(to: offset)
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
+    func flashTask(title: String) {
+        pendingFlashTitles.insert(title)
     }
 
     func render(
@@ -32,128 +47,298 @@ final class TaskListContentView: NSView {
         inlineSubtaskParentID: String?,
         revealedCompletedSubtaskParentIDs: Set<String>
     ) {
-        subviews.forEach { $0.removeFromSuperview() }
-
-        if appState.isLoading && appState.tasks.isEmpty {
-            showCenteredState(symbolName: nil, title: nil, subtitle: nil, showsSpinner: true)
-        } else if appState.tasks.isEmpty {
-            showCenteredState(
-                symbolName: "checklist.unchecked",
-                title: "No tasks yet",
-                subtitle: "Add one above to get started"
-            )
-        } else if appState.isSearching && TaskListPresentation.searchResultCount(from: appState) == 0 {
-            showCenteredState(
-                symbolName: "magnifyingglass",
-                title: "No results",
-                subtitle: nil
-            )
-        } else {
-            showTaskRows(
-                appState: appState,
-                showCompleted: showCompleted,
-                inlineSubtaskParentID: inlineSubtaskParentID,
-                revealedCompletedSubtaskParentIDs: revealedCompletedSubtaskParentIDs
-            )
-        }
+        rebuildNodes(appState: appState)
+        updateEmptyState(appState: appState)
+        outlineView.reloadData()
+        restoreExpansionState(appState: appState, showCompleted: showCompleted)
+        applyPendingFlashes()
     }
 
-    private func showCenteredState(
-        symbolName: String?,
-        title: String?,
-        subtitle: String?,
-        showsSpinner: Bool = false
-    ) {
+    private func setup() {
+        translatesAutoresizingMaskIntoConstraints = false
+        setContentHuggingPriority(.defaultLow, for: .vertical)
+        setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        TaskMenuAppKit.configureTaskListScrollIndicators(scrollView)
+
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("task"))
+        column.resizingMask = .autoresizingMask
+        outlineView.addTableColumn(column)
+        outlineView.outlineTableColumn = column
+        outlineView.headerView = nil
+        outlineView.rowSizeStyle = .custom
+        outlineView.rowHeight = 34
+        outlineView.intercellSpacing = NSSize(width: 0, height: 0)
+        outlineView.backgroundColor = .clear
+        outlineView.selectionHighlightStyle = .regular
+        outlineView.indentationPerLevel = TaskMenuMetrics.taskIndentWidth
+        outlineView.allowsEmptySelection = true
+        outlineView.dataSource = self
+        outlineView.delegate = self
+
+        scrollView.documentView = outlineView
+        addSubview(scrollView)
+        TaskMenuAppKit.pin(scrollView, to: self)
+
+        emptyStateContainer.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateContainer.isHidden = true
+        addSubview(emptyStateContainer)
+        TaskMenuAppKit.pin(emptyStateContainer, to: self)
+    }
+
+    private func rebuildNodes(appState: AppState) {
+        nodeByTaskID = [:]
+        completedGroupNode = nil
+
+        let activeRoots = TaskListPresentation.incompleteRootTasks(from: appState)
+        let activeNodes = activeRoots.map { makeActiveNode(for: $0, appState: appState, level: 0) }
+
+        let completedTasks = tasksSortedByGooglePosition(appState.tasks.filter(\.isCompleted))
+        if completedTasks.isEmpty {
+            nodes = activeNodes
+            return
+        }
+
+        let completedChildren = completedTasks.map { task in
+            TaskOutlineNode(kind: .task(TaskListTaskEntry(
+                task: task,
+                indentLevel: task.parent == nil ? 0 : 1,
+                isParentCompleted: false,
+                section: .completed
+            )))
+        }
+        let completedGroup = TaskOutlineNode(kind: .completedGroup(count: completedTasks.count), children: completedChildren)
+        completedGroupNode = completedGroup
+        nodes = activeNodes + [completedGroup]
+    }
+
+    private func makeActiveNode(for task: TaskItem, appState: AppState, level: Int) -> TaskOutlineNode {
+        let entry = TaskListTaskEntry(
+            task: task,
+            indentLevel: level,
+            isParentCompleted: false,
+            section: .active
+        )
+        let children = appState.subtasks(of: task.id)
+            .filter { !$0.isCompleted }
+            .map { makeActiveNode(for: $0, appState: appState, level: level + 1) }
+        let node = TaskOutlineNode(kind: .task(entry), children: children)
+        nodeByTaskID[task.id] = node
+        return node
+    }
+
+    private func updateEmptyState(appState: AppState) {
+        emptyStateContainer.subviews.forEach { $0.removeFromSuperview() }
+
+        let activeCount = appState.tasks.filter { !$0.isCompleted }.count
+        let shouldShowEmpty = (appState.isLoading && appState.tasks.isEmpty) || activeCount == 0
+        emptyStateContainer.isHidden = !shouldShowEmpty
+        scrollView.isHidden = shouldShowEmpty
+        guard shouldShowEmpty else { return }
+
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
+        emptyStateContainer.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor)
+            stack.centerXAnchor.constraint(equalTo: emptyStateContainer.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: emptyStateContainer.centerYAnchor)
         ])
 
-        if showsSpinner {
+        if appState.isLoading {
             let spinner = NSProgressIndicator()
             spinner.style = .spinning
             spinner.controlSize = .small
             spinner.startAnimation(nil)
             stack.addArrangedSubview(spinner)
-        }
-
-        if let symbolName {
-            let image = NSImageView(image: TaskMenuAppKit.symbol(symbolName, pointSize: 30, weight: .thin) ?? NSImage())
+        } else {
+            let image = NSImageView(image: TaskMenuAppKit.symbol("checklist.unchecked", pointSize: 30, weight: .thin) ?? NSImage())
             image.contentTintColor = .tertiaryLabelColor
             stack.addArrangedSubview(image)
-        }
-
-        if let title {
             stack.addArrangedSubview(TaskMenuAppKit.label(
-                title,
-                font: .systemFont(ofSize: NSFont.systemFontSize),
+                "No open tasks",
+                font: .systemFont(ofSize: 13),
                 color: .secondaryLabelColor
-            ))
-        }
-
-        if let subtitle {
-            stack.addArrangedSubview(TaskMenuAppKit.label(
-                subtitle,
-                font: .systemFont(ofSize: NSFont.smallSystemFontSize),
-                color: .tertiaryLabelColor
             ))
         }
     }
 
-    private func showTaskRows(
-        appState: AppState,
-        showCompleted: Bool,
-        inlineSubtaskParentID: String?,
-        revealedCompletedSubtaskParentIDs: Set<String>
-    ) {
-        let rowsView = TaskListRowsView()
-        rowsView.onOpenTask = onOpenTask
-        rowsView.onToggleTask = onToggleTask
-        rowsView.onDeleteTask = onDeleteTask
-        rowsView.onToggleCollapsed = onToggleCollapsed
-        rowsView.onAddSubtaskRequested = onAddSubtaskRequested
-        rowsView.onIndentTask = onIndentTask
-        rowsView.onOutdentTask = onOutdentTask
-        rowsView.onToggleCompletedSection = onToggleCompletedSection
-        rowsView.onToggleCompletedSubtasksReveal = onToggleCompletedSubtasksReveal
-        rowsView.onInlineSubtaskCommit = onInlineSubtaskCommit
-        rowsView.onInlineSubtaskDismiss = onInlineSubtaskDismiss
-        addSubview(rowsView)
-        TaskMenuAppKit.pin(rowsView, to: self)
-        rowsView.render(
-            appState: appState,
-            showCompleted: showCompleted,
-            inlineSubtaskParentID: inlineSubtaskParentID,
-            revealedCompletedSubtaskParentIDs: revealedCompletedSubtaskParentIDs
-        )
+    private func restoreExpansionState(appState: AppState, showCompleted: Bool) {
+        suppressExpansionCallbacks = true
+        defer { suppressExpansionCallbacks = false }
+
+        for node in nodeByTaskID.values where !node.children.isEmpty {
+            if let task = node.task, appState.collapsedTaskIDs.contains(task.id) {
+                outlineView.collapseItem(node)
+            } else {
+                outlineView.expandItem(node)
+            }
+        }
+
+        if let completedGroupNode {
+            if showCompleted {
+                outlineView.expandItem(completedGroupNode)
+            } else {
+                outlineView.collapseItem(completedGroupNode)
+            }
+        }
+    }
+
+    private func applyPendingFlashes() {
+        guard !pendingFlashTitles.isEmpty else { return }
+        let matchedNodes = nodeByTaskID.values.filter { node in
+            guard let task = node.task else { return false }
+            return pendingFlashTitles.contains(task.title)
+        }
+        guard !matchedNodes.isEmpty else { return }
+
+        for node in matchedNodes {
+            guard let task = node.task else { continue }
+            flashingTaskIDs.insert(task.id)
+            pendingFlashTitles.remove(task.title)
+            let row = outlineView.row(forItem: node)
+            if row >= 0 {
+                outlineView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: 0))
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self, taskID = task.id] in
+                guard let self else { return }
+                self.flashingTaskIDs.remove(taskID)
+                if let node = self.nodeByTaskID[taskID] {
+                    let row = self.outlineView.row(forItem: node)
+                    if row >= 0 {
+                        self.outlineView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: 0))
+                    }
+                }
+            }
+        }
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+        if let node = item as? TaskOutlineNode {
+            return node.children.count
+        }
+        return nodes.count
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+        if let node = item as? TaskOutlineNode {
+            return node.children[index]
+        }
+        return nodes[index]
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+        guard let node = item as? TaskOutlineNode else { return false }
+        return !node.children.isEmpty
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
+        guard let node = item as? TaskOutlineNode else { return 34 }
+        return node.isCompletedGroup ? 32 : 34
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        guard let node = item as? TaskOutlineNode else { return false }
+        return node.task != nil
+    }
+
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        let selectedRow = outlineView.selectedRow
+        guard selectedRow >= 0,
+              let node = outlineView.item(atRow: selectedRow) as? TaskOutlineNode,
+              let task = node.task
+        else {
+            return
+        }
+        outlineView.deselectRow(selectedRow)
+        onOpenTask?(task)
+    }
+
+    func outlineViewItemWillExpand(_ notification: Notification) {
+        guard !suppressExpansionCallbacks,
+              let node = notification.userInfo?["NSObject"] as? TaskOutlineNode
+        else {
+            return
+        }
+        if node.isCompletedGroup {
+            onToggleCompletedSection?()
+        } else if let task = node.task {
+            onToggleCollapsed?(task.id)
+        }
+    }
+
+    func outlineViewItemWillCollapse(_ notification: Notification) {
+        guard !suppressExpansionCallbacks,
+              let node = notification.userInfo?["NSObject"] as? TaskOutlineNode
+        else {
+            return
+        }
+        if node.isCompletedGroup {
+            onToggleCompletedSection?()
+        } else if let task = node.task {
+            onToggleCollapsed?(task.id)
+        }
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+        guard let node = item as? TaskOutlineNode else { return nil }
+
+        switch node.kind {
+        case .completedGroup(let count):
+            return CompletedGroupCellView(count: count)
+        case .task(let entry):
+            let row = TaskOutlineTaskCellView(
+                entry: entry,
+                isFlashing: entry.section == .active && flashingTaskIDs.contains(entry.task.id)
+            )
+            row.onToggle = { [weak self] in
+                self?.onToggleTask?(entry.task)
+            }
+            return row
+        }
     }
 }
 
 @MainActor
-private final class TaskListRowsView: NSView {
-    var onOpenTask: ((TaskItem) -> Void)?
-    var onToggleTask: ((TaskItem) -> Void)?
-    var onDeleteTask: ((TaskItem) -> Void)?
-    var onToggleCollapsed: ((String) -> Void)?
-    var onAddSubtaskRequested: ((TaskItem) -> Void)?
-    var onIndentTask: ((TaskItem) -> Void)?
-    var onOutdentTask: ((TaskItem) -> Void)?
-    var onToggleCompletedSection: (() -> Void)?
-    var onToggleCompletedSubtasksReveal: ((String) -> Void)?
-    var onInlineSubtaskCommit: ((String, String) -> Void)?
-    var onInlineSubtaskDismiss: (() -> Void)?
+private final class TaskOutlineNode: NSObject {
+    enum Kind {
+        case completedGroup(count: Int)
+        case task(TaskListTaskEntry)
+    }
 
-    private let listStack = NSStackView()
+    let kind: Kind
+    let children: [TaskOutlineNode]
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        translatesAutoresizingMaskIntoConstraints = false
+    init(kind: Kind, children: [TaskOutlineNode] = []) {
+        self.kind = kind
+        self.children = children
+    }
+
+    var task: TaskItem? {
+        if case .task(let entry) = kind {
+            return entry.task
+        }
+        return nil
+    }
+
+    var isCompletedGroup: Bool {
+        if case .completedGroup = kind {
+            return true
+        }
+        return false
+    }
+}
+
+@MainActor
+private final class CompletedGroupCellView: NSTableCellView {
+    init(count: Int) {
+        super.init(frame: .zero)
+        setup(count: count)
     }
 
     @available(*, unavailable)
@@ -161,245 +346,123 @@ private final class TaskListRowsView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func render(
-        appState: AppState,
-        showCompleted: Bool,
-        inlineSubtaskParentID: String?,
-        revealedCompletedSubtaskParentIDs: Set<String>
-    ) {
-        let scrollView = NSScrollView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        TaskMenuAppKit.configureTaskListScrollIndicators(scrollView)
-        addSubview(scrollView)
-        TaskMenuAppKit.pin(scrollView, to: self)
+    private func setup(count: Int) {
+        wantsLayer = true
+        layer?.borderWidth = 0
 
-        let content = NSView()
-        content.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.documentView = content
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(separator)
 
-        listStack.orientation = .vertical
-        listStack.alignment = .width
-        listStack.spacing = 0
-        listStack.translatesAutoresizingMaskIntoConstraints = false
-        content.addSubview(listStack)
-        TaskMenuAppKit.pin(
-            listStack,
-            to: content,
-            insets: NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+        let label = TaskMenuAppKit.label(
+            "Completed · \(count)",
+            font: .systemFont(ofSize: 12),
+            color: .secondaryLabelColor
         )
+        addSubview(label)
+
         NSLayoutConstraint.activate([
-            content.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
-            listStack.widthAnchor.constraint(equalTo: content.widthAnchor)
+            separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            separator.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            separator.topAnchor.constraint(equalTo: topAnchor, constant: 2),
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 3)
         ])
+    }
+}
 
-        if appState.isSearching {
-            let count = TaskListPresentation.searchResultCount(from: appState)
-            let resultLabel = TaskMenuAppKit.label(
-                "\(count) result\(count == 1 ? "" : "s")",
-                font: .systemFont(ofSize: NSFont.smallSystemFontSize),
-                color: .secondaryLabelColor
-            )
-            listStack.addArrangedSubview(paddedContainer(resultLabel, left: 14, right: 14, top: 4, bottom: 0))
-        }
+@MainActor
+private final class TaskOutlineTaskCellView: NSTableCellView {
+    var onToggle: (() -> Void)?
 
-        addEntries(
-            TaskListPresentation.flattenedEntries(
-                roots: TaskListPresentation.incompleteRootTasks(from: appState),
-                section: .active,
-                appState: appState,
-                revealedCompletedSubtaskParentIDs: revealedCompletedSubtaskParentIDs
-            ),
-            appState: appState,
-            inlineSubtaskParentID: inlineSubtaskParentID
-        )
+    private let entry: TaskListTaskEntry
+    private let isFlashing: Bool
 
-        let completedRoots = TaskListPresentation.completedRootTasks(from: appState)
-        if !completedRoots.isEmpty {
-            listStack.addArrangedSubview(completedHeader(count: completedRoots.count, isExpanded: showCompleted))
-            if showCompleted || appState.isSearching {
-                addEntries(
-                    TaskListPresentation.flattenedEntries(
-                        roots: completedRoots,
-                        section: .completed,
-                        appState: appState,
-                        revealedCompletedSubtaskParentIDs: revealedCompletedSubtaskParentIDs
-                    ),
-                    appState: appState,
-                    inlineSubtaskParentID: inlineSubtaskParentID
-                )
-            }
-        }
+    init(entry: TaskListTaskEntry, isFlashing: Bool) {
+        self.entry = entry
+        self.isFlashing = isFlashing
+        super.init(frame: .zero)
+        setup()
     }
 
-    private func addEntries(
-        _ entries: [TaskListEntry],
-        appState: AppState,
-        inlineSubtaskParentID: String?
-    ) {
-        for entry in entries {
-            switch entry {
-            case .task(let taskEntry):
-                listStack.addArrangedSubview(taskRow(for: taskEntry, appState: appState))
-                if shouldPlaceInlineSubtaskField(
-                    after: taskEntry.task,
-                    parentID: inlineSubtaskParentID,
-                    isSearching: appState.isSearching,
-                    section: taskEntry.section
-                ) {
-                    listStack.addArrangedSubview(inlineSubtaskField(parentID: taskEntry.task.id, indentLevel: 1))
-                }
-            case .completedSubtasksReveal(let revealEntry):
-                listStack.addArrangedSubview(completedSubtasksRevealRow(entry: revealEntry))
-            }
-        }
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 
-    private func taskRow(for entry: TaskListTaskEntry, appState: AppState) -> NSView {
-        let task = entry.task
-        let row = TaskRowAppKitView(configuration: TaskRowAppKitView.Configuration(
-            task: task,
-            indentLevel: entry.indentLevel,
-            isParentCompleted: entry.isParentCompleted,
-            hasChildren: appState.hasSubtasks(task.id),
-            isCollapsed: appState.collapsedTaskIDs.contains(task.id),
-            canIndent: appState.canIndentTask(task),
-            canOutdent: appState.canOutdentTask(task),
-            canAddSubtask: task.parent == nil && !task.isCompleted
-        ))
-        row.onOpen = { [weak self] in
-            self?.onOpenTask?(task)
-        }
-        row.onToggle = { [weak self] in
-            self?.onToggleTask?(task)
-        }
-        row.onDelete = { [weak self] in
-            self?.onDeleteTask?(task)
-        }
-        row.onCollapseToggle = { [weak self] in
-            self?.onToggleCollapsed?(task.id)
-        }
-        row.onAddSubtask = { [weak self] in
-            self?.onAddSubtaskRequested?(task)
-        }
-        row.onIndent = { [weak self] in
-            self?.onIndentTask?(task)
-        }
-        row.onOutdent = { [weak self] in
-            self?.onOutdentTask?(task)
-        }
+    private func setup() {
+        wantsLayer = true
+        layer?.backgroundColor = isFlashing
+            ? NSColor.controlAccentColor.withAlphaComponent(0.11).cgColor
+            : NSColor.clear.cgColor
 
-        return paddedContainer(row, left: 4, right: 10, top: 0, bottom: 0)
-    }
-
-    private func completedHeader(count: Int, isExpanded: Bool) -> NSView {
-        let button = TaskMenuActionButton(
-            symbolName: "chevron.right",
-            pointSize: 10,
-            accessibilityDescription: isExpanded ? "Hide completed tasks" : "Show completed tasks"
-        ) { [weak self] in
-            self?.onToggleCompletedSection?()
-        }
-        button.title = "Completed (\(count))"
-        button.imagePosition = .imageLeading
-        button.alignment = .left
-        button.contentTintColor = .secondaryLabelColor
-        return paddedContainer(
-            button,
-            left: 14,
-            right: 14,
-            top: TaskListLayout.completedHeaderTopPadding,
-            bottom: 0
-        )
-    }
-
-    private func completedSubtasksRevealRow(entry: CompletedSubtasksRevealEntry) -> NSView {
-        let button = TaskMenuActionButton(
-            symbolName: "chevron.right",
-            pointSize: 9,
-            weight: .semibold,
-            accessibilityDescription: completedSubtasksRevealTitle(count: entry.count, isRevealed: entry.isRevealed)
-        ) { [weak self] in
-            self?.onToggleCompletedSubtasksReveal?(entry.parentID)
-        }
-        button.title = completedSubtasksRevealTitle(count: entry.count, isRevealed: entry.isRevealed)
-        button.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        button.imagePosition = .imageLeading
-        button.alignment = .left
-        button.contentTintColor = .secondaryLabelColor
-        return paddedContainer(
-            button,
-            left: 4 + 2 + CGFloat(entry.indentLevel) * TaskMenuMetrics.taskIndentWidth,
-            right: 10,
-            top: 5,
-            bottom: 5
-        )
-    }
-
-    private func inlineSubtaskField(parentID: String, indentLevel: Int) -> NSView {
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 8
-
-        let leadingSlot = NSView()
-        leadingSlot.translatesAutoresizingMaskIntoConstraints = false
-        leadingSlot.widthAnchor.constraint(equalToConstant: 10).isActive = true
-        stack.addArrangedSubview(leadingSlot)
-
-        let plus = NSImageView(image: TaskMenuAppKit.symbol("plus.circle", pointSize: 16) ?? NSImage())
-        plus.contentTintColor = .secondaryLabelColor
-        plus.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            plus.widthAnchor.constraint(equalToConstant: 18),
-            plus.heightAnchor.constraint(equalToConstant: 18)
-        ])
-        stack.addArrangedSubview(plus)
-
-        let field = TaskMenuTextField(placeholder: "Add subtask...")
-        field.font = .systemFont(ofSize: NSFont.systemFontSize)
-        field.onCommit = { [weak self, weak field] text in
-            let title = text.trimmingCharacters(in: .whitespaces)
-            guard !title.isEmpty else { return }
-            field?.stringValue = ""
-            self?.onInlineSubtaskCommit?(title, parentID)
-        }
-        field.onEscape = { [weak self] in
-            self?.onInlineSubtaskDismiss?()
-        }
-        field.onEndEditing = { [weak self] in
-            self?.onInlineSubtaskDismiss?()
-        }
-        stack.addArrangedSubview(field)
-
-        DispatchQueue.main.async { [weak field] in
-            field?.window?.makeFirstResponder(field)
-        }
-
-        return paddedContainer(
+        stack.spacing = 9
+        addSubview(stack)
+        TaskMenuAppKit.pin(
             stack,
-            left: 4 + 2 + CGFloat(indentLevel) * TaskMenuMetrics.taskIndentWidth,
-            right: 10,
-            top: 6,
-            bottom: 6
+            to: self,
+            insets: NSEdgeInsets(top: 5, left: 0, bottom: 5, right: 14)
         )
+
+        let checkButton = TaskMenuActionButton(
+            symbolName: entry.task.isCompleted ? "checkmark.circle.fill" : "circle",
+            pointSize: entry.indentLevel > 0 ? 16 : 18,
+            weight: .regular,
+            accessibilityDescription: entry.task.isCompleted ? "Mark incomplete" : "Mark complete"
+        ) { [weak self] in
+            self?.onToggle?()
+        }
+        checkButton.contentTintColor = entry.task.isCompleted ? .controlAccentColor : .secondaryLabelColor
+        checkButton.refusesFirstResponder = true
+        NSLayoutConstraint.activate([
+            checkButton.widthAnchor.constraint(equalToConstant: 26),
+            checkButton.heightAnchor.constraint(lessThanOrEqualToConstant: 24)
+        ])
+        stack.addArrangedSubview(checkButton)
+
+        let title = TaskMenuAppKit.label(
+            entry.task.title,
+            font: .systemFont(ofSize: entry.indentLevel > 0 ? 12.5 : 13),
+            color: entry.task.isCompleted ? .tertiaryLabelColor : .labelColor,
+            lines: 1
+        )
+        if entry.task.isCompleted {
+            let attributed = NSMutableAttributedString(string: entry.task.title)
+            attributed.addAttribute(
+                .strikethroughStyle,
+                value: NSUnderlineStyle.single.rawValue,
+                range: NSRange(location: 0, length: attributed.length)
+            )
+            attributed.addAttribute(
+                .foregroundColor,
+                value: NSColor.tertiaryLabelColor,
+                range: NSRange(location: 0, length: attributed.length)
+            )
+            title.attributedStringValue = attributed
+        }
+        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        stack.addArrangedSubview(title)
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+
+        if let dueDate = entry.task.dueDate {
+            stack.addArrangedSubview(TaskMenuAppKit.label(
+                DateFormatting.relativeString(from: dueDate),
+                font: .systemFont(ofSize: 11),
+                color: dueDateColor(dueDate)
+            ))
+        }
     }
 
-    private func paddedContainer(
-        _ child: NSView,
-        left: CGFloat,
-        right: CGFloat,
-        top: CGFloat,
-        bottom: CGFloat
-    ) -> NSView {
-        let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        child.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(child)
-        TaskMenuAppKit.pin(
-            child,
-            to: container,
-            insets: NSEdgeInsets(top: top, left: left, bottom: bottom, right: right)
-        )
-        return container
+    private func dueDateColor(_ date: Date) -> NSColor {
+        if Calendar.current.isDateInToday(date) {
+            return .controlAccentColor
+        } else if date < Calendar.current.startOfDay(for: Date()) {
+            return .systemRed
+        }
+        return .secondaryLabelColor
     }
 }

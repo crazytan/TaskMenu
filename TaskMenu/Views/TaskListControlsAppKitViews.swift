@@ -2,12 +2,27 @@ import AppKit
 
 @MainActor
 final class TaskListHeaderView: NSView {
-    var onShowListPicker: (() -> Void)?
+    var onSelectList: ((String) -> Void)?
     var onOpenSettings: (() -> Void)?
     var onRefresh: (() -> Void)?
+    var onSignOut: (() -> Void)?
 
-    private let listTitleButton = TaskMenuActionButton()
-    private let trailingStack = NSStackView()
+    private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let refreshButton = TaskMenuActionButton(
+        symbolName: "arrow.clockwise",
+        pointSize: 14,
+        weight: .medium,
+        accessibilityDescription: "Refresh tasks"
+    )
+    private let overflowButton = TaskMenuActionButton(
+        symbolName: "ellipsis",
+        pointSize: 15,
+        weight: .semibold,
+        accessibilityDescription: "More actions"
+    )
+    private let refreshSpinner = NSProgressIndicator()
+    private var refreshSpinnerStopTask: Task<Void, Never>?
+    private var representedListIDs: [Int: String] = [:]
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -19,68 +34,21 @@ final class TaskListHeaderView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func render(listTitle: String, listCount: Int, isLoading: Bool) {
-        listTitleButton.title = listTitle
-        listTitleButton.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        listTitleButton.image = listCount > 1
-            ? TaskMenuAppKit.symbol("chevron.down", pointSize: 10, weight: .semibold)
-            : nil
-        listTitleButton.imagePosition = .imageTrailing
-        listTitleButton.isEnabled = listCount > 1
-
-        trailingStack.arrangedSubviews.forEach { view in
-            trailingStack.removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
-
-        trailingStack.addArrangedSubview(headerIconButton(
-            symbolName: "gear",
-            toolTip: "Settings"
-        ) { [weak self] in
-            self?.onOpenSettings?()
-        })
-
-        if isLoading {
-            let spinner = NSProgressIndicator()
-            spinner.style = .spinning
-            spinner.controlSize = .small
-            spinner.startAnimation(nil)
-            spinner.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                spinner.widthAnchor.constraint(equalToConstant: 24),
-                spinner.heightAnchor.constraint(equalToConstant: 24)
-            ])
-            trailingStack.addArrangedSubview(spinner)
-        } else {
-            trailingStack.addArrangedSubview(headerIconButton(
-                symbolName: "arrow.clockwise",
-                toolTip: "Refresh tasks"
-            ) { [weak self] in
-                self?.onRefresh?()
-            })
-        }
-    }
-
-    func showListPickerMenu(
+    func render(
+        listTitle: String,
         taskLists: [TaskList],
         selectedListID: String?,
-        onSelect: @escaping (String) -> Void
+        isLoading: Bool
     ) {
-        guard taskLists.count > 1 else { return }
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-
-        for list in taskLists {
-            let item = ClosureMenuItem(title: list.title) {
-                onSelect(list.id)
-            }
-            if list.id == selectedListID {
-                item.state = .on
-            }
-            menu.addItem(item)
+        rebuildListMenu(taskLists: taskLists, selectedListID: selectedListID)
+        listPopup.attributedTitle = headerTitle(listTitle: listTitle)
+        listPopup.isEnabled = taskLists.count > 1
+        refreshButton.isEnabled = !isLoading
+        if isLoading {
+            showRefreshSpinner()
+        } else {
+            hideRefreshSpinnerAfterMinimumDelay()
         }
-
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: listTitleButton.bounds.height), in: listTitleButton)
     }
 
     private func setup() {
@@ -89,51 +57,165 @@ final class TaskListHeaderView: NSView {
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 8
+        stack.spacing = 4
         addSubview(stack)
         TaskMenuAppKit.pin(
             stack,
             to: self,
-            insets: NSEdgeInsets(top: 12, left: 14, bottom: 8, right: 14)
+            insets: NSEdgeInsets(top: 9, left: 10, bottom: 8, right: 10)
         )
 
-        listTitleButton.onPress = { [weak self] in
-            self?.onShowListPicker?()
-        }
-        stack.addArrangedSubview(listTitleButton)
-        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+        listPopup.isBordered = false
+        listPopup.font = .systemFont(ofSize: 15)
+        listPopup.controlSize = .regular
+        listPopup.target = self
+        listPopup.action = #selector(listSelectionChanged(_:))
+        listPopup.translatesAutoresizingMaskIntoConstraints = false
+        listPopup.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        listPopup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        listPopup.toolTip = "Switch task list"
+        stack.addArrangedSubview(listPopup)
 
-        trailingStack.orientation = .horizontal
-        trailingStack.alignment = .centerY
-        trailingStack.spacing = 4
-        stack.addArrangedSubview(trailingStack)
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+        stack.addArrangedSubview(refreshControlContainer())
+        stack.addArrangedSubview(headerIconContainer(overflowButton))
+
+        refreshButton.onPress = { [weak self] in
+            self?.showRefreshSpinner()
+            self?.onRefresh?()
+        }
+        overflowButton.onPress = { [weak self] in
+            self?.showOverflowMenu()
+        }
     }
 
-    private func headerIconButton(
-        symbolName: String,
-        toolTip: String,
-        onPress: @escaping () -> Void
-    ) -> NSButton {
-        let button = TaskMenuActionButton(
-            symbolName: symbolName,
-            pointSize: 15,
-            weight: .medium,
-            accessibilityDescription: toolTip,
-            onPress: onPress
+    private func rebuildListMenu(
+        taskLists: [TaskList],
+        selectedListID: String?
+    ) {
+        representedListIDs = [:]
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        for list in taskLists {
+            let item = NSMenuItem(title: list.title, action: nil, keyEquivalent: "")
+            item.target = self
+            item.action = #selector(listMenuItemSelected(_:))
+            item.state = list.id == selectedListID ? .on : .off
+            item.representedObject = list.id
+            menu.addItem(item)
+        }
+
+        if !taskLists.isEmpty {
+            menu.addItem(.separator())
+        }
+        let newListItem = NSMenuItem(title: "New List...", action: nil, keyEquivalent: "")
+        newListItem.isEnabled = false
+        menu.addItem(newListItem)
+
+        listPopup.menu = menu
+        if let selectedIndex = taskLists.firstIndex(where: { $0.id == selectedListID }) {
+            listPopup.selectItem(at: selectedIndex)
+        }
+    }
+
+    private func headerTitle(listTitle: String) -> NSAttributedString {
+        NSAttributedString(
+            string: listTitle,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 15),
+                .foregroundColor: NSColor.labelColor
+            ]
         )
+    }
+
+    private func headerIconContainer(_ button: NSButton) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(button)
         NSLayoutConstraint.activate([
-            button.widthAnchor.constraint(equalToConstant: 24),
+            container.widthAnchor.constraint(equalToConstant: 26),
+            container.heightAnchor.constraint(equalToConstant: 24),
+            button.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            button.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            button.widthAnchor.constraint(equalToConstant: 26),
             button.heightAnchor.constraint(equalToConstant: 24)
         ])
-        return button
+        return container
+    }
+
+    private func refreshControlContainer() -> NSView {
+        refreshSpinner.style = .spinning
+        refreshSpinner.controlSize = .small
+        refreshSpinner.isDisplayedWhenStopped = false
+        refreshSpinner.isHidden = true
+        refreshSpinner.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = headerIconContainer(refreshButton)
+        container.addSubview(refreshSpinner)
+        NSLayoutConstraint.activate([
+            refreshSpinner.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            refreshSpinner.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+        ])
+        return container
+    }
+
+    private func showRefreshSpinner() {
+        refreshSpinnerStopTask?.cancel()
+        refreshSpinnerStopTask = nil
+        refreshButton.isHidden = true
+        refreshSpinner.isHidden = false
+        refreshSpinner.startAnimation(nil)
+    }
+
+    private func hideRefreshSpinnerAfterMinimumDelay() {
+        guard !refreshSpinner.isHidden else { return }
+        refreshSpinnerStopTask?.cancel()
+        refreshSpinnerStopTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard let self, !Task.isCancelled else { return }
+            self.refreshSpinner.stopAnimation(nil)
+            self.refreshSpinner.isHidden = true
+            self.refreshButton.isHidden = false
+            self.refreshSpinnerStopTask = nil
+        }
+    }
+
+    private func showOverflowMenu() {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(ClosureMenuItem(title: "Settings...") { [weak self] in
+            self?.onOpenSettings?()
+        })
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: "Sign out") { [weak self] in
+            self?.onSignOut?()
+        })
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem(title: "Quit") {
+            NSApplication.shared.terminate(nil)
+        })
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: overflowButton.bounds.height + 4), in: overflowButton)
+    }
+
+    @objc private func listSelectionChanged(_ sender: NSPopUpButton) {
+        guard let listID = sender.selectedItem?.representedObject as? String else { return }
+        onSelectList?(listID)
+    }
+
+    @objc private func listMenuItemSelected(_ sender: NSMenuItem) {
+        guard let listID = sender.representedObject as? String else { return }
+        onSelectList?(listID)
     }
 }
 
 @MainActor
 final class TaskQuickAddView: NSView {
     var onCommit: ((String) -> Void)?
+    var onEscapeWithEmptyField: (() -> Void)?
 
-    private let field = TaskMenuTextField(placeholder: "Add a task...")
+    private let container = NSView()
+    private let field = TaskMenuTextField(placeholder: "")
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -145,39 +227,55 @@ final class TaskQuickAddView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    func render(listTitle: String) {
+        field.placeholderString = "Add a task to \(listTitle)"
+    }
+
+    func focusField() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.window?.makeFirstResponder(self.field)
+        }
+    }
+
     private func setup() {
         translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
 
-        let container = TaskMenuHoverView()
         container.wantsLayer = true
-        container.layer?.cornerRadius = 8
-        container.layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.16).cgColor
+        container.layer?.cornerRadius = 7
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
+        container.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
         container.translatesAutoresizingMaskIntoConstraints = false
 
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 8
+        stack.spacing = 7
         container.addSubview(stack)
         TaskMenuAppKit.pin(
             stack,
             to: container,
-            insets: NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+            insets: NSEdgeInsets(top: 5, left: 9, bottom: 5, right: 8)
         )
 
-        let addButton = TaskMenuActionButton(
-            symbolName: "plus.circle.fill",
-            pointSize: 16,
-            accessibilityDescription: "Add task"
-        ) { [weak self] in
-            self?.commit()
-        }
-        addButton.contentTintColor = .systemBlue
-        stack.addArrangedSubview(addButton)
+        let plus = NSImageView(image: TaskMenuAppKit.symbol("plus", pointSize: 12, weight: .medium) ?? NSImage())
+        plus.contentTintColor = .tertiaryLabelColor
+        plus.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            plus.widthAnchor.constraint(equalToConstant: 12),
+            plus.heightAnchor.constraint(equalToConstant: 12)
+        ])
+        stack.addArrangedSubview(plus)
 
-        field.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        field.font = .systemFont(ofSize: 13)
         field.onCommit = { [weak self] _ in
             self?.commit()
+        }
+        field.onEscape = { [weak self] in
+            self?.handleEscape()
         }
         stack.addArrangedSubview(field)
 
@@ -185,7 +283,7 @@ final class TaskQuickAddView: NSView {
         TaskMenuAppKit.pin(
             container,
             to: self,
-            insets: NSEdgeInsets(top: 0, left: 10, bottom: 8, right: 10)
+            insets: NSEdgeInsets(top: 9, left: 10, bottom: 9, right: 10)
         )
     }
 
@@ -194,86 +292,14 @@ final class TaskQuickAddView: NSView {
         guard !title.isEmpty else { return }
         field.stringValue = ""
         onCommit?(title)
-    }
-}
-
-@MainActor
-final class TaskSearchBarView: NSView {
-    var onChange: ((String) -> Void)?
-
-    private let field = TaskMenuTextField(placeholder: "Filter tasks...")
-    private let clearButton = TaskMenuActionButton(
-        symbolName: "xmark.circle.fill",
-        pointSize: 11,
-        accessibilityDescription: "Clear search"
-    )
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        setup()
+        focusField()
     }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func render(text: String) {
-        if field.stringValue != text {
-            field.stringValue = text
+    private func handleEscape() {
+        if field.stringValue.isEmpty {
+            onEscapeWithEmptyField?()
+        } else {
+            field.stringValue = ""
         }
-        clearButton.isHidden = text.isEmpty
-    }
-
-    private func setup() {
-        translatesAutoresizingMaskIntoConstraints = false
-
-        let container = TaskMenuHoverView()
-        container.wantsLayer = true
-        container.layer?.cornerRadius = 6
-        container.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.04).cgColor
-        container.translatesAutoresizingMaskIntoConstraints = false
-
-        let stack = NSStackView()
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 6
-        container.addSubview(stack)
-        TaskMenuAppKit.pin(
-            stack,
-            to: container,
-            insets: NSEdgeInsets(top: 5, left: 12, bottom: 5, right: 12)
-        )
-
-        let magnifier = NSImageView(image: TaskMenuAppKit.symbol("magnifyingglass", pointSize: 11) ?? NSImage())
-        magnifier.contentTintColor = .secondaryLabelColor
-        magnifier.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            magnifier.widthAnchor.constraint(equalToConstant: 14),
-            magnifier.heightAnchor.constraint(equalToConstant: 14)
-        ])
-        stack.addArrangedSubview(magnifier)
-
-        field.font = .systemFont(ofSize: NSFont.systemFontSize)
-        field.onChange = { [weak self] text in
-            self?.clearButton.isHidden = text.isEmpty
-            self?.onChange?(text)
-        }
-        stack.addArrangedSubview(field)
-
-        clearButton.contentTintColor = .secondaryLabelColor
-        clearButton.onPress = { [weak self] in
-            self?.field.stringValue = ""
-            self?.clearButton.isHidden = true
-            self?.onChange?("")
-        }
-        stack.addArrangedSubview(clearButton)
-
-        addSubview(container)
-        TaskMenuAppKit.pin(
-            container,
-            to: self,
-            insets: NSEdgeInsets(top: 0, left: 10, bottom: 8, right: 10)
-        )
     }
 }

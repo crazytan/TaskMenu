@@ -4,22 +4,26 @@ import AppKit
 final class TaskListAppKitViewController: NSViewController {
     private let appState: AppState
     private let onOpenSettings: () -> Void
+    private let onRequestClose: () -> Void
     private let appStateObserver = TaskMenuAppStateObserver()
 
     private var selectedTask: TaskItem?
     private var showCompleted = false
-    private var inlineSubtaskParentID: String?
-    private var revealedCompletedSubtaskParentIDs: Set<String> = []
+    private var preservedListScrollOffset: NSPoint?
 
     private let rootStack = NSStackView()
     private let headerView = TaskListHeaderView()
     private let quickAddView = TaskQuickAddView()
-    private let searchView = TaskSearchBarView()
     private var contentView: TaskListContentView?
 
-    init(appState: AppState, onOpenSettings: @escaping () -> Void) {
+    init(
+        appState: AppState,
+        onOpenSettings: @escaping () -> Void,
+        onRequestClose: @escaping () -> Void
+    ) {
         self.appState = appState
         self.onOpenSettings = onOpenSettings
+        self.onRequestClose = onRequestClose
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -49,9 +53,14 @@ final class TaskListAppKitViewController: NSViewController {
         observeAppState()
     }
 
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        quickAddView.focusField()
+    }
+
     private func configureControls() {
-        headerView.onShowListPicker = { [weak self] in
-            self?.showListPicker()
+        headerView.onSelectList = { [weak self] listID in
+            self?.selectList(listID)
         }
         headerView.onOpenSettings = onOpenSettings
         headerView.onRefresh = { [appState] in
@@ -59,16 +68,18 @@ final class TaskListAppKitViewController: NSViewController {
                 await appState.refreshTasks()
             }
         }
-
-        quickAddView.onCommit = { [appState] title in
-            Task {
-                await appState.addTask(title: title)
-            }
+        headerView.onSignOut = { [appState] in
+            appState.signOut()
         }
 
-        searchView.onChange = { [weak self] text in
-            self?.appState.searchText = text
-            self?.renderListContent()
+        quickAddView.onCommit = { [weak self] title in
+            self?.contentView?.flashTask(title: title)
+            Task {
+                await self?.appState.addTask(title: title)
+            }
+        }
+        quickAddView.onEscapeWithEmptyField = { [weak self] in
+            self?.onRequestClose()
         }
     }
 
@@ -85,8 +96,7 @@ final class TaskListAppKitViewController: NSViewController {
 
         if let selectedTask {
             let detailController = TaskDetailAppKitViewController(appState: appState, task: selectedTask) { [weak self] in
-                self?.selectedTask = nil
-                self?.buildListScreen()
+                self?.returnToList()
             }
             addChild(detailController)
             rootStack.addArrangedSubview(detailController.view)
@@ -98,19 +108,24 @@ final class TaskListAppKitViewController: NSViewController {
         configureContentView(contentView)
 
         rootStack.addArrangedSubview(headerView)
-        rootStack.addArrangedSubview(quickAddView)
-        rootStack.addArrangedSubview(searchView)
         rootStack.addArrangedSubview(TaskMenuAppKit.separator())
         rootStack.addArrangedSubview(contentView)
+        rootStack.addArrangedSubview(TaskMenuAppKit.separator())
+        rootStack.addArrangedSubview(quickAddView)
         NSLayoutConstraint.activate([
             contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 1)
         ])
 
         renderListScreen()
+        if let preservedListScrollOffset {
+            contentView.restoreScrollOffset(preservedListScrollOffset)
+            self.preservedListScrollOffset = nil
+        }
     }
 
     private func configureContentView(_ contentView: TaskListContentView) {
         contentView.onOpenTask = { [weak self] task in
+            self?.preservedListScrollOffset = self?.contentView?.scrollOffset
             self?.selectedTask = task
             self?.buildListScreen()
         }
@@ -125,47 +140,27 @@ final class TaskListAppKitViewController: NSViewController {
             }
         }
         contentView.onToggleCollapsed = { [weak self] taskID in
-            self?.appState.toggleCollapsed(taskID)
-            self?.renderListContent()
-        }
-        contentView.onAddSubtaskRequested = { [weak self] task in
-            self?.triggerInlineSubtask(for: task)
-        }
-        contentView.onIndentTask = { [appState] task in
-            Task {
-                await appState.indentTask(task)
-            }
-        }
-        contentView.onOutdentTask = { [appState] task in
-            Task {
-                await appState.outdentTask(task)
+            Task { @MainActor [weak self] in
+                self?.appState.toggleCollapsed(taskID)
+                self?.renderListContent()
             }
         }
         contentView.onToggleCompletedSection = { [weak self] in
-            self?.showCompleted.toggle()
-            self?.renderListContent()
-        }
-        contentView.onToggleCompletedSubtasksReveal = { [weak self] parentID in
-            self?.toggleCompletedSubtasksReveal(for: parentID)
-        }
-        contentView.onInlineSubtaskCommit = { [appState] title, parentID in
-            Task {
-                await appState.addSubtask(title: title, parentId: parentID)
+            Task { @MainActor [weak self] in
+                self?.showCompleted.toggle()
+                self?.renderListContent()
             }
-        }
-        contentView.onInlineSubtaskDismiss = { [weak self] in
-            self?.inlineSubtaskParentID = nil
-            self?.renderListContent()
         }
     }
 
     private func renderListScreen() {
         headerView.render(
             listTitle: appState.selectedList?.title ?? "Tasks",
-            listCount: appState.taskLists.count,
+            taskLists: appState.taskLists,
+            selectedListID: appState.selectedListId,
             isLoading: appState.isLoading
         )
-        searchView.render(text: appState.searchText)
+        quickAddView.render(listTitle: appState.selectedList?.title ?? "Tasks")
         renderListContent()
     }
 
@@ -173,37 +168,22 @@ final class TaskListAppKitViewController: NSViewController {
         contentView?.render(
             appState: appState,
             showCompleted: showCompleted,
-            inlineSubtaskParentID: inlineSubtaskParentID,
-            revealedCompletedSubtaskParentIDs: revealedCompletedSubtaskParentIDs
+            inlineSubtaskParentID: nil,
+            revealedCompletedSubtaskParentIDs: []
         )
     }
 
-    private func triggerInlineSubtask(for task: TaskItem) {
-        if appState.collapsedTaskIDs.contains(task.id) {
-            appState.toggleCollapsed(task.id)
+    private func selectList(_ listID: String) {
+        guard listID != appState.selectedListId else { return }
+        showCompleted = false
+        Task { [appState] in
+            await appState.selectList(listID)
         }
-        inlineSubtaskParentID = task.id
-        renderListContent()
     }
 
-    private func toggleCompletedSubtasksReveal(for parentID: String) {
-        if revealedCompletedSubtaskParentIDs.contains(parentID) {
-            revealedCompletedSubtaskParentIDs.remove(parentID)
-        } else {
-            revealedCompletedSubtaskParentIDs.insert(parentID)
-        }
-        renderListContent()
-    }
-
-    private func showListPicker() {
-        headerView.showListPickerMenu(
-            taskLists: appState.taskLists,
-            selectedListID: appState.selectedListId
-        ) { [appState] listID in
-            Task {
-                await appState.selectList(listID)
-            }
-        }
+    private func returnToList() {
+        selectedTask = nil
+        buildListScreen()
     }
 
     private func observeAppState() {

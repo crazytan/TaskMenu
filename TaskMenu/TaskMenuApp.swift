@@ -46,7 +46,7 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     private let metricKitService = MetricKitService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !TaskMenuApp.isUnitTesting {
+        if TaskMenuApp.currentUIMode == .testingWindow || !TaskMenuApp.isUnitTesting {
             configureUserInterface(for: TaskMenuApp.currentUIMode)
         }
 
