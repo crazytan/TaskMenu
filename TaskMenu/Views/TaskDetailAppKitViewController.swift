@@ -106,7 +106,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.alignment = .width
+        stack.alignment = .leading
         stack.spacing = 10
         container.addSubview(stack)
         TaskMenuAppKit.pin(
@@ -185,6 +185,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         group.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
         group.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
         group.translatesAutoresizingMaskIntoConstraints = false
+        group.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
 
         group.addArrangedSubview(metaRow(label: "Due date", control: dueDateControls))
         group.addArrangedSubview(TaskMenuAppKit.separator())
@@ -263,12 +264,12 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private func subtaskSection() -> NSView {
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.alignment = .width
+        stack.alignment = .leading
         stack.spacing = 0
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         subtaskListStack.orientation = .vertical
-        subtaskListStack.alignment = .width
+        subtaskListStack.alignment = .leading
         subtaskListStack.spacing = 0
         stack.addArrangedSubview(subtaskListStack)
         return stack
@@ -337,6 +338,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             insets: NSEdgeInsets(top: 5, left: 8, bottom: 5, right: 8)
         )
         container.heightAnchor.constraint(greaterThanOrEqualToConstant: 30).isActive = true
+        container.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
         return container
     }
 
@@ -439,6 +441,7 @@ private final class TaskDetailSubtaskRow: NSView {
 
     private func setup(task: TaskItem, onToggle: @escaping () -> Void) {
         translatesAutoresizingMaskIntoConstraints = false
+        widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
 
         let stack = NSStackView()
         stack.orientation = .horizontal

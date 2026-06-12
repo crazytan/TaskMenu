@@ -18,6 +18,10 @@
 
 ### Fixed
 - Aligned the completed-section divider, disclosure chevron, completed task check icons, and subtask rows with the main task list rows.
+- Fixed the right-click Delete menu on task rows, which never appeared because the cell-level context menu was bypassed by the outline view.
+- Fixed the completed-section header so clicking anywhere on the row reliably expands or collapses it.
+- Replaced the built-in outline disclosure triangle (which overlapped the completion circle) with a dedicated chevron column that is vertically aligned across task rows and the completed-section header, and indented subtask rows under their parents.
+- Left-aligned the Subtasks header, subtask rows, and Add subtask control in the task detail view.
 
 ## v1.2.0 (2026-05-16)
 

@@ -1,6 +1,13 @@
 import AppKit
 
 @MainActor
+private enum TaskListRowLayout {
+    static let leadingInset: CGFloat = 4
+    static let disclosureSlotSize: CGFloat = 18
+    static let disclosureSpacing: CGFloat = 4
+}
+
+@MainActor
 final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate {
     var onOpenTask: ((TaskItem) -> Void)?
     var onToggleTask: ((TaskItem) -> Void)?
@@ -9,11 +16,12 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     var onToggleCompletedSection: (() -> Void)?
 
     private let scrollView = NSScrollView()
-    private let outlineView = NSOutlineView()
+    private let outlineView = TaskListOutlineView()
     private let emptyStateContainer = NSView()
     private var nodes: [TaskOutlineNode] = []
     private var nodeByTaskID: [String: TaskOutlineNode] = [:]
     private var completedGroupNode: TaskOutlineNode?
+    private var collapsedTaskIDs: Set<String> = []
     private var pendingFlashTitles: Set<String> = []
     private var flashingTaskIDs: Set<String> = []
     private var suppressExpansionCallbacks = false
@@ -47,6 +55,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         inlineSubtaskParentID: String?,
         revealedCompletedSubtaskParentIDs: Set<String>
     ) {
+        collapsedTaskIDs = appState.collapsedTaskIDs
         rebuildNodes(appState: appState, showCompleted: showCompleted)
         updateEmptyState(appState: appState)
         outlineView.reloadData()
@@ -78,6 +87,11 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         outlineView.allowsEmptySelection = true
         outlineView.dataSource = self
         outlineView.delegate = self
+        outlineView.target = self
+        outlineView.action = #selector(outlineViewClicked)
+        outlineView.menuForRow = { [weak self] row in
+            self?.contextMenu(forRow: row)
+        }
 
         scrollView.documentView = outlineView
         addSubview(scrollView)
@@ -87,6 +101,31 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         emptyStateContainer.isHidden = true
         addSubview(emptyStateContainer)
         TaskMenuAppKit.pin(emptyStateContainer, to: self)
+    }
+
+    @objc private func outlineViewClicked() {
+        let row = outlineView.clickedRow
+        guard row >= 0,
+              let node = outlineView.item(atRow: row) as? TaskOutlineNode,
+              node.isCompletedGroup
+        else {
+            return
+        }
+        onToggleCompletedSection?()
+    }
+
+    private func contextMenu(forRow row: Int) -> NSMenu? {
+        guard let node = outlineView.item(atRow: row) as? TaskOutlineNode,
+              let task = node.task
+        else {
+            return nil
+        }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(ClosureMenuItem(title: "Delete", symbolName: "trash") { [weak self] in
+            self?.onDeleteTask?(task)
+        })
+        return menu
     }
 
     private func rebuildNodes(appState: AppState, showCompleted: Bool) {
@@ -244,8 +283,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     }
 
     func outlineView(_ outlineView: NSOutlineView, shouldShowOutlineCellForItem item: Any) -> Bool {
-        guard let node = item as? TaskOutlineNode else { return true }
-        return !node.isCompletedGroup
+        false
     }
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
@@ -299,13 +337,15 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         case .task(let entry):
             let row = TaskOutlineTaskCellView(
                 entry: entry,
-                isFlashing: entry.section == .active && flashingTaskIDs.contains(entry.task.id)
+                isFlashing: entry.section == .active && flashingTaskIDs.contains(entry.task.id),
+                hasChildren: !node.children.isEmpty,
+                isCollapsed: collapsedTaskIDs.contains(entry.task.id)
             )
             row.onToggle = { [weak self] in
                 self?.onToggleTask?(entry.task)
             }
-            row.onDelete = { [weak self] in
-                self?.onDeleteTask?(entry.task)
+            row.onToggleCollapse = { [weak self] in
+                self?.onToggleCollapsed?(entry.task.id)
             }
             return row
         }
@@ -344,8 +384,6 @@ private final class TaskOutlineNode: NSObject {
 
 @MainActor
 private final class CompletedGroupCellView: NSTableCellView {
-    private static let outlineGutterWidth: CGFloat = 16
-
     var onToggle: (() -> Void)?
 
     init(count: Int, isExpanded: Bool) {
@@ -356,14 +394,6 @@ private final class CompletedGroupCellView: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        super.mouseUp(with: event)
-        guard event.clickCount == 1 else { return }
-        let location = convert(event.locationInWindow, from: nil)
-        guard !(hitTest(location) is NSButton) else { return }
-        onToggle?()
     }
 
     private func setup(count: Int, isExpanded: Bool) {
@@ -378,22 +408,21 @@ private final class CompletedGroupCellView: NSTableCellView {
         let headerStack = NSStackView()
         headerStack.orientation = .horizontal
         headerStack.alignment = .centerY
-        headerStack.spacing = 4
+        headerStack.spacing = TaskListRowLayout.disclosureSpacing
         headerStack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(headerStack)
 
         let chevron = TaskMenuActionButton(
-            symbolName: "chevron.right",
+            symbolName: isExpanded ? "chevron.down" : "chevron.right",
             pointSize: 9,
             weight: .semibold,
             accessibilityDescription: isExpanded ? "Hide completed tasks" : "Show completed tasks"
         ) { [weak self] in
             self?.onToggle?()
         }
-        chevron.frameRotation = isExpanded ? 90 : 0
         NSLayoutConstraint.activate([
-            chevron.widthAnchor.constraint(equalToConstant: 18),
-            chevron.heightAnchor.constraint(equalToConstant: 18)
+            chevron.widthAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize),
+            chevron.heightAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize)
         ])
         headerStack.addArrangedSubview(chevron)
 
@@ -405,10 +434,10 @@ private final class CompletedGroupCellView: NSTableCellView {
         headerStack.addArrangedSubview(label)
 
         NSLayoutConstraint.activate([
-            separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: -Self.outlineGutterWidth),
-            separator.trailingAnchor.constraint(equalTo: trailingAnchor, constant: Self.outlineGutterWidth),
+            separator.leadingAnchor.constraint(equalTo: leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: trailingAnchor),
             separator.topAnchor.constraint(equalTo: topAnchor, constant: 2),
-            headerStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            headerStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: TaskListRowLayout.leadingInset),
             headerStack.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 3)
         ])
     }
@@ -417,14 +446,18 @@ private final class CompletedGroupCellView: NSTableCellView {
 @MainActor
 private final class TaskOutlineTaskCellView: NSTableCellView {
     var onToggle: (() -> Void)?
-    var onDelete: (() -> Void)?
+    var onToggleCollapse: (() -> Void)?
 
     private let entry: TaskListTaskEntry
     private let isFlashing: Bool
+    private let hasChildren: Bool
+    private let isCollapsed: Bool
 
-    init(entry: TaskListTaskEntry, isFlashing: Bool) {
+    init(entry: TaskListTaskEntry, isFlashing: Bool, hasChildren: Bool, isCollapsed: Bool) {
         self.entry = entry
         self.isFlashing = isFlashing
+        self.hasChildren = hasChildren
+        self.isCollapsed = isCollapsed
         super.init(frame: .zero)
         setup()
     }
@@ -432,15 +465,6 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-        menu.addItem(ClosureMenuItem(title: "Delete", symbolName: "trash") { [weak self] in
-            self?.onDelete?()
-        })
-        return menu
     }
 
     private func setup() {
@@ -457,8 +481,17 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
         TaskMenuAppKit.pin(
             stack,
             to: self,
-            insets: NSEdgeInsets(top: 5, left: 0, bottom: 5, right: 14)
+            insets: NSEdgeInsets(
+                top: 5,
+                left: TaskListRowLayout.leadingInset + CGFloat(entry.indentLevel) * TaskMenuMetrics.taskIndentWidth,
+                bottom: 5,
+                right: 14
+            )
         )
+
+        let disclosureSlot = makeDisclosureSlot()
+        stack.addArrangedSubview(disclosureSlot)
+        stack.setCustomSpacing(TaskListRowLayout.disclosureSpacing, after: disclosureSlot)
 
         let checkButton = TaskMenuActionButton(
             symbolName: entry.task.isCompleted ? "checkmark.circle.fill" : "circle",
@@ -509,6 +542,33 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
         }
     }
 
+    private func makeDisclosureSlot() -> NSView {
+        let slot = NSView()
+        slot.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            slot.widthAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize),
+            slot.heightAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize)
+        ])
+        guard hasChildren else { return slot }
+
+        let chevron = TaskMenuActionButton(
+            symbolName: isCollapsed ? "chevron.right" : "chevron.down",
+            pointSize: 9,
+            weight: .semibold,
+            accessibilityDescription: isCollapsed ? "Expand subtasks" : "Collapse subtasks"
+        ) { [weak self] in
+            self?.onToggleCollapse?()
+        }
+        slot.addSubview(chevron)
+        NSLayoutConstraint.activate([
+            chevron.centerXAnchor.constraint(equalTo: slot.centerXAnchor),
+            chevron.centerYAnchor.constraint(equalTo: slot.centerYAnchor),
+            chevron.widthAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize),
+            chevron.heightAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize)
+        ])
+        return slot
+    }
+
     private func dueDateColor(_ date: Date) -> NSColor {
         if Calendar.current.isDateInToday(date) {
             return .controlAccentColor
@@ -516,5 +576,22 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
             return .systemRed
         }
         return .secondaryLabelColor
+    }
+}
+
+@MainActor
+private final class TaskListOutlineView: NSOutlineView {
+    var menuForRow: ((Int) -> NSMenu?)?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let point = convert(event.locationInWindow, from: nil)
+        let row = row(at: point)
+        guard row >= 0 else { return nil }
+        return menuForRow?(row)
+    }
+
+    override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {
+        let frame = super.frameOfCell(atColumn: column, row: row)
+        return NSRect(x: 0, y: frame.origin.y, width: bounds.width, height: frame.height)
     }
 }
