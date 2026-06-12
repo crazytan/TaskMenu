@@ -22,6 +22,11 @@ final class TaskMenuAppTests: XCTestCase {
         )
     }
 
+    func testSeededTestingWindowDataRequiresTestingWindowArgument() {
+        XCTAssertTrue(TaskMenuApp.shouldSeedTestingWindowTasks(arguments: ["TaskMenu", "--testing-window", "--seeded-tasks"]))
+        XCTAssertFalse(TaskMenuApp.shouldSeedTestingWindowTasks(arguments: ["TaskMenu", "--seeded-tasks"]))
+    }
+
     func testApplicationMainInstallsDelegate() throws {
         let delegate = try XCTUnwrap(TaskMenuApplication.installedDelegate)
 

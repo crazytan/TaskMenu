@@ -11,10 +11,15 @@
 ### Added
 - Added Homebrew tap installation instructions and release maintenance notes.
 - Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
+- Added a right-click Delete action for task rows in the popover task list.
+- Added seeded task data for testing-window verification.
 
 ### Changed
 - Reimplemented the Settings window with AppKit and removed SwiftUI from the app target.
 - Simplified popover layout ownership so the shell owns sizing and child views fill the available space.
+
+### Fixed
+- Aligned the completed-section divider, disclosure chevron, completed task check icons, and subtask rows with the main task list rows.
 
 ## v1.2.0 (2026-05-16)
 

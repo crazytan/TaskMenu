@@ -47,10 +47,10 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         inlineSubtaskParentID: String?,
         revealedCompletedSubtaskParentIDs: Set<String>
     ) {
-        rebuildNodes(appState: appState)
+        rebuildNodes(appState: appState, showCompleted: showCompleted)
         updateEmptyState(appState: appState)
         outlineView.reloadData()
-        restoreExpansionState(appState: appState, showCompleted: showCompleted)
+        restoreExpansionState(appState: appState)
         applyPendingFlashes()
     }
 
@@ -74,7 +74,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         outlineView.intercellSpacing = NSSize(width: 0, height: 0)
         outlineView.backgroundColor = .clear
         outlineView.selectionHighlightStyle = .regular
-        outlineView.indentationPerLevel = TaskMenuMetrics.taskIndentWidth
+        outlineView.indentationPerLevel = 0
         outlineView.allowsEmptySelection = true
         outlineView.dataSource = self
         outlineView.delegate = self
@@ -89,7 +89,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         TaskMenuAppKit.pin(emptyStateContainer, to: self)
     }
 
-    private func rebuildNodes(appState: AppState) {
+    private func rebuildNodes(appState: AppState, showCompleted: Bool) {
         nodeByTaskID = [:]
         completedGroupNode = nil
 
@@ -102,7 +102,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             return
         }
 
-        let completedChildren = completedTasks.map { task in
+        let completedNodes = completedTasks.map { task in
             TaskOutlineNode(kind: .task(TaskListTaskEntry(
                 task: task,
                 indentLevel: task.parent == nil ? 0 : 1,
@@ -110,9 +110,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
                 section: .completed
             )))
         }
-        let completedGroup = TaskOutlineNode(kind: .completedGroup(count: completedTasks.count), children: completedChildren)
+        let completedGroup = TaskOutlineNode(kind: .completedGroup(count: completedTasks.count, isExpanded: showCompleted))
         completedGroupNode = completedGroup
-        nodes = activeNodes + [completedGroup]
+        nodes = activeNodes + [completedGroup] + (showCompleted ? completedNodes : [])
     }
 
     private func makeActiveNode(for task: TaskItem, appState: AppState, level: Int) -> TaskOutlineNode {
@@ -168,7 +168,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
     }
 
-    private func restoreExpansionState(appState: AppState, showCompleted: Bool) {
+    private func restoreExpansionState(appState: AppState) {
         suppressExpansionCallbacks = true
         defer { suppressExpansionCallbacks = false }
 
@@ -181,11 +181,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
 
         if let completedGroupNode {
-            if showCompleted {
-                outlineView.expandItem(completedGroupNode)
-            } else {
-                outlineView.collapseItem(completedGroupNode)
-            }
+            outlineView.reloadItem(completedGroupNode)
         }
     }
 
@@ -247,6 +243,11 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         return node.task != nil
     }
 
+    func outlineView(_ outlineView: NSOutlineView, shouldShowOutlineCellForItem item: Any) -> Bool {
+        guard let node = item as? TaskOutlineNode else { return true }
+        return !node.isCompletedGroup
+    }
+
     func outlineViewSelectionDidChange(_ notification: Notification) {
         let selectedRow = outlineView.selectedRow
         guard selectedRow >= 0,
@@ -289,8 +290,12 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         guard let node = item as? TaskOutlineNode else { return nil }
 
         switch node.kind {
-        case .completedGroup(let count):
-            return CompletedGroupCellView(count: count)
+        case .completedGroup(let count, let isExpanded):
+            let row = CompletedGroupCellView(count: count, isExpanded: isExpanded)
+            row.onToggle = { [weak self] in
+                self?.onToggleCompletedSection?()
+            }
+            return row
         case .task(let entry):
             let row = TaskOutlineTaskCellView(
                 entry: entry,
@@ -298,6 +303,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             )
             row.onToggle = { [weak self] in
                 self?.onToggleTask?(entry.task)
+            }
+            row.onDelete = { [weak self] in
+                self?.onDeleteTask?(entry.task)
             }
             return row
         }
@@ -307,7 +315,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
 @MainActor
 private final class TaskOutlineNode: NSObject {
     enum Kind {
-        case completedGroup(count: Int)
+        case completedGroup(count: Int, isExpanded: Bool)
         case task(TaskListTaskEntry)
     }
 
@@ -336,9 +344,13 @@ private final class TaskOutlineNode: NSObject {
 
 @MainActor
 private final class CompletedGroupCellView: NSTableCellView {
-    init(count: Int) {
+    private static let outlineGutterWidth: CGFloat = 16
+
+    var onToggle: (() -> Void)?
+
+    init(count: Int, isExpanded: Bool) {
         super.init(frame: .zero)
-        setup(count: count)
+        setup(count: count, isExpanded: isExpanded)
     }
 
     @available(*, unavailable)
@@ -346,7 +358,15 @@ private final class CompletedGroupCellView: NSTableCellView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func setup(count: Int) {
+    override func mouseUp(with event: NSEvent) {
+        super.mouseUp(with: event)
+        guard event.clickCount == 1 else { return }
+        let location = convert(event.locationInWindow, from: nil)
+        guard !(hitTest(location) is NSButton) else { return }
+        onToggle?()
+    }
+
+    private func setup(count: Int, isExpanded: Bool) {
         wantsLayer = true
         layer?.borderWidth = 0
 
@@ -355,19 +375,41 @@ private final class CompletedGroupCellView: NSTableCellView {
         separator.translatesAutoresizingMaskIntoConstraints = false
         addSubview(separator)
 
+        let headerStack = NSStackView()
+        headerStack.orientation = .horizontal
+        headerStack.alignment = .centerY
+        headerStack.spacing = 4
+        headerStack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(headerStack)
+
+        let chevron = TaskMenuActionButton(
+            symbolName: "chevron.right",
+            pointSize: 9,
+            weight: .semibold,
+            accessibilityDescription: isExpanded ? "Hide completed tasks" : "Show completed tasks"
+        ) { [weak self] in
+            self?.onToggle?()
+        }
+        chevron.frameRotation = isExpanded ? 90 : 0
+        NSLayoutConstraint.activate([
+            chevron.widthAnchor.constraint(equalToConstant: 18),
+            chevron.heightAnchor.constraint(equalToConstant: 18)
+        ])
+        headerStack.addArrangedSubview(chevron)
+
         let label = TaskMenuAppKit.label(
             "Completed · \(count)",
             font: .systemFont(ofSize: 12),
             color: .secondaryLabelColor
         )
-        addSubview(label)
+        headerStack.addArrangedSubview(label)
 
         NSLayoutConstraint.activate([
-            separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            separator.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            separator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: -Self.outlineGutterWidth),
+            separator.trailingAnchor.constraint(equalTo: trailingAnchor, constant: Self.outlineGutterWidth),
             separator.topAnchor.constraint(equalTo: topAnchor, constant: 2),
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 3)
+            headerStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            headerStack.centerYAnchor.constraint(equalTo: centerYAnchor, constant: 3)
         ])
     }
 }
@@ -375,6 +417,7 @@ private final class CompletedGroupCellView: NSTableCellView {
 @MainActor
 private final class TaskOutlineTaskCellView: NSTableCellView {
     var onToggle: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     private let entry: TaskListTaskEntry
     private let isFlashing: Bool
@@ -389,6 +432,15 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.addItem(ClosureMenuItem(title: "Delete", symbolName: "trash") { [weak self] in
+            self?.onDelete?()
+        })
+        return menu
     }
 
     private func setup() {

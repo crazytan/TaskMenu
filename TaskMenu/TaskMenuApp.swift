@@ -13,12 +13,20 @@ enum TaskMenuApp {
         uiMode(arguments: CommandLine.arguments)
     }
 
+    static var shouldSeedTestingWindowTasks: Bool {
+        shouldSeedTestingWindowTasks(arguments: CommandLine.arguments)
+    }
+
     static func uiMode(arguments: [String]) -> TaskMenuUIMode {
         if arguments.contains("--testing-window") {
             return .testingWindow
         }
 
         return .menuBar
+    }
+
+    static func shouldSeedTestingWindowTasks(arguments: [String]) -> Bool {
+        arguments.contains("--testing-window") && arguments.contains("--seeded-tasks")
     }
 }
 
@@ -38,7 +46,15 @@ enum TaskMenuApplication {
 
 @MainActor
 final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
-    lazy var appState = AppState()
+    lazy var appState: AppState = {
+        if TaskMenuApp.shouldSeedTestingWindowTasks {
+            let state = AppState(api: TestingWindowTasksAPI())
+            state.isSignedIn = true
+            return state
+        }
+
+        return AppState()
+    }()
 
     private var statusBarController: StatusBarController?
     private var testingWindowController: TestingWindowController?
@@ -103,5 +119,122 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         }
 
         settingsWindowController?.showSettings()
+    }
+}
+
+private actor TestingWindowTasksAPI: TasksAPIProtocol {
+    private let list = TaskList(id: "seeded-list", title: "Seeded Tasks", selfLink: nil, updated: nil)
+    private var tasks: [TaskItem] = [
+        TaskItem(
+            id: "active-parent",
+            title: "Active parent with subtasks",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: "0001",
+            updated: nil
+        ),
+        TaskItem(
+            id: "active-child",
+            title: "Active subtask aligned left",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: "active-parent",
+            position: "0001",
+            updated: nil
+        ),
+        TaskItem(
+            id: "delete-target",
+            title: "Right click delete target",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: "0002",
+            updated: nil
+        ),
+        TaskItem(
+            id: "active-standalone",
+            title: "Another active task",
+            notes: nil,
+            status: .needsAction,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: "0003",
+            updated: nil
+        ),
+        TaskItem(
+            id: "completed-root",
+            title: "Completed root task",
+            notes: nil,
+            status: .completed,
+            due: nil,
+            selfLink: nil,
+            parent: nil,
+            position: "0004",
+            updated: nil
+        ),
+        TaskItem(
+            id: "completed-child",
+            title: "Completed subtask aligned left",
+            notes: nil,
+            status: .completed,
+            due: nil,
+            selfLink: nil,
+            parent: "active-parent",
+            position: "0002",
+            updated: nil
+        )
+    ]
+
+    func listTaskLists() async throws -> [TaskList] {
+        [list]
+    }
+
+    func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {
+        showCompleted ? tasks : tasks.filter { !$0.isCompleted }
+    }
+
+    func createTask(listId: String, title: String, notes: String?, due: String?, parentId: String?) async throws -> TaskItem {
+        let task = TaskItem(
+            id: UUID().uuidString,
+            title: title,
+            notes: notes,
+            status: .needsAction,
+            due: due,
+            selfLink: nil,
+            parent: parentId,
+            position: String(format: "%04d", tasks.count + 1),
+            updated: nil
+        )
+        tasks.insert(task, at: 0)
+        return task
+    }
+
+    func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem {
+        if let index = tasks.firstIndex(where: { $0.id == taskId }) {
+            tasks[index] = task
+        }
+        return task
+    }
+
+    func deleteTask(listId: String, taskId: String) async throws {
+        let childIDs = tasks.filter { $0.parent == taskId }.map(\.id)
+        let removedIDs = Set([taskId] + childIDs)
+        tasks.removeAll { removedIDs.contains($0.id) }
+    }
+
+    func moveTask(listId: String, taskId: String, previousId: String?, parentId: String?) async throws -> TaskItem {
+        guard let index = tasks.firstIndex(where: { $0.id == taskId }) else {
+            throw APIError.serverError(404, "Task not found")
+        }
+        tasks[index].parent = parentId
+        return tasks[index]
     }
 }
