@@ -22,9 +22,11 @@ final class TaskMenuAppTests: XCTestCase {
         )
     }
 
-    func testSeededTestingWindowDataRequiresTestingWindowArgument() {
-        XCTAssertTrue(TaskMenuApp.shouldSeedTestingWindowTasks(arguments: ["TaskMenu", "--testing-window", "--seeded-tasks"]))
-        XCTAssertFalse(TaskMenuApp.shouldSeedTestingWindowTasks(arguments: ["TaskMenu", "--seeded-tasks"]))
+    func testUIModeIgnoresUnknownArguments() {
+        XCTAssertEqual(
+            TaskMenuApp.uiMode(arguments: ["TaskMenu", "--seeded-tasks"]),
+            .menuBar
+        )
     }
 
     func testApplicationMainInstallsDelegate() throws {

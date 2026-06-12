@@ -15,8 +15,6 @@
 - Added seeded task data for testing-window verification.
 
 ### Changed
-- Reimplemented the Settings window with AppKit and removed SwiftUI from the app target.
-- Simplified popover layout ownership so the shell owns sizing and child views fill the available space.
 
 ### Fixed
 - Aligned the completed-section divider, disclosure chevron, completed task check icons, and subtask rows with the main task list rows.

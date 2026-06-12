@@ -63,6 +63,18 @@ xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
 - When verifying a fix or new feature, run only the minimal relevant `-only-testing:` slice.
 - OAuth-enabled app launches require a local `Config.xcconfig` copied from `Config.xcconfig.example` with `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME`.
 
+## UI Tasks (Agent Self-Verification)
+
+To see and verify UI changes without credentials, launch the app with `--testing-window` argument.
+Remember to always run the full UI verification loop first before working on any changes to discover
+any issues early (e.g., macOS permission issues).
+
+- The task UI opens in a regular window (signed-in state, seeded fake tasks) instead of the menu bar popover.
+- Seeded data covers three lists: "Seeded Tasks" (subtasks, completed section, delete target), "Due Dates" (overdue/today/tomorrow/future due dates on parents and subtasks), and "Empty List" (empty state). Switch lists with the picker at the top.
+- Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no persisted defaults. Task mutations (add/complete/delete/indent) work against the fake API and reset on relaunch.
+- Take screenshots with `screencapture` to inspect rendering, then kill the process when done.
+- Fakes live at the bottom of `TaskMenu/TaskMenuApp.swift` (`TestingWindowTasksAPI` and friends); extend the seeded data there if a UI state you need is missing.
+
 ## Security And Privacy Reminders
 
 - OAuth refresh/access tokens belong in Keychain only.

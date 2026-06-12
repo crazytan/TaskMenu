@@ -17,7 +17,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 - `TaskMenuAppDelegate` owns the shared `AppState`. Pass that same instance into status-bar and settings UI.
 - `applicationDidFinishLaunching` calls `bootstrapSignedInState()` asynchronously. Avoid blocking launch with network work.
 - `StatusBarController` calls `refreshForMenuPresentation()` when the popover opens. Keep this fast and tolerant of cached data.
-- `--testing-window` launches the same task UI in a regular AppKit window for local interaction/testing. Normal launches remain menu-bar-only.
+- `--testing-window` launches the same task UI in a regular AppKit window with a fully in-memory `AppState`: seeded fake tasks, an in-memory keychain (no real Keychain access), no Google credentials or network, no notifications, no update checks, and throwaway UserDefaults. The fakes live in `TaskMenuApp.swift`. Normal launches remain menu-bar-only.
 
 ## AppKit Boundaries
 
