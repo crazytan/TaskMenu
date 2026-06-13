@@ -9,6 +9,7 @@ final class TaskListAppKitViewController: NSViewController {
 
     private var selectedTask: TaskItem?
     private var showCompleted = false
+    private var expandedCompletedSubtaskParentIDs: Set<String> = []
     private var preservedListScrollOffset: NSPoint?
 
     private let rootStack = NSStackView()
@@ -151,6 +152,17 @@ final class TaskListAppKitViewController: NSViewController {
                 self?.renderListContent()
             }
         }
+        contentView.onToggleCompletedSubtasks = { [weak self] parentID in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if expandedCompletedSubtaskParentIDs.contains(parentID) {
+                    expandedCompletedSubtaskParentIDs.remove(parentID)
+                } else {
+                    expandedCompletedSubtaskParentIDs.insert(parentID)
+                }
+                renderListContent()
+            }
+        }
     }
 
     private func renderListScreen() {
@@ -165,12 +177,17 @@ final class TaskListAppKitViewController: NSViewController {
     }
 
     private func renderListContent() {
-        contentView?.render(appState: appState, showCompleted: showCompleted)
+        contentView?.render(
+            appState: appState,
+            showCompleted: showCompleted,
+            expandedCompletedSubtaskParentIDs: expandedCompletedSubtaskParentIDs
+        )
     }
 
     private func selectList(_ listID: String) {
         guard listID != appState.selectedListId else { return }
         showCompleted = false
+        expandedCompletedSubtaskParentIDs = []
         Task { [appState] in
             await appState.selectList(listID)
         }

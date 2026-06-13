@@ -5,6 +5,35 @@ enum TaskRowSection {
     case completed
 }
 
+func completedTasksForFinalSection(_ tasks: [TaskItem]) -> [TaskItem] {
+    let taskByID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+    let completedRoots = tasksSortedByGooglePosition(tasks.filter { task in
+        task.isCompleted && (task.parent == nil || task.parent.flatMap { taskByID[$0] } == nil)
+    })
+    var orderedTasks: [TaskItem] = []
+
+    func appendCompletedTaskTree(from task: TaskItem) {
+        orderedTasks.append(task)
+        let completedChildren = tasksSortedByGooglePosition(tasks.filter { child in
+            child.parent == task.id && child.isCompleted
+        })
+        for child in completedChildren {
+            appendCompletedTaskTree(from: child)
+        }
+    }
+
+    for task in completedRoots {
+        appendCompletedTaskTree(from: task)
+    }
+    return orderedTasks
+}
+
+func completedSubtasksForOpenParent(_ parentID: String, tasks: [TaskItem]) -> [TaskItem] {
+    tasksSortedByGooglePosition(tasks.filter { task in
+        task.parent == parentID && task.isCompleted
+    })
+}
+
 func subtasksWithCompletedLast(_ subtasks: [TaskItem]) -> [TaskItem] {
     subtasks.filter { !$0.isCompleted } + subtasks.filter(\.isCompleted)
 }

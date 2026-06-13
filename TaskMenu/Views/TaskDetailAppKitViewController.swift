@@ -3,6 +3,11 @@ import AppKit
 @MainActor
 private enum TaskDetailViewMetrics {
     static let horizontalInset: CGFloat = 12
+    static let subtaskRowHeight: CGFloat = 30
+    static let maxVisibleSubtaskRows: CGFloat = 5
+    static var subtaskScrollMaxHeight: CGFloat {
+        subtaskRowHeight * maxVisibleSubtaskRows
+    }
     static var contentWidth: CGFloat {
         TaskMenuMetrics.popoverWidth - horizontalInset * 2
     }
@@ -20,7 +25,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private let notesTextView = NSTextView()
     private let dueDateControls = NSStackView()
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let subtaskScrollView = NSScrollView()
+    private let subtaskDocumentView = TaskDetailFlippedDocumentView()
     private let subtaskListStack = NSStackView()
+    private var subtaskScrollHeightConstraint: NSLayoutConstraint?
     private var addSubtaskField: TaskMenuTextField?
     private let appStateObserver = TaskMenuAppStateObserver()
 
@@ -84,18 +92,21 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
 
+        let doneButton = NSButton(title: "Done", target: self, action: #selector(saveTask))
+        doneButton.bezelStyle = .rounded
+        doneButton.controlSize = .small
+        stack.addArrangedSubview(doneButton)
+
         let title = TaskMenuAppKit.label(
             "Edit Task",
             font: .boldSystemFont(ofSize: 13),
             color: .labelColor
         )
-        stack.addArrangedSubview(title)
-        stack.addArrangedSubview(TaskMenuAppKit.spacer())
-
-        let doneButton = NSButton(title: "Done", target: self, action: #selector(saveTask))
-        doneButton.bezelStyle = .rounded
-        doneButton.controlSize = .small
-        stack.addArrangedSubview(doneButton)
+        container.addSubview(title)
+        NSLayoutConstraint.activate([
+            title.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            title.centerYAnchor.constraint(equalTo: stack.centerYAnchor)
+        ])
 
         return container
     }
@@ -107,6 +118,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.alignment = .leading
+        stack.distribution = .fill
         stack.spacing = 10
         container.addSubview(stack)
         TaskMenuAppKit.pin(
@@ -133,6 +145,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             ))
             stack.addArrangedSubview(subtaskSection())
         }
+
+        stack.addArrangedSubview(detailContentSpacer())
 
         NSLayoutConstraint.activate([
             container.heightAnchor.constraint(greaterThanOrEqualToConstant: 386)
@@ -185,6 +199,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         group.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
         group.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
         group.translatesAutoresizingMaskIntoConstraints = false
+        group.setContentHuggingPriority(.required, for: .vertical)
+        group.setContentCompressionResistancePriority(.required, for: .vertical)
         group.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
 
         group.addArrangedSubview(metaRow(label: "Due date", control: dueDateControls))
@@ -212,8 +228,17 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             to: container,
             insets: NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
         )
-        container.heightAnchor.constraint(greaterThanOrEqualToConstant: 34).isActive = true
+        container.heightAnchor.constraint(equalToConstant: 34).isActive = true
         return container
+    }
+
+    private func detailContentSpacer() -> NSView {
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+        spacer.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
+        return spacer
     }
 
     private func configuredListPopup() -> NSPopUpButton {
@@ -237,17 +262,16 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         dueDateControls.alignment = .centerY
         dueDateControls.spacing = 6
 
-        let picker = NSDatePicker()
-        picker.datePickerElements = .yearMonthDay
-        picker.datePickerStyle = .textFieldAndStepper
-        picker.controlSize = .small
-        picker.dateValue = dueDateState.selection
-        picker.isEnabled = dueDateState.isEnabled
-        picker.target = self
-        picker.action = #selector(dueDateChanged(_:))
-        dueDateControls.addArrangedSubview(picker)
-
         if dueDateState.isEnabled {
+            let picker = NSDatePicker()
+            picker.datePickerElements = .yearMonthDay
+            picker.datePickerStyle = .textFieldAndStepper
+            picker.controlSize = .small
+            picker.dateValue = dueDateState.selection
+            picker.target = self
+            picker.action = #selector(dueDateChanged(_:))
+            dueDateControls.addArrangedSubview(picker)
+
             let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearDueDate))
             clearButton.isBordered = false
             clearButton.controlSize = .small
@@ -262,17 +286,32 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func subtaskSection() -> NSView {
-        let stack = NSStackView()
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 0
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        subtaskScrollView.translatesAutoresizingMaskIntoConstraints = false
+        subtaskScrollView.borderType = .noBorder
+        subtaskScrollView.drawsBackground = false
+        subtaskScrollView.hasHorizontalScroller = false
+        TaskMenuAppKit.configureTaskListScrollIndicators(subtaskScrollView)
 
+        subtaskDocumentView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: TaskDetailViewMetrics.contentWidth,
+            height: TaskDetailViewMetrics.subtaskRowHeight
+        )
         subtaskListStack.orientation = .vertical
         subtaskListStack.alignment = .leading
         subtaskListStack.spacing = 0
-        stack.addArrangedSubview(subtaskListStack)
-        return stack
+        subtaskDocumentView.addSubview(subtaskListStack)
+        TaskMenuAppKit.pin(subtaskListStack, to: subtaskDocumentView)
+        subtaskScrollView.documentView = subtaskDocumentView
+
+        let heightConstraint = subtaskScrollView.heightAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskRowHeight)
+        subtaskScrollHeightConstraint = heightConstraint
+        NSLayoutConstraint.activate([
+            subtaskScrollView.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
+            heightConstraint
+        ])
+        return subtaskScrollView
     }
 
     private func renderSubtasks() {
@@ -286,6 +325,24 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             subtaskListStack.addArrangedSubview(subtaskRow(for: child))
         }
         subtaskListStack.addArrangedSubview(addSubtaskGhostRow())
+        updateSubtaskScrollMetrics()
+    }
+
+    private func updateSubtaskScrollMetrics() {
+        let rowCount = max(subtaskListStack.arrangedSubviews.count, 1)
+        let documentHeight = CGFloat(rowCount) * TaskDetailViewMetrics.subtaskRowHeight
+        let visibleHeight = min(documentHeight, TaskDetailViewMetrics.subtaskScrollMaxHeight)
+
+        subtaskScrollHeightConstraint?.constant = visibleHeight
+        subtaskDocumentView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: TaskDetailViewMetrics.contentWidth,
+            height: documentHeight
+        )
+        subtaskScrollView.hasVerticalScroller = documentHeight > visibleHeight
+        subtaskScrollView.contentView.scroll(to: .zero)
+        subtaskScrollView.reflectScrolledClipView(subtaskScrollView.contentView)
     }
 
     private func subtaskRow(for child: TaskItem) -> NSView {
@@ -337,7 +394,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             to: container,
             insets: NSEdgeInsets(top: 5, left: 8, bottom: 5, right: 8)
         )
-        container.heightAnchor.constraint(greaterThanOrEqualToConstant: 30).isActive = true
+        container.heightAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskRowHeight).isActive = true
         container.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
         return container
     }
@@ -488,5 +545,12 @@ private final class TaskDetailSubtaskRow: NSView {
         }
         stack.addArrangedSubview(label)
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
+    }
+}
+
+@MainActor
+private final class TaskDetailFlippedDocumentView: NSView {
+    override var isFlipped: Bool {
+        true
     }
 }

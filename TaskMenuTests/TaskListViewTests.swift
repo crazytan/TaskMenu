@@ -80,4 +80,46 @@ final class TaskListViewTests: XCTestCase {
 
         XCTAssertEqual(ordered.map(\.id), ["active-1", "active-2", "done-1", "done-2"])
     }
+
+    func testFinalCompletedSectionExcludesCompletedSubtasksOfOpenParents() {
+        let openParent = makeTask(id: "open-parent", position: "0001")
+        let completedChildOfOpenParent = makeTask(
+            id: "open-child-done",
+            parent: "open-parent",
+            status: .completed,
+            position: "0001"
+        )
+        let completedRoot = makeTask(id: "done-root", status: .completed, position: "0002")
+        let completedParent = makeTask(id: "done-parent", status: .completed, position: "0003")
+        let completedChildOfCompletedParent = makeTask(
+            id: "done-child",
+            parent: "done-parent",
+            status: .completed,
+            position: "0001"
+        )
+
+        let completedTasks = completedTasksForFinalSection([
+            openParent,
+            completedChildOfOpenParent,
+            completedRoot,
+            completedParent,
+            completedChildOfCompletedParent
+        ])
+
+        XCTAssertEqual(completedTasks.map(\.id), ["done-root", "done-parent", "done-child"])
+    }
+
+    func testCompletedSubtasksForOpenParentReturnsOnlyThatParentsCompletedChildren() {
+        let firstDone = makeTask(id: "done-1", parent: "parent", status: .completed, position: "0002")
+        let activeChild = makeTask(id: "active-1", parent: "parent", position: "0001")
+        let otherDone = makeTask(id: "other-done", parent: "other", status: .completed, position: "0001")
+        let secondDone = makeTask(id: "done-2", parent: "parent", status: .completed, position: "0003")
+
+        let completedSubtasks = completedSubtasksForOpenParent(
+            "parent",
+            tasks: [firstDone, activeChild, otherDone, secondDone]
+        )
+
+        XCTAssertEqual(completedSubtasks.map(\.id), ["done-1", "done-2"])
+    }
 }

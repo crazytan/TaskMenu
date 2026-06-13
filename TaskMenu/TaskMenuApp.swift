@@ -187,6 +187,7 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
     private let lists = [
         TaskList(id: "seeded-list", title: "Seeded Tasks", selfLink: nil, updated: nil),
         TaskList(id: "seeded-due-dates", title: "Due Dates", selfLink: nil, updated: nil),
+        TaskList(id: "seeded-long-subtasks", title: "Long Subtasks", selfLink: nil, updated: nil),
         TaskList(id: "seeded-empty", title: "Empty List", selfLink: nil, updated: nil)
     ]
     private var tasksByListID: [String: [TaskItem]]
@@ -218,6 +219,15 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
             )
         }
 
+        let longSubtasks = (1...12).map { index in
+            task(
+                String(format: "long-child-%02d", index),
+                String(format: "Long edit subtask %02d", index),
+                parent: "long-parent",
+                position: String(format: "%04d", index)
+            )
+        }
+
         tasksByListID = [
             "seeded-list": [
                 task("active-parent", "Active parent with subtasks", position: "0001"),
@@ -237,6 +247,9 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
                 task("due-none", "Standalone without a due date", position: "0004"),
                 task("due-completed-root", "Completed root due last week", status: .completed, dueInDays: -7, position: "0005")
             ],
+            "seeded-long-subtasks": [
+                task("long-parent", "Parent with 12 subtasks", position: "0001")
+            ] + longSubtasks,
             "seeded-empty": []
         ]
     }
