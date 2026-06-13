@@ -24,6 +24,7 @@ TaskMenu brings Google Tasks to the macOS menu bar with a fast, native AppKit in
 - Due dates, subtasks, and local due-date reminders
 - Secure token storage in the macOS Keychain
 - Optional launch at login
+- Native Settings window with update checks, support links, and account controls
 
 ## Requirements
 
@@ -33,16 +34,17 @@ To run TaskMenu:
 
 To build from source:
 
-- Xcode 16 or later
+- Xcode 26.4 or later
 - XcodeGen
 - A Google Cloud project with the Google Tasks API enabled
 - Google OAuth iOS credentials for the app bundle ID
 
 ## Installation
 
-Install with Homebrew:
+Install with Homebrew by trusting the cask first:
 
 ```bash
+brew trust --cask crazytan/tap/taskmenu
 brew install --cask crazytan/tap/taskmenu
 ```
 
@@ -82,15 +84,24 @@ Or download the signed and notarized DMG from the [latest GitHub release](https:
 
 - Swift 6
 - AppKit
-- XcodeGen-generated project
+- XcodeGen-generated Xcode project
 - Apple frameworks only, with zero third-party dependencies
 - Strict concurrency enabled
+
+Build from the command line with:
+
+```bash
+xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu \
+  -configuration Debug \
+  -destination "platform=macOS"
+```
 
 Run a focused test slice with:
 
 ```bash
 xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
   -configuration Debug \
+  -destination "platform=macOS" \
   -only-testing:TaskMenuTests/AppStateTests
 ```
 
@@ -124,7 +135,7 @@ See Google's [starred tasks help](https://support.google.com/tasks/answer/127187
 
 ### What about tasks from Gmail, Docs, Chat, or Keep?
 
-Google's web apps can create tasks from other Workspace products. The Tasks API exposes some of that context as read-only links or assignment metadata, and assigned tasks from Docs or Chat are not returned by default unless an API client explicitly requests them. TaskMenu currently focuses on regular Google Tasks lists, so some source links, assignment details, and shared-task behaviors may be unavailable or read-only.
+Google's web apps can create tasks from other Workspace products. The Tasks API exposes some of that context as read-only links or assignment metadata, and assigned tasks from Docs or Chat are not returned by default unless an API client explicitly requests them. TaskMenu currently focuses on regular Google Tasks lists and does not request assigned tasks, so some source links, assignment details, and shared-task behaviors may be unavailable or read-only.
 
 See the [`tasks.list` reference](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list) and [Tasks API usage limits](https://developers.google.com/workspace/tasks/limits).
 

@@ -7,7 +7,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 - `TaskMenuApp.swift` - `@main`, app delegate wiring, UI mode selection, MetricKit startup, signed-in bootstrap, and settings window ownership.
 - `StatusBarController.swift` - AppKit status item, popover presentation, right-click quit menu, outside-click closing, and menu-open refresh trigger.
 - `Models/` - `@MainActor` app state and Google Tasks data models.
-- `Services/` - OAuth, API, keychain, notification, metrics, and test/demo API implementations.
+- `Services/` - OAuth, API, keychain, notification, metrics, and update-check services.
 - `Views/` - AppKit popover/task UI, AppKit settings UI, and shared task presentation helpers.
 - `Utilities/` - app constants and Google due-date formatting.
 - `Resources/` - plist, entitlements, icons, and asset catalog.

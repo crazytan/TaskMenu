@@ -4,7 +4,7 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 
 ## Files
 
-- `Constants.swift` - Google OAuth/API URLs and scopes, GitHub release URL, Keychain keys, UserDefaults keys, notification identifier prefix, and plist-backed OAuth config.
+- `Constants.swift` - Google OAuth/API/userinfo URLs and scopes, GitHub release URL, Keychain keys, UserDefaults keys, notification identifier prefix, and plist-backed OAuth config.
 - `DateFormatting.swift` - RFC 3339 parsing, Google Tasks due-date formatting, display strings, and relative date labels.
 
 ## Constants
@@ -14,7 +14,8 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 - `googleAuthScopes` includes OpenID Connect email scope plus Google Tasks access so settings can show the signed-in Google account email.
 - `githubLatestReleaseURL` is the unauthenticated GitHub Releases endpoint used by the lightweight update checker.
 - Keep Keychain service/key names stable unless you are intentionally migrating stored credentials or signed-in account display metadata.
-- Add new UserDefaults keys under `Constants.UserDefaults` and cover default behavior in `AppStateTests`.
+- Add new UserDefaults keys under `Constants.UserDefaults` and cover default behavior in `AppStateTests` or the nearest behavior suite.
+- Update-check defaults use `automaticUpdateChecksEnabledKey`, `lastUpdateCheckDateKey`, and `lastAlertedUpdateVersionKey`; keep Settings and launch-alert behavior in sync with any changes.
 
 ## Date Formatting
 

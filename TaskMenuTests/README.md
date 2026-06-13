@@ -4,15 +4,15 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 
 ## Test Map
 
-- `AppStateTests.swift` - initial state, preferences, selected list helpers, ordering, sign-out reset, and basic guarded actions.
+- `AppStateTests.swift` - initial state, preferences, selected list helpers, ordering, sign-out/disconnect reset, and basic guarded actions.
 - `AppStateBehaviorTests.swift` - task mutations, caching, stale response protection, selection changes, refresh behavior, errors, and notification sync.
 - `SearchFilterTests.swift` - title/notes search, parent context inclusion, and root/subtask filtered accessors.
 - `TaskItemModelTests.swift` and `GoogleTasksAPITests.swift` - model Codable round trips, completion helpers, parent/subtask fields, and due-date accessors.
-- `GoogleTasksAPIBehaviorTests.swift` - REST request methods, query parameters, pagination, auth headers, update bodies, and error mapping.
+- `GoogleTasksAPIBehaviorTests.swift` - REST request methods, query parameters, pagination, auth headers, create/update bodies, and error mapping.
 - `GoogleAuthServiceTests.swift` - token loading, refresh/sign-in callback behavior, token exchange errors, revocation, and web-auth test doubles.
 - `KeychainServiceTests.swift` - production wrapper behavior and XCTest in-memory isolation.
 - `DueDateNotificationServiceTests.swift` - authorization, scheduling, stale-removal, and identifier targeting.
-- `GitHubUpdateCheckerTests.swift` - semantic-version parsing, GitHub release decoding, update-check persistence, throttling, and AppState update outcomes.
+- `GitHubUpdateCheckerTests.swift` - semantic-version parsing, GitHub release decoding, update-check persistence, throttling, launch-alert suppression, and AppState update outcomes.
 - `DateFormattingTests.swift` - RFC 3339, Google due-date, display, and relative-date behavior.
 - `TaskListViewTests.swift`, `TaskDetailViewTests.swift`, and `MenuBarWindowChromeTests.swift` - shared task presentation helpers and AppKit glass/window behavior.
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.

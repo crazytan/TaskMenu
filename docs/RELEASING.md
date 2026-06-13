@@ -14,15 +14,17 @@ Add these repository secrets in GitHub under **Settings -> Secrets and variables
 | `BUILD_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` file |
 | `APP_STORE_CONNECT_API_KEY_BASE64` | Base64-encoded App Store Connect API private key (`.p8`) |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID used by release builds |
-| `GOOGLE_REDIRECT_SCHEME` | Google OAuth redirect scheme, for example `com.googleusercontent.apps.<client-id-prefix>` |
 | `APP_STORE_CONNECT_KEY_ID` | App Store Connect API key ID |
 | `APP_STORE_CONNECT_ISSUER_ID` | App Store Connect issuer ID |
 
-Add this repository variable under **Settings -> Secrets and variables -> Actions -> Variables**:
+Add these repository variables under **Settings -> Secrets and variables -> Actions -> Variables**:
 
 | Variable | Value |
 | --- | --- |
+| `GOOGLE_REDIRECT_SCHEME` | Google OAuth redirect scheme, for example `com.googleusercontent.apps.<client-id-prefix>` |
 | `APPLE_TEAM_ID` | Apple Developer Team ID, for example `V82M9YX8BR` |
+
+The release workflow also accepts `GOOGLE_REDIRECT_SCHEME` and `APPLE_TEAM_ID` as secrets for compatibility, but variables are preferred when the values are not sensitive.
 
 TaskMenu uses a native OAuth client with PKCE, so release builds do not embed a Google client secret.
 
@@ -90,7 +92,7 @@ xcrun notarytool history \
 1. Move changelog entries from `Unreleased` to a version heading:
 
 ```markdown
-## v1.0.1 (YYYY-MM-DD)
+## vX.Y.Z (YYYY-MM-DD)
 ```
 
 2. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`.
@@ -103,15 +105,17 @@ xcodegen generate
 4. Run tests:
 
 ```bash
-xcodebuild -scheme TaskMenu -configuration Debug test
+xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
+  -configuration Debug \
+  -destination "platform=macOS"
 ```
 
 5. Commit and push to `main`.
 6. Create and push the release tag:
 
 ```bash
-git tag -a v1.0.1 -m "TaskMenu v1.0.1"
-git push origin main v1.0.1
+git tag -a vX.Y.Z -m "TaskMenu vX.Y.Z"
+git push origin main vX.Y.Z
 ```
 
 The release workflow validates that the tag version matches `MARKETING_VERSION` and that `CHANGELOG.md` has a matching section before it publishes anything.
@@ -138,19 +142,20 @@ git push
 
 ## Manual workflow dispatch
 
-You can also run **Release** manually from GitHub Actions. Enter the version without the leading `v`. The workflow still expects `project.yml` and `CHANGELOG.md` to match that version.
+You can also run **Release** manually from GitHub Actions. Enter the version without the leading `v` and choose whether the GitHub release should be marked as a prerelease. The workflow still expects `project.yml` and `CHANGELOG.md` to match that version.
 
 ## Local DMG packaging
 
 After producing a signed app bundle, you can package it locally:
 
 ```bash
+VERSION="X.Y.Z"
 SIGNING_IDENTITY="Developer ID Application" \
 APP_STORE_CONNECT_KEY_ID="XXXXXXXXXX" \
 APP_STORE_CONNECT_ISSUER_ID="00000000-0000-0000-0000-000000000000" \
 APP_STORE_CONNECT_KEY_PATH="$HOME/private_keys/AuthKey_XXXXXXXXXX.p8" \
 ./scripts/make_dmg.sh \
   --app build/TaskMenu.xcarchive/Products/Applications/TaskMenu.app \
-  --version 1.0.1 \
+  --version "$VERSION" \
   --output-dir build/artifacts
 ```

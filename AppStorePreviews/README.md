@@ -9,13 +9,19 @@ The generator uses three source screenshots:
 
 - The main task list popover
 - The task edit/detail popover
-- The settings popover
+- The settings window
 
 These screenshots should be captured from the real app so the generated App
 Store assets reflect the current UI. The source paths are configured in
 `generate_previews.py`.
 
 ## Workflow
+
+The script uses Pillow. If your Python environment does not already have it:
+
+```bash
+python3 -m pip install Pillow
+```
 
 Run the generator from the repository root:
 
@@ -24,8 +30,8 @@ python3 AppStorePreviews/generate_previews.py
 ```
 
 The script composites each source screenshot into a 16:10 macOS desktop-style
-marketing frame. It adds short product copy, places the menu bar popover in
-context, masks the captured popover edges for clean rounded corners, avoids
+marketing frame. It adds short product copy, places the captured TaskMenu panel
+in menu bar context, masks captured edges for clean rounded corners, avoids
 third-party product names in screenshot copy, and replaces any real task names
 in task-related screenshots with fake sample data.
 

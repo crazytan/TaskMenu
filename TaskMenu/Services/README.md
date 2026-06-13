@@ -5,9 +5,9 @@ Services isolate external systems and side effects from views. Keep protocols na
 ## Files
 
 - `GoogleAuthService.swift` - `@MainActor` OAuth 2.0 PKCE flow, web-auth callback parsing, token exchange/refresh/revocation, Keychain-backed token loading, and signed-in account email loading.
-- `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, updates, deletes, pagination, and moves.
+- `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, subtask creation, updates, deletes, and pagination.
 - `TasksAPIProtocol.swift` - async API contract used by `AppState`, production API code, and unit-test doubles.
-- `GitHubUpdateChecker.swift` - GitHub Releases latest-version lookup, semantic-version comparison, and update-check protocol.
+- `GitHubUpdateChecker.swift` - GitHub Releases latest-version lookup, semantic-version comparison, and update-check protocol used by Settings and launch alerts.
 - `KeychainService.swift` - Sendable wrapper around Security framework item CRUD.
 - `DueDateNotificationService.swift` - UserNotifications abstraction and due-date reminder syncing.
 - `MetricKitService.swift` - local persistence of delivered and past MetricKit payloads.
@@ -24,9 +24,10 @@ Services isolate external systems and side effects from views. Keep protocols na
 
 - Keep `GoogleTasksAPI` actor-isolated and conforming to `TasksAPIProtocol`.
 - Use typed model decoding for responses. Avoid hand-parsing JSON except for small request bodies where the current code already uses dictionaries.
-- Preserve pagination for `listTasks`.
+- Preserve pagination for `listTasks`; it requests completed and hidden tasks by default with `maxResults=100`.
+- `listTasks` does not request assigned tasks with `showAssigned` today. Add that intentionally if assigned Workspace tasks become product scope.
+- Subtask creation uses the optional `parent` query parameter on `createTask`; the API layer currently does not expose task reordering or list moves.
 - For task updates, send nullable `notes` and `due` values when clearing fields.
-- Move requests use Google's `previous` and `parent` query parameters; keep AppState ordering tests in sync with any changes.
 
 ## Notifications And Metrics
 
@@ -38,9 +39,11 @@ Services isolate external systems and side effects from views. Keep protocols na
 ## Update Checks
 
 - `GitHubUpdateChecker` checks the public latest GitHub release endpoint and returns an update only when the release tag is valid `x.y.z` semver and newer than the bundle short version.
+- `AppState` owns the automatic-check preference, 24-hour throttle, last-check timestamp, and last-alerted version.
 - Keep update checks read-only and unauthenticated. Opening the GitHub release page is user-initiated from settings or the launch alert.
 
 ## Testing Hooks
 
 - Prefer protocol injection over conditional production logic.
 - Use test doubles for keychain, web authentication, URL loading, update checking, and notification center behavior.
+- The `--testing-window` fake Tasks API lives in `TaskMenuApp.swift`; keep production services injectable instead of adding testing-window branches here.

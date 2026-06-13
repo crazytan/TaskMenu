@@ -15,6 +15,7 @@
 - Added seeded task data for testing-window verification.
 
 ### Changed
+- Refreshed Markdown documentation for current Xcode project settings, release workflow, testing-window behavior, and Google Tasks API boundaries.
 - Simplified task caching to a single per-list cache after removing the unused first-load/completed-task cache path.
 
 ### Removed

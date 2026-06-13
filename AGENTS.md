@@ -6,16 +6,16 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 
 - Native macOS menu bar app for Google Tasks.
 - Swift 6, AppKit UI, macOS 14.4+, `@Observable`, strict concurrency.
-- XcodeGen build graph: edit `project.yml`, then regenerate `TaskMenu.xcodeproj`.
+- XcodeGen build graph targeting Xcode 26.4 project settings: edit `project.yml`, then regenerate `TaskMenu.xcodeproj`.
 - Targets: `TaskMenu` and `TaskMenuTests`.
 - App shape: no Dock icon and no main app window; UI is presented from an AppKit status item popover.
-- External surface area: Google OAuth 2.0 with PKCE, Google Tasks REST API, Keychain token storage, UserNotifications for due-date reminders, MetricKit payload persistence.
+- External surface area: Google OAuth 2.0 with PKCE, Google Tasks REST API, Keychain token storage, UserNotifications for due-date reminders, GitHub release update checks, MetricKit payload persistence.
 
 ## Open The Local Doc First
 
 - `TaskMenu/README.md` - app-target map, lifecycle, and state flow.
 - `TaskMenu/Models/README.md` - app state, Google models, ordering, search, and mutation rules.
-- `TaskMenu/Services/README.md` - OAuth, Google Tasks API, keychain, notification, MetricKit, and mock-service guidance.
+- `TaskMenu/Services/README.md` - OAuth, Google Tasks API, keychain, notification, MetricKit, update checks, and service-injection guidance.
 - `TaskMenu/Views/README.md` - popover UI ownership, task-list interactions, settings, and view-testable helpers.
 - `TaskMenu/Utilities/README.md` - constants, OAuth config values, and date formatting expectations.
 - `TaskMenu/Resources/README.md` - Info.plist, entitlements, URL schemes, app icons, and generated asset notes.
@@ -38,7 +38,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 - If you add, remove, rename, or retarget source files, update `project.yml` and run `xcodegen generate`.
 - When files are added or deleted, update the corresponding folder-local `README.md` in the same change so its file map and ownership notes stay current.
 - Keep `TaskMenu.xcodeproj` generated; do not hand-edit it.
-- Do not commit `Config.xcconfig`; it contains local OAuth values.
+- Do not commit `Config.xcconfig`; it contains local OAuth and signing values.
 - Preserve the menu-bar-only behavior for app launches.
 - Update `CHANGELOG.md` before committing feature or bug-fix work, under `## Unreleased` when present.
 
@@ -53,10 +53,12 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 xcodegen generate
 
 xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu \
-  -configuration Debug
+  -configuration Debug \
+  -destination "platform=macOS"
 
 xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
   -configuration Debug \
+  -destination "platform=macOS" \
   -only-testing:TaskMenuTests/AppStateTests
 ```
 
@@ -71,7 +73,7 @@ any issues early (e.g., macOS permission issues).
 
 - The task UI opens in a regular window (signed-in state, seeded fake tasks) instead of the menu bar popover.
 - Seeded data covers three lists: "Seeded Tasks" (subtasks, completed section, delete target), "Due Dates" (overdue/today/tomorrow/future due dates on parents and subtasks), and "Empty List" (empty state). Switch lists with the picker at the top.
-- Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no persisted defaults. Task mutations (add/complete/delete/indent) work against the fake API and reset on relaunch.
+- Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no update checks, no persisted defaults. Task mutations (add, add subtask, edit, complete, delete) work against the fake API and reset on relaunch.
 - Take screenshots with `screencapture` to inspect rendering, then kill the process when done.
 - Fakes live at the bottom of `TaskMenu/TaskMenuApp.swift` (`TestingWindowTasksAPI` and friends); extend the seeded data there if a UI state you need is missing.
 
@@ -79,5 +81,5 @@ any issues early (e.g., macOS permission issues).
 
 - OAuth refresh/access tokens belong in Keychain only.
 - Keep sandbox and hardened-runtime settings intact.
-- Network access should stay limited to explicit product features: Google OAuth, Google Tasks, and token revocation.
+- Network access should stay limited to explicit product features: Google OAuth, Google Tasks, token revocation, and GitHub release update checks.
 - MetricKit payloads are currently persisted locally; do not add upload behavior without explicit opt-in and a reviewed privacy path.

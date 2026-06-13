@@ -6,7 +6,7 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 
 - `Info.plist` - bundle metadata, OAuth URL scheme registration, Google config placeholders, and menu-bar-only launch flag.
 - `TaskMenu.entitlements` - app sandbox and outbound network entitlement.
-- `Assets.xcassets` - compiled asset catalog, including app icon membership.
+- `Assets.xcassets` - compiled asset catalog, including app icon, menu bar icon, and Discord support-link image membership.
 - `AppIcon.svg` - source artwork for the app icon.
 - `MenuBarIcon.svg` - template status-bar icon source.
 
