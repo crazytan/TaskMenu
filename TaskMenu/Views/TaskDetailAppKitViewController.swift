@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 private enum TaskDetailViewMetrics {
     static let horizontalInset: CGFloat = 12
-    static let subtaskRowHeight: CGFloat = 30
+    static let subtaskRowHeight: CGFloat = 32
     static let maxVisibleSubtaskRows: CGFloat = 5
     static var subtaskScrollMaxHeight: CGFloat {
         subtaskRowHeight * maxVisibleSubtaskRows
@@ -498,7 +498,10 @@ private final class TaskDetailSubtaskRow: NSView {
 
     private func setup(task: TaskItem, onToggle: @escaping () -> Void) {
         translatesAutoresizingMaskIntoConstraints = false
-        widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
+            heightAnchor.constraint(equalToConstant: TaskDetailViewMetrics.subtaskRowHeight)
+        ])
 
         let stack = NSStackView()
         stack.orientation = .horizontal

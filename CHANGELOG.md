@@ -13,7 +13,7 @@
 - Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
 - Added a right-click Delete action for task rows in the popover task list.
 - Added seeded task data for testing-window verification.
-- Added a Long Subtasks testing-window list with a parent task containing 12 subtasks.
+- Added a Long Subtasks testing-window list with a parent task containing 12 subtasks, including several completed subtasks.
 
 ### Changed
 - Refreshed Markdown documentation for current Xcode project settings, release workflow, testing-window behavior, and Google Tasks API boundaries.
@@ -27,6 +27,7 @@
 - Restored per-parent completed-subtask disclosure rows for open tasks, tightened their spacing, and kept those subtasks out of the global Completed section.
 - Kept the task detail metadata group at its compact two-row height and hid the unset due-date picker until Set is clicked.
 - Restored scrolling for long subtask lists in the task detail editor.
+- Fixed clipping of completed subtask rows in the task detail editor when several completed subtasks are visible.
 - Centered the task detail title in the edit header.
 - Fixed the right-click Delete menu on task rows, which never appeared because the cell-level context menu was bypassed by the outline view.
 - Fixed the completed-section header so clicking anywhere on the row reliably expands or collapses it.

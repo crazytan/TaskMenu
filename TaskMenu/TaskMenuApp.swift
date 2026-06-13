@@ -223,6 +223,7 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
             task(
                 String(format: "long-child-%02d", index),
                 String(format: "Long edit subtask %02d", index),
+                status: index >= 9 ? .completed : .needsAction,
                 parent: "long-parent",
                 position: String(format: "%04d", index)
             )
