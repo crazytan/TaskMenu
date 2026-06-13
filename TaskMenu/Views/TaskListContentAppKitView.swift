@@ -49,12 +49,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         pendingFlashTitles.insert(title)
     }
 
-    func render(
-        appState: AppState,
-        showCompleted: Bool,
-        inlineSubtaskParentID: String?,
-        revealedCompletedSubtaskParentIDs: Set<String>
-    ) {
+    func render(appState: AppState, showCompleted: Bool) {
         collapsedTaskIDs = appState.collapsedTaskIDs
         rebuildNodes(appState: appState, showCompleted: showCompleted)
         updateEmptyState(appState: appState)
@@ -145,7 +140,6 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             TaskOutlineNode(kind: .task(TaskListTaskEntry(
                 task: task,
                 indentLevel: task.parent == nil ? 0 : 1,
-                isParentCompleted: false,
                 section: .completed
             )))
         }
@@ -158,7 +152,6 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         let entry = TaskListTaskEntry(
             task: task,
             indentLevel: level,
-            isParentCompleted: false,
             section: .active
         )
         let children = appState.subtasks(of: task.id)

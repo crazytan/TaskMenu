@@ -22,7 +22,6 @@
 		44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */; };
 		47D5A568916BF8E1E6FC0347 /* TaskPopoverViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */; };
 		4C4A40DBCD2948E2FC0F1F3A /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7BCF6CD54266E26B32F6DD /* DateFormatting.swift */; };
-		6541E24B2E5FDB827FA34C7A /* TaskRowAppKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71046E2C3798830DBA73D7A2 /* TaskRowAppKitView.swift */; };
 		69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */; };
 		769F9F3B097D5D7C678CEE7F /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4F099FA85A0476A96ED002 /* StatusBarController.swift */; };
 		76E308FD16F5E910DE7D81E6 /* GoogleTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */; };
@@ -93,7 +92,6 @@
 		68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowChromeTests.swift; sourceTree = "<group>"; };
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
 		6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemModelTests.swift; sourceTree = "<group>"; };
-		71046E2C3798830DBA73D7A2 /* TaskRowAppKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskRowAppKitView.swift; sourceTree = "<group>"; };
 		77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitPayloadStoreTests.swift; sourceTree = "<group>"; };
 		7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		85062E7D51749F3ED4FD688D /* AppKitTaskUIHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKitTaskUIHelpers.swift; sourceTree = "<group>"; };
@@ -202,7 +200,6 @@
 				2C84C4C64E2BF982920144CA /* TaskListControlsAppKitViews.swift */,
 				3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */,
 				E62AEDAB2E61D986C97C60D1 /* TaskPresentation.swift */,
-				71046E2C3798830DBA73D7A2 /* TaskRowAppKitView.swift */,
 				9141316E1D908A6C099CF691 /* TestingWindowController.swift */,
 			);
 			path = Views;
@@ -370,7 +367,6 @@
 				C1AE79D6748EFE551C7E8F1B /* TaskMenuApp.swift in Sources */,
 				47D5A568916BF8E1E6FC0347 /* TaskPopoverViewController.swift in Sources */,
 				FC3B57327B2B0E0E23CAECD0 /* TaskPresentation.swift in Sources */,
-				6541E24B2E5FDB827FA34C7A /* TaskRowAppKitView.swift in Sources */,
 				939FC3A4B4EB2424F77B577C /* TasksAPIProtocol.swift in Sources */,
 				C1EA9BDD5C59238997F833F1 /* TestingWindowController.swift in Sources */,
 			);

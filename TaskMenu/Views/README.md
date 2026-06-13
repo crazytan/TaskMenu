@@ -7,11 +7,10 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - `AppKitTaskUIHelpers.swift` - shared AppKit controls, SF Symbol helpers, layout pinning, hover handling, menu actions, and Observation glue.
 - `TaskPopoverViewController.swift` - signed-out, initial-loading, signed-in task list, bottom error strip, popover sizing, settings handoff, and popover surface styling.
 - `TaskListAppKitViewController.swift` - task-list/detail coordination, list picker routing, local list disclosure state, and `AppState` mutation wiring.
-- `TaskListControlsAppKitViews.swift` - list header, quick-add field, and search field AppKit views.
-- `TaskListContentAppKitView.swift` - task-list empty states, scroll view, active/completed sections, subtask display, and inline subtasks.
-- `TaskRowAppKitView.swift` - row layout, completion toggle, notes preview, due-date label coloring, collapse, hover actions, and context menu actions.
+- `TaskListControlsAppKitViews.swift` - list header and quick-add field AppKit views.
+- `TaskListContentAppKitView.swift` - task-list empty states, scroll view, active/completed sections, and subtask display.
 - `TaskDetailAppKitViewController.swift` - task edit screen, due-date state, notes, delete action, and child task preview.
-- `TaskPresentation.swift` - pure task-list, notes preview, completed-subtask, and task-detail helper logic.
+- `TaskPresentation.swift` - pure task-list, notes preview, and completed-subtask ordering helper logic.
 - `TestingWindowController.swift` - opt-in testing-mode window that hosts the popover UI outside the status item.
 - `SettingsView.swift` - AppKit settings window/controller, notification preference, launch-at-login, update checks, signed-in account email display, account disconnect confirmation, support links, and quit controls.
 - `MenuBarWindowGlassSupport.swift` - macOS 26 Liquid Glass window-background support.
@@ -26,8 +25,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 
 ## Task List Interaction Rules
 
-- Inline subtask creation appears immediately after the selected parent and hides during search.
-- Completed subtasks under active parents are hidden until explicitly revealed; search reveals matching context.
+- Completed tasks are grouped into a disclosure section below the active tasks; subtasks render indented under their parent.
 - Keep helper functions pure when possible and cover interaction logic in `TaskListViewTests`.
 
 ## Styling Notes

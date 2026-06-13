@@ -165,12 +165,7 @@ final class TaskListAppKitViewController: NSViewController {
     }
 
     private func renderListContent() {
-        contentView?.render(
-            appState: appState,
-            showCompleted: showCompleted,
-            inlineSubtaskParentID: nil,
-            revealedCompletedSubtaskParentIDs: []
-        )
+        contentView?.render(appState: appState, showCompleted: showCompleted)
     }
 
     private func selectList(_ listID: String) {

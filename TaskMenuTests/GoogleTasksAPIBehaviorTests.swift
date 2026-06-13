@@ -370,26 +370,6 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
 
         XCTAssertTrue(lists.isEmpty)
     }
-
-    // MARK: - moveTask
-
-    func testMoveTaskSendsPostWithQueryParams() async throws {
-        MockURLProtocol.requestHandler = { request in
-            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let json = #"{"id":"t1","title":"Moved","status":"needsAction"}"#
-            return (response, json.data(using: .utf8)!)
-        }
-
-        let result = try await api.moveTask(listId: "list1", taskId: "t1", previousId: "t0", parentId: "parent1")
-
-        let lastRequest = MockURLProtocol.requestLog.last!
-        XCTAssertEqual(lastRequest.httpMethod, "POST")
-        let url = lastRequest.url!.absoluteString
-        XCTAssertTrue(url.contains("/move"))
-        XCTAssertTrue(url.contains("previous=t0"))
-        XCTAssertTrue(url.contains("parent=parent1"))
-        XCTAssertEqual(result.id, "t1")
-    }
 }
 
 private func requestBodyData(from request: URLRequest) -> Data? {

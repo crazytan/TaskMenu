@@ -279,14 +279,4 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
         let removedIDs = Set([taskId] + childIDs)
         tasksByListID[listId]?.removeAll { removedIDs.contains($0.id) }
     }
-
-    func moveTask(listId: String, taskId: String, previousId: String?, parentId: String?) async throws -> TaskItem {
-        guard var tasks = tasksByListID[listId],
-              let index = tasks.firstIndex(where: { $0.id == taskId }) else {
-            throw APIError.serverError(404, "Task not found")
-        }
-        tasks[index].parent = parentId
-        tasksByListID[listId] = tasks
-        return tasks[index]
-    }
 }

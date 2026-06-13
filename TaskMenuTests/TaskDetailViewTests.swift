@@ -65,26 +65,4 @@ final class TaskDetailViewTests: XCTestCase {
         XCTAssertEqual(updatedTask.due, DateFormatting.formatGoogleTaskDueDate(dueDate))
         XCTAssertEqual(updatedTask.dueDate, DateFormatting.parseGoogleTaskDueDate(DateFormatting.formatGoogleTaskDueDate(dueDate)))
     }
-
-    func testSubtaskListMinimumHeightIsZeroWhenEmpty() {
-        XCTAssertEqual(TaskDetailLayout.subtaskListMinimumHeight(forCount: 0), 0)
-    }
-
-    func testSubtaskListMinimumHeightFitsShortLists() {
-        XCTAssertEqual(
-            TaskDetailLayout.subtaskListMinimumHeight(forCount: 3),
-            TaskDetailLayout.subtaskRowHeight * 3
-                + TaskDetailLayout.subtaskRowSpacing * 2
-                + TaskDetailLayout.subtaskListVerticalPadding * 2
-        )
-    }
-
-    func testSubtaskListMinimumHeightKeepsLongListsCompressible() {
-        XCTAssertEqual(
-            TaskDetailLayout.subtaskListMinimumHeight(forCount: 20),
-            TaskDetailLayout.subtaskRowHeight * CGFloat(TaskDetailLayout.subtaskListMinimumVisibleRows)
-                + TaskDetailLayout.subtaskRowSpacing * CGFloat(TaskDetailLayout.subtaskListMinimumVisibleRows - 1)
-                + TaskDetailLayout.subtaskListVerticalPadding * 2
-        )
-    }
 }

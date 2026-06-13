@@ -10,10 +10,10 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 ## AppState Rules
 
-- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, `indentTask(_:)`, and `outdentTask(_:)`.
+- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `toggleTask(_:)`, `updateTask(_:)`, and `deleteTask(_:)`.
 - Keep `AppState` `@MainActor`. Inject services through the initializer for tests instead of reaching for globals.
 - Preserve optimistic-update rollback behavior for task mutations. If an API call fails, restore the prior local task state and set `errorMessage`.
-- Keep the per-list caches in sync when adding, completing, deleting, moving, or selecting lists.
+- Keep the per-list cache in sync when adding, completing, deleting, or selecting lists.
 - Use `taskLoadRequestID` guards when introducing async task-loading work so stale responses cannot overwrite the active list.
 
 ## Task Ordering And Search

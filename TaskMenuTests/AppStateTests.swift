@@ -307,20 +307,6 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(revokeRequest.url?.absoluteString, Constants.googleRevocationURL)
     }
 
-    // MARK: - loadTasks guard
-
-    func testLoadTasksWithNoSelectedListDoesNothing() async {
-        let authService = GoogleAuthService(keychain: keychain)
-        let state = makeState(authService: authService)
-        state.selectedListId = nil
-
-        await state.loadTasks()
-
-        // Should not crash or set loading state
-        XCTAssertFalse(state.isLoading)
-        XCTAssertTrue(state.tasks.isEmpty)
-    }
-
     // MARK: - addTask guard
 
     func testAddTaskWithNoSelectedListDoesNothing() async {

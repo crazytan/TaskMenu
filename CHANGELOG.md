@@ -15,6 +15,10 @@
 - Added seeded task data for testing-window verification.
 
 ### Changed
+- Simplified task caching to a single per-list cache after removing the unused first-load/completed-task cache path.
+
+### Removed
+- Removed dead code left over from the SwiftUI-to-AppKit migration: the unused `TaskRowAppKitView`, task indent/outdent support, the never-called `loadTasks` first-load path, the unused `moveTask` API, and obsolete presentation/layout helpers and their tests.
 
 ### Fixed
 - Aligned the completed-section divider, disclosure chevron, completed task check icons, and subtask rows with the main task list rows.

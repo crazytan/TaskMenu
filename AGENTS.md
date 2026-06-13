@@ -5,7 +5,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 ## Project Snapshot
 
 - Native macOS menu bar app for Google Tasks.
-- Swift 6, SwiftUI, macOS 14.4+, `@Observable`, strict concurrency.
+- Swift 6, AppKit UI, macOS 14.4+, `@Observable`, strict concurrency.
 - XcodeGen build graph: edit `project.yml`, then regenerate `TaskMenu.xcodeproj`.
 - Targets: `TaskMenu` and `TaskMenuTests`.
 - App shape: no Dock icon and no main app window; UI is presented from an AppKit status item popover.

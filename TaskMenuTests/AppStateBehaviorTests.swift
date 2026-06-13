@@ -1,7 +1,7 @@
 import XCTest
 @testable import TaskMenu
 
-/// Tests for AppState behavior: toggleTask, loadTasks, refreshTasks, cache management, error handling.
+/// Tests for AppState behavior: toggleTask, refreshTasks, cache management, error handling.
 /// Uses MockURLProtocol to simulate API responses without hitting the network.
 /// Uses MockURLProtocol.requestLog to inspect requests (avoids captured var issues with Swift 6 concurrency).
 @MainActor
@@ -74,23 +74,6 @@ final class AppStateBehaviorTests: XCTestCase {
         MockURLProtocol.requestHandler = { request in
             let response = HTTPURLResponse(url: request.url!, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
             return (response, json.data(using: .utf8)!)
-        }
-    }
-
-    private func stubTaskListResponses() {
-        MockURLProtocol.requestHandler = { request in
-            let url = request.url!.absoluteString
-            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
-
-            if url.contains("showCompleted=false") {
-                let json = #"{"items":[{"id":"t1","title":"Active","status":"needsAction"}]}"#
-                return (response, json.data(using: .utf8)!)
-            } else if url.contains("/tasks") {
-                let json = #"{"items":[{"id":"t1","title":"Active","status":"needsAction"},{"id":"t2","title":"Done","status":"completed"}]}"#
-                return (response, json.data(using: .utf8)!)
-            } else {
-                return (response, #"{"items":[]}"#.data(using: .utf8)!)
-            }
         }
     }
 
@@ -222,46 +205,6 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertFalse(state.tasks[0].isCompleted)
     }
 
-    // MARK: - loadTasks: First Load (Full Fetch)
-
-    func testLoadTasksFirstLoadFetchesActiveAndCompleted() async {
-        state.selectedListId = "list1"
-        stubTaskListResponses()
-
-        await state.loadTasks()
-
-        // Should have both active and completed tasks
-        XCTAssertEqual(state.tasks.count, 2)
-        XCTAssertTrue(state.tasks.contains(where: { $0.id == "t1" && !$0.isCompleted }))
-        XCTAssertTrue(state.tasks.contains(where: { $0.id == "t2" && $0.isCompleted }))
-        // Two API calls: one for active, one for all (to get completed)
-        XCTAssertEqual(MockURLProtocol.requestLog.count, 2)
-    }
-
-    // MARK: - loadTasks: Cached (Active-Only Fetch)
-
-    func testLoadTasksUsesCacheOnSecondCall() async {
-        state.selectedListId = "list1"
-        stubTaskListResponses()
-
-        // First load: fetches both active and completed
-        await state.loadTasks()
-        let firstLoadRequestCount = MockURLProtocol.requestLog.count
-        XCTAssertEqual(firstLoadRequestCount, 2) // active + completed
-
-        // Reset log to count only second call's requests
-        MockURLProtocol.requestLog = []
-
-        // Second load: should only fetch active (cache for completed)
-        await state.loadTasks()
-        let secondLoadRequestCount = MockURLProtocol.requestLog.count
-        XCTAssertEqual(secondLoadRequestCount, 1) // active only
-
-        // Should still have both active and cached completed tasks
-        XCTAssertTrue(state.tasks.contains(where: { $0.id == "t1" }))
-        XCTAssertTrue(state.tasks.contains(where: { $0.id == "t2" }))
-    }
-
     // MARK: - refreshTasks: Always Fresh
 
     func testRefreshTasksFetchesFresh() async {
@@ -274,25 +217,6 @@ final class AppStateBehaviorTests: XCTestCase {
 
         XCTAssertEqual(state.tasks.count, 2)
         XCTAssertFalse(state.isLoading)
-    }
-
-    func testRefreshTasksUpdatesCacheAndSubsequentLoadUsesIt() async {
-        state.selectedListId = "list1"
-        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
-
-        // Refresh fetches everything
-        stubResponse(json: #"{"items":[{"id":"t1","title":"Active","status":"needsAction"},{"id":"t2","title":"Done","status":"completed"}]}"#)
-        await state.refreshTasks()
-
-        // Reset log, then loadTasks should use cache
-        MockURLProtocol.requestLog = []
-        stubResponse(json: #"{"items":[{"id":"t1","title":"Active","status":"needsAction"}]}"#)
-
-        await state.loadTasks()
-
-        // Only one call (active tasks only, completed from cache)
-        XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
-        XCTAssertEqual(state.tasks.count, 2) // active + cached completed
     }
 
     func testRefreshTasksGuardWithNoSelectedList() async {
@@ -754,10 +678,6 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     }
 
     func deleteTask(listId: String, taskId: String) async throws {
-        throw APIError.serverError(501, "Not implemented")
-    }
-
-    func moveTask(listId: String, taskId: String, previousId: String?, parentId: String?) async throws -> TaskItem {
         throw APIError.serverError(501, "Not implemented")
     }
 }

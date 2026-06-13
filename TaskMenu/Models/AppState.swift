@@ -85,11 +85,6 @@ final class AppState {
         tasksSortedByGooglePosition(tasks.filter { $0.parent == taskID })
     }
 
-    /// Whether a task has any children.
-    func hasSubtasks(_ taskID: String) -> Bool {
-        tasks.contains { $0.parent == taskID }
-    }
-
     /// Whether search is currently active.
     var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
@@ -141,89 +136,6 @@ final class AppState {
         }
     }
 
-    /// Whether a root-level task can be indented (made a subtask of the task above it).
-    func canIndentTask(_ task: TaskItem) -> Bool {
-        guard task.parent == nil, !task.isCompleted, !hasSubtasks(task.id) else { return false }
-        let roots = rootTasks.filter { !$0.isCompleted }
-        guard let index = roots.firstIndex(where: { $0.id == task.id }), index > 0 else { return false }
-        return true
-    }
-
-    /// Whether a subtask can be outdented (moved to root level).
-    func canOutdentTask(_ task: TaskItem) -> Bool {
-        task.parent != nil
-    }
-
-    /// Indent a root-level task to become a subtask of the task directly above it.
-    func indentTask(_ task: TaskItem) async {
-        guard let listId = selectedListId else { return }
-        guard canIndentTask(task) else { return }
-
-        let roots = rootTasks.filter { !$0.isCompleted }
-        guard let taskIndex = roots.firstIndex(where: { $0.id == task.id }), taskIndex > 0 else { return }
-        let newParent = roots[taskIndex - 1]
-
-        let originalTasks = tasks
-        if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
-            var updatedTask = tasks.remove(at: idx)
-            updatedTask.parent = newParent.id
-            if let parentIdx = tasks.firstIndex(where: { $0.id == newParent.id }) {
-                let insertIdx = tasks.indices
-                    .suffix(from: parentIdx + 1)
-                    .first(where: { tasks[$0].parent != newParent.id }) ?? tasks.endIndex
-                tasks.insert(updatedTask, at: insertIdx)
-            }
-        }
-
-        do {
-            let movedTask = try await api.moveTask(
-                listId: listId,
-                taskId: task.id,
-                parentId: newParent.id
-            )
-            if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
-                tasks[index] = movedTask
-            }
-        } catch {
-            tasks = originalTasks
-            handleError(error)
-        }
-    }
-
-    /// Outdent a subtask to become a root-level task, placed after its former parent.
-    func outdentTask(_ task: TaskItem) async {
-        guard let listId = selectedListId else { return }
-        guard let parentId = task.parent else { return }
-
-        let originalTasks = tasks
-        if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
-            var updatedTask = tasks.remove(at: idx)
-            updatedTask.parent = nil
-            if let parentIdx = tasks.firstIndex(where: { $0.id == parentId }) {
-                let insertIdx = tasks.indices
-                    .suffix(from: parentIdx + 1)
-                    .first(where: { tasks[$0].parent != parentId }) ?? tasks.endIndex
-                tasks.insert(updatedTask, at: insertIdx)
-            } else {
-                tasks.append(updatedTask)
-            }
-        }
-
-        do {
-            let movedTask = try await api.moveTask(
-                listId: listId,
-                taskId: task.id,
-                previousId: parentId
-            )
-            if let index = tasks.firstIndex(where: { $0.id == movedTask.id }) {
-                tasks[index] = movedTask
-            }
-        } catch {
-            tasks = originalTasks
-            handleError(error)
-        }
-    }
-
     private let authService: GoogleAuthService
     private let api: any TasksAPIProtocol
     private let userDefaults: UserDefaults
@@ -233,10 +145,6 @@ final class AppState {
 
     /// In-memory cache of visible tasks keyed by task list.
     private var taskCacheByListID: [String: [TaskItem]] = [:]
-    /// Task lists whose completed tasks have been fetched at least once.
-    private var completedTasksFetchedListIDs: Set<String> = []
-    /// In-memory cache of completed tasks keyed by task list.
-    private var completedTasksCacheByListID: [String: [TaskItem]] = [:]
     /// Monotonic token used to ignore stale task-list responses.
     private var taskLoadRequestID = 0
 
@@ -330,8 +238,6 @@ final class AppState {
         selectedListId = nil
         hasCompletedInitialTaskLoad = false
         taskCacheByListID = [:]
-        completedTasksFetchedListIDs = []
-        completedTasksCacheByListID = [:]
         taskLoadRequestID += 1
         let dueDateNotificationService = dueDateNotificationService
         Task {
@@ -368,30 +274,6 @@ final class AppState {
             await loadTaskLists()
         } else {
             await refreshTasks()
-        }
-    }
-
-    /// Loads active tasks (always fresh) and completed tasks (from cache if available).
-    func loadTasks() async {
-        guard let listId = selectedListId else { return }
-        showCachedTasks(for: listId)
-
-        let requestID = beginTaskLoad(for: listId)
-        defer { finishTaskLoad(requestID, for: listId) }
-        do {
-            let activeTasks = try await api.listTasks(listId: listId, showCompleted: false, showHidden: false)
-            let loadedTasks: [TaskItem]
-            if completedTasksFetchedListIDs.contains(listId) {
-                loadedTasks = activeTasks + (completedTasksCacheByListID[listId] ?? [])
-            } else {
-                let completed = try await api.listTasks(listId: listId, showCompleted: true, showHidden: true)
-                    .filter { $0.isCompleted }
-                loadedTasks = activeTasks + completed
-            }
-            cacheFetchedTasks(loadedTasks, for: listId)
-            await applyLoadedTasks(loadedTasks, for: listId, requestID: requestID)
-        } catch {
-            handleCurrentTaskLoadError(error, for: listId, requestID: requestID)
         }
     }
 
@@ -458,7 +340,6 @@ final class AppState {
             if let index = tasks.firstIndex(where: { $0.id == result.id }) {
                 tasks[index] = result
             }
-            updateCompletedTaskCache(with: result, for: listId)
             updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
         } catch {
@@ -478,7 +359,6 @@ final class AppState {
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[index] = result
             }
-            updateCompletedTaskCache(with: result, for: listId)
             updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
         } catch {
@@ -494,7 +374,6 @@ final class AppState {
             let removedIDs = [task.id] + childIDs
             tasks.removeAll { removedIDs.contains($0.id) }
             taskCacheByListID[listId]?.removeAll { removedIDs.contains($0.id) }
-            completedTasksCacheByListID[listId]?.removeAll { removedIDs.contains($0.id) }
             updateVisibleTaskCacheForSelectedList()
             await dueDateNotificationService.removeNotifications(
                 forTaskIDs: removedIDs,
@@ -598,38 +477,13 @@ final class AppState {
         selectedListId == listId && taskLoadRequestID == requestID
     }
 
-    private func showCachedTasks(for listId: String) {
-        guard selectedListId == listId, let cachedTasks = taskCacheByListID[listId] else { return }
-        tasks = cachedTasks
-    }
-
     private func cacheFetchedTasks(_ fetchedTasks: [TaskItem], for listId: String) {
         taskCacheByListID[listId] = fetchedTasks
-        completedTasksCacheByListID[listId] = fetchedTasks.filter { $0.isCompleted }
-        completedTasksFetchedListIDs.insert(listId)
     }
 
     private func updateVisibleTaskCacheForSelectedList() {
         guard let listId = selectedListId else { return }
         taskCacheByListID[listId] = tasks
-        if completedTasksFetchedListIDs.contains(listId) {
-            completedTasksCacheByListID[listId] = tasks.filter { $0.isCompleted }
-        }
-    }
-
-    private func updateCompletedTaskCache(with task: TaskItem, for listId: String) {
-        if task.isCompleted {
-            var cachedCompletedTasks = completedTasksCacheByListID[listId] ?? []
-            if let index = cachedCompletedTasks.firstIndex(where: { $0.id == task.id }) {
-                cachedCompletedTasks[index] = task
-            } else {
-                cachedCompletedTasks.append(task)
-            }
-            completedTasksCacheByListID[listId] = cachedCompletedTasks
-            completedTasksFetchedListIDs.insert(listId)
-        } else {
-            completedTasksCacheByListID[listId]?.removeAll { $0.id == task.id }
-        }
     }
 
     private func applyLoadedTasks(_ loadedTasks: [TaskItem], for listId: String, requestID: Int) async {

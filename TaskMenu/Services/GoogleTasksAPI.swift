@@ -73,15 +73,6 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         _ = try await request(path: "/lists/\(listId)/tasks/\(taskId)", method: "DELETE")
     }
 
-    func moveTask(listId: String, taskId: String, previousId: String? = nil, parentId: String? = nil) async throws -> TaskItem {
-        var queryItems = [URLQueryItem]()
-        if let previousId { queryItems.append(URLQueryItem(name: "previous", value: previousId)) }
-        if let parentId { queryItems.append(URLQueryItem(name: "parent", value: parentId)) }
-
-        let data = try await request(path: "/lists/\(listId)/tasks/\(taskId)/move", method: "POST", queryItems: queryItems)
-        return try decode(TaskItem.self, from: data)
-    }
-
     // MARK: - Private
 
     private func request(
