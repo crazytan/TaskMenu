@@ -9,6 +9,7 @@
 ## Unreleased
 
 ### Added
+- Restored the task search/filter bar in the popover, lost in the AppKit rewrite: real-time title/notes filtering, result count, matching subtasks shown with their parents, and an auto-expanded Completed section during search.
 - Added Homebrew tap installation instructions and release maintenance notes.
 - Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
 - Added a right-click Delete action for task rows in the popover task list.
@@ -23,6 +24,13 @@
 - Removed dead code left over from the SwiftUI-to-AppKit migration: the unused `TaskRowAppKitView`, task indent/outdent support, the never-called `loadTasks` first-load path, the unused `moveTask` API, and obsolete presentation/layout helpers and their tests.
 
 ### Fixed
+- Completing a parent task now also completes its open subtasks (matching Google Tasks behavior), and incomplete subtasks under completed parents stay visible in the Completed section instead of disappearing from the list.
+- Kept the Completed section reachable when every task is done; the "No open tasks" empty state now appears only when the list is truly empty.
+- Escape now reaches the quick-add and add-subtask fields (clearing text, dismissing the inline field, or closing the popover) instead of being swallowed by the field editor.
+- Task detail editor: an empty title no longer overwrites the existing title, notes are saved trimmed, the subtask list keeps its scroll position when toggling subtasks, and due dates typed into the picker are saved on Done even without committing the field.
+- Due-today notifications no longer re-fire on every task refresh after being dismissed.
+- The new-task flash highlight now tracks the created task's ID instead of matching rows by title.
+- OAuth error redirects now surface the real error (for example `access_denied`) instead of a misleading state-mismatch message, and empty access tokens are no longer written to the Keychain.
 - Aligned the completed-section divider, disclosure chevron, completed task check icons, and subtask rows with the main task list rows.
 - Restored per-parent completed-subtask disclosure rows for open tasks, tightened their spacing, and kept those subtasks out of the global Completed section.
 - Kept the task detail metadata group at its compact two-row height and hid the unset due-date picker until Set is clicked.

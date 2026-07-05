@@ -38,6 +38,35 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(scrollView.scrollerStyle, .overlay)
     }
 
+    @MainActor
+    func testTextFieldEscapeInvokesOnEscapeAndClaimsEvent() {
+        let field = TaskMenuTextField(placeholder: "Add task")
+        var escaped = false
+        field.onEscape = { escaped = true }
+
+        let handled = field.control(
+            field,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.cancelOperation(_:))
+        )
+
+        XCTAssertTrue(handled)
+        XCTAssertTrue(escaped)
+    }
+
+    @MainActor
+    func testTextFieldEscapeWithoutHandlerPassesThrough() {
+        let field = TaskMenuTextField(placeholder: "Add task")
+
+        let handled = field.control(
+            field,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.cancelOperation(_:))
+        )
+
+        XCTAssertFalse(handled)
+    }
+
     func testTaskNotesPreviewTrimsWhitespace() {
         let task = TaskItem(
             id: "with-notes",
@@ -107,6 +136,75 @@ final class TaskListViewTests: XCTestCase {
         ])
 
         XCTAssertEqual(completedTasks.map(\.id), ["done-root", "done-parent", "done-child"])
+    }
+
+    func testFinalCompletedSectionIncludesIncompleteChildOfCompletedParent() {
+        let completedParent = makeTask(id: "done-parent", status: .completed, position: "0001")
+        let incompleteChild = makeTask(id: "open-child", parent: "done-parent", position: "0001")
+        let completedChild = makeTask(
+            id: "done-child",
+            parent: "done-parent",
+            status: .completed,
+            position: "0002"
+        )
+
+        let completedTasks = completedTasksForFinalSection([
+            completedParent,
+            incompleteChild,
+            completedChild
+        ])
+
+        XCTAssertEqual(completedTasks.map(\.id), ["done-parent", "open-child", "done-child"])
+    }
+
+    func testSearchResultCountTextUsesSingularAndPlural() {
+        XCTAssertEqual(searchResultCountText(0), "0 results")
+        XCTAssertEqual(searchResultCountText(1), "1 result")
+        XCTAssertEqual(searchResultCountText(5), "5 results")
+    }
+
+    @MainActor
+    func testCompletedSectionSourceTasksUsesFilteredSetWhileSearching() {
+        let state = AppState()
+        state.tasks = [
+            makeTask(id: "done-match", title: "Buy milk", status: .completed),
+            makeTask(id: "done-other", title: "Walk dog", status: .completed),
+            makeTask(id: "open-match", title: "Buy eggs")
+        ]
+
+        state.searchText = ""
+        XCTAssertEqual(
+            TaskListPresentation.completedSectionSourceTasks(from: state).map(\.id),
+            ["done-match", "done-other", "open-match"]
+        )
+
+        state.searchText = "buy"
+        XCTAssertEqual(
+            TaskListPresentation.completedSectionSourceTasks(from: state).map(\.id),
+            ["done-match", "open-match"]
+        )
+    }
+
+    @MainActor
+    func testDisplaySubtasksShowsOnlyMatchingChildrenWhileSearching() {
+        let state = AppState()
+        state.tasks = [
+            makeTask(id: "parent", title: "Errands"),
+            makeTask(id: "done-child", title: "Renew passport", parent: "parent", status: .completed),
+            makeTask(id: "open-child", title: "Buy stamps", parent: "parent")
+        ]
+
+        state.searchText = "passport"
+        XCTAssertEqual(
+            TaskListPresentation.displaySubtasks(of: "parent", from: state).map(\.id),
+            ["done-child"]
+        )
+
+        state.searchText = ""
+        XCTAssertEqual(
+            TaskListPresentation.displaySubtasks(of: "parent", from: state).map(\.id),
+            ["done-child", "open-child"]
+        )
     }
 
     func testCompletedSubtasksForOpenParentReturnsOnlyThatParentsCompletedChildren() {

@@ -303,3 +303,119 @@ final class TaskQuickAddView: NSView {
         }
     }
 }
+
+@MainActor
+final class TaskSearchBarView: NSView {
+    var onSearchTextChange: ((String) -> Void)?
+    var onEscapeWithEmptyField: (() -> Void)?
+
+    private let container = NSView()
+    private let field = TaskMenuTextField(placeholder: "Filter tasks…")
+    private let resultCountLabel = TaskMenuAppKit.label(
+        "",
+        font: .systemFont(ofSize: 11),
+        color: .secondaryLabelColor
+    )
+    private let clearButton = TaskMenuActionButton(
+        symbolName: "xmark.circle.fill",
+        pointSize: 11,
+        weight: .regular,
+        accessibilityDescription: "Clear filter"
+    )
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setup()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func render(searchText: String, isSearching: Bool, resultCount: Int) {
+        if field.stringValue != searchText {
+            field.stringValue = searchText
+        }
+        clearButton.isHidden = searchText.isEmpty
+        resultCountLabel.isHidden = !isSearching
+        resultCountLabel.stringValue = searchResultCountText(resultCount)
+    }
+
+    private func setup() {
+        translatesAutoresizingMaskIntoConstraints = false
+
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 7
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
+        container.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 7
+        container.addSubview(stack)
+        TaskMenuAppKit.pin(
+            stack,
+            to: container,
+            insets: NSEdgeInsets(top: 5, left: 9, bottom: 5, right: 8)
+        )
+
+        let magnifier = NSImageView(
+            image: TaskMenuAppKit.symbol("magnifyingglass", pointSize: 12, weight: .medium) ?? NSImage()
+        )
+        magnifier.contentTintColor = .tertiaryLabelColor
+        magnifier.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            magnifier.widthAnchor.constraint(equalToConstant: 12),
+            magnifier.heightAnchor.constraint(equalToConstant: 12)
+        ])
+        stack.addArrangedSubview(magnifier)
+
+        field.font = .systemFont(ofSize: 13)
+        field.onChange = { [weak self] text in
+            self?.onSearchTextChange?(text)
+        }
+        field.onEscape = { [weak self] in
+            self?.handleEscape()
+        }
+        stack.addArrangedSubview(field)
+
+        resultCountLabel.isHidden = true
+        stack.addArrangedSubview(resultCountLabel)
+
+        clearButton.refusesFirstResponder = true
+        clearButton.contentTintColor = .secondaryLabelColor
+        clearButton.isHidden = true
+        clearButton.onPress = { [weak self] in
+            self?.clear()
+        }
+        NSLayoutConstraint.activate([
+            clearButton.widthAnchor.constraint(equalToConstant: 16),
+            clearButton.heightAnchor.constraint(equalToConstant: 16)
+        ])
+        stack.addArrangedSubview(clearButton)
+
+        addSubview(container)
+        TaskMenuAppKit.pin(
+            container,
+            to: self,
+            insets: NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+        )
+    }
+
+    private func clear() {
+        field.stringValue = ""
+        onSearchTextChange?("")
+    }
+
+    private func handleEscape() {
+        if field.stringValue.isEmpty {
+            onEscapeWithEmptyField?()
+        } else {
+            clear()
+        }
+    }
+}

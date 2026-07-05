@@ -95,6 +95,41 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertFalse(auth.isSignedIn)
     }
 
+    func testSaveTokensWithEmptyAccessTokenLeavesNoKeychainEntry() async throws {
+        try keychain.save(key: Constants.Keychain.accessTokenKey, string: "previous-access-token")
+
+        let webAuthenticator = MockWebAuthenticator { authURL, callbackScheme in
+            let state = try XCTUnwrap(queryItem("state", in: authURL))
+            return URL(string: "\(callbackScheme):\(Constants.googleRedirectPath)?code=auth-code-value&state=\(state)")!
+        }
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+
+            if request.url?.absoluteString == Constants.googleTokenURL {
+                let json = #"{"access_token":"","refresh_token":"new-refresh-token","expires_in":3600,"token_type":"Bearer"}"#
+                return (response, json.data(using: .utf8)!)
+            }
+
+            let json = #"{"email":"tan@example.com"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session, webAuthenticator: webAuthenticator)
+        try await auth.signIn()
+
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.accessTokenKey))
+    }
+
+    func testLoadTokensTreatsEmptyStoredAccessTokenAsNil() throws {
+        try keychain.save(key: Constants.Keychain.accessTokenKey, string: "")
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "refresh-token-value")
+
+        let auth = GoogleAuthService(keychain: keychain)
+
+        XCTAssertNil(auth.accessToken)
+    }
+
     // MARK: - Sign Out
 
     func testSignOutClearsTokens() throws {
@@ -189,6 +224,40 @@ final class GoogleAuthServiceTests: XCTestCase {
 
     func testOAuthCallbackParserReportsAuthorizationErrors() {
         let callbackURL = URL(string: "\(Constants.googleRedirectScheme):\(Constants.googleRedirectPath)?error=access_denied&state=expected-state")!
+
+        XCTAssertThrowsError(
+            try OAuthCallbackParser.authorizationCode(
+                from: callbackURL,
+                expectedState: "expected-state",
+                expectedScheme: Constants.googleRedirectScheme
+            )
+        ) { error in
+            guard case GoogleAuthError.authorizationFailed("access_denied") = error else {
+                XCTFail("Expected GoogleAuthError.authorizationFailed, got \(error)")
+                return
+            }
+        }
+    }
+
+    func testOAuthCallbackParserReportsAuthorizationErrorBeforeCheckingState() {
+        let callbackURL = URL(string: "\(Constants.googleRedirectScheme):\(Constants.googleRedirectPath)?error=access_denied&state=unexpected-state")!
+
+        XCTAssertThrowsError(
+            try OAuthCallbackParser.authorizationCode(
+                from: callbackURL,
+                expectedState: "expected-state",
+                expectedScheme: Constants.googleRedirectScheme
+            )
+        ) { error in
+            guard case GoogleAuthError.authorizationFailed("access_denied") = error else {
+                XCTFail("Expected GoogleAuthError.authorizationFailed, got \(error)")
+                return
+            }
+        }
+    }
+
+    func testOAuthCallbackParserReportsAuthorizationErrorWhenStateMissing() {
+        let callbackURL = URL(string: "\(Constants.googleRedirectScheme):\(Constants.googleRedirectPath)?error=access_denied")!
 
         XCTAssertThrowsError(
             try OAuthCallbackParser.authorizationCode(

@@ -140,6 +140,79 @@ final class DueDateNotificationServiceTests: XCTestCase {
         XCTAssertTrue(addedRequests.isEmpty)
     }
 
+    func testSyncDoesNotRescheduleImmediateNotificationAlreadyScheduledSameDay() async {
+        let defaults = makeDefaults()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = DateFormatting.parseRFC3339("2026-03-10T12:00:00.000Z")!
+        let list = TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)
+        let task = makeTask(id: "task1", title: "Pay rent", due: "2026-03-10T00:00:00.000Z")
+
+        let firstCenter = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        let firstService = DueDateNotificationService(center: firstCenter, calendar: calendar, now: { now }, defaults: defaults)
+        await firstService.syncNotifications(for: [task], in: list)
+        let firstAdded = await firstCenter.addedRequests()
+        XCTAssertEqual(firstAdded.count, 1)
+        XCTAssertEqual(firstAdded[0].trigger, .timeInterval(1))
+
+        // Second sync same day with an empty delivered list must not re-add.
+        let secondCenter = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        let secondService = DueDateNotificationService(center: secondCenter, calendar: calendar, now: { now }, defaults: defaults)
+        await secondService.syncNotifications(for: [task], in: list)
+        let secondAdded = await secondCenter.addedRequests()
+        XCTAssertTrue(secondAdded.isEmpty)
+    }
+
+    func testSyncReschedulesImmediateNotificationOnNewDay() async {
+        let defaults = makeDefaults()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let list = TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)
+
+        let firstNow = DateFormatting.parseRFC3339("2026-03-10T12:00:00.000Z")!
+        let firstTask = makeTask(id: "task1", title: "Pay rent", due: "2026-03-10T00:00:00.000Z")
+        let firstCenter = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        let firstService = DueDateNotificationService(center: firstCenter, calendar: calendar, now: { firstNow }, defaults: defaults)
+        await firstService.syncNotifications(for: [firstTask], in: list)
+        let firstAdded = await firstCenter.addedRequests()
+        XCTAssertEqual(firstAdded.count, 1)
+
+        // Next day, same task due that later day should schedule again.
+        let secondNow = DateFormatting.parseRFC3339("2026-03-11T12:00:00.000Z")!
+        let secondTask = makeTask(id: "task1", title: "Pay rent", due: "2026-03-11T00:00:00.000Z")
+        let secondCenter = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        let secondService = DueDateNotificationService(center: secondCenter, calendar: calendar, now: { secondNow }, defaults: defaults)
+        await secondService.syncNotifications(for: [secondTask], in: list)
+        let secondAdded = await secondCenter.addedRequests()
+        XCTAssertEqual(secondAdded.count, 1)
+        XCTAssertEqual(secondAdded[0].trigger, .timeInterval(1))
+    }
+
+    func testRemoveAllNotificationsClearsScheduledRecordAllowingReschedule() async {
+        let defaults = makeDefaults()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = DateFormatting.parseRFC3339("2026-03-10T12:00:00.000Z")!
+        let list = TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)
+        let task = makeTask(id: "task1", title: "Pay rent", due: "2026-03-10T00:00:00.000Z")
+
+        let firstCenter = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        let firstService = DueDateNotificationService(center: firstCenter, calendar: calendar, now: { now }, defaults: defaults)
+        await firstService.syncNotifications(for: [task], in: list)
+        let firstAdded = await firstCenter.addedRequests()
+        XCTAssertEqual(firstAdded.count, 1)
+
+        await firstService.removeAllNotifications()
+
+        // After clearing the record, the same day sync should re-add.
+        let secondCenter = TestUserNotificationCenterClient(authorizationStatus: .authorized)
+        let secondService = DueDateNotificationService(center: secondCenter, calendar: calendar, now: { now }, defaults: defaults)
+        await secondService.syncNotifications(for: [task], in: list)
+        let secondAdded = await secondCenter.addedRequests()
+        XCTAssertEqual(secondAdded.count, 1)
+        XCTAssertEqual(secondAdded[0].trigger, .timeInterval(1))
+    }
+
     func testRemoveNotificationsTargetsSpecificTaskIdentifiers() async {
         let center = TestUserNotificationCenterClient(authorizationStatus: .authorized)
         let service = DueDateNotificationService(center: center)
@@ -162,6 +235,13 @@ final class DueDateNotificationServiceTests: XCTestCase {
                 DueDateNotificationService.identifier(forTaskID: "task2", listID: "list1"),
             ]
         )
+    }
+
+    private func makeDefaults(function: String = #function) -> UserDefaults {
+        let suiteName = "DueDateNotificationServiceTests.\(function).\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
     }
 
     private func makeTask(

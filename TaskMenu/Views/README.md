@@ -6,8 +6,8 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 
 - `AppKitTaskUIHelpers.swift` - shared AppKit controls, SF Symbol helpers, layout pinning, hover handling, menu actions, and Observation glue.
 - `TaskPopoverViewController.swift` - signed-out, initial-loading, signed-in task list, bottom error strip, popover sizing, settings handoff, and popover surface styling.
-- `TaskListAppKitViewController.swift` - task-list/detail coordination, list picker routing, local list disclosure state, and `AppState` mutation wiring.
-- `TaskListControlsAppKitViews.swift` - list picker, refresh spinner, overflow menu, and quick-add field AppKit views.
+- `TaskListAppKitViewController.swift` - task-list/detail coordination, list picker routing, search bar wiring, local list disclosure state, and `AppState` mutation wiring.
+- `TaskListControlsAppKitViews.swift` - list picker, refresh spinner, overflow menu, search bar, and quick-add field AppKit views.
 - `TaskListContentAppKitView.swift` - task-list empty states, outline view, active/completed sections, subtask display, and row context menus.
 - `TaskDetailAppKitViewController.swift` - task edit screen, title/notes fields, due-date state, disabled list picker, delete action, and subtask add/toggle UI.
 - `TaskPresentation.swift` - pure task-list, notes preview, and completed-subtask ordering helper logic.

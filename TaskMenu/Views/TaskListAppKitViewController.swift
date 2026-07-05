@@ -14,6 +14,7 @@ final class TaskListAppKitViewController: NSViewController {
 
     private let rootStack = NSStackView()
     private let headerView = TaskListHeaderView()
+    private let searchBarView = TaskSearchBarView()
     private let quickAddView = TaskQuickAddView()
     private var contentView: TaskListContentView?
 
@@ -74,12 +75,21 @@ final class TaskListAppKitViewController: NSViewController {
         }
 
         quickAddView.onCommit = { [weak self] title in
-            self?.contentView?.flashTask(title: title)
-            Task {
-                await self?.appState.addTask(title: title)
+            // Clear any active filter so the new task is visible and can flash.
+            self?.appState.searchText = ""
+            Task { [weak self] in
+                guard let task = await self?.appState.addTask(title: title) else { return }
+                self?.contentView?.flashTask(taskID: task.id)
             }
         }
         quickAddView.onEscapeWithEmptyField = { [weak self] in
+            self?.onRequestClose()
+        }
+
+        searchBarView.onSearchTextChange = { [weak self] text in
+            self?.appState.searchText = text
+        }
+        searchBarView.onEscapeWithEmptyField = { [weak self] in
             self?.onRequestClose()
         }
     }
@@ -109,6 +119,8 @@ final class TaskListAppKitViewController: NSViewController {
         configureContentView(contentView)
 
         rootStack.addArrangedSubview(headerView)
+        rootStack.addArrangedSubview(TaskMenuAppKit.separator())
+        rootStack.addArrangedSubview(searchBarView)
         rootStack.addArrangedSubview(TaskMenuAppKit.separator())
         rootStack.addArrangedSubview(contentView)
         rootStack.addArrangedSubview(TaskMenuAppKit.separator())
@@ -173,6 +185,11 @@ final class TaskListAppKitViewController: NSViewController {
             isLoading: appState.isLoading
         )
         quickAddView.render(listTitle: appState.selectedList?.title ?? "Tasks")
+        searchBarView.render(
+            searchText: appState.searchText,
+            isSearching: appState.isSearching,
+            resultCount: appState.searchFilteredTasks.count
+        )
         renderListContent()
     }
 
@@ -188,6 +205,7 @@ final class TaskListAppKitViewController: NSViewController {
         guard listID != appState.selectedListId else { return }
         showCompleted = false
         expandedCompletedSubtaskParentIDs = []
+        appState.searchText = ""
         Task { [appState] in
             await appState.selectList(listID)
         }
@@ -206,6 +224,7 @@ final class TaskListAppKitViewController: NSViewController {
             _ = appState.selectedList
             _ = appState.tasks
             _ = appState.collapsedTaskIDs
+            _ = appState.searchText
         } onChange: { [weak self] in
             self?.renderListScreen()
         }

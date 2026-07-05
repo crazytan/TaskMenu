@@ -40,18 +40,23 @@ protocol UserNotificationCenterClientProtocol: Sendable {
 }
 
 struct DueDateNotificationService: DueDateNotificationServicing, Sendable {
+    private static let scheduledImmediateNotificationsKey = "dev.crazytan.TaskMenu.dueDate.scheduledImmediateNotifications"
+
     private let center: any UserNotificationCenterClientProtocol
     private let calendar: Calendar
     private let now: @Sendable () -> Date
+    private nonisolated(unsafe) let defaults: UserDefaults
 
     init(
         center: any UserNotificationCenterClientProtocol = UserNotificationCenterClient(),
         calendar: Calendar = .current,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        defaults: UserDefaults = .standard
     ) {
         self.center = center
         self.calendar = calendar
         self.now = now
+        self.defaults = defaults
     }
 
     func syncNotifications(for tasks: [TaskItem], in list: TaskList) async {
@@ -92,13 +97,31 @@ struct DueDateNotificationService: DueDateNotificationServicing, Sendable {
             break
         }
 
+        let today = dayString(for: now())
+        var scheduledRecord = loadScheduledImmediateNotifications()
+
         for request in desiredRequests {
-            if case .timeInterval = request.trigger, deliveredIdentifiers.contains(request.identifier) {
-                continue
+            if case .timeInterval = request.trigger {
+                if deliveredIdentifiers.contains(request.identifier) {
+                    continue
+                }
+                if scheduledRecord[request.identifier] == today {
+                    continue
+                }
             }
 
-            try? await center.add(request)
+            do {
+                try await center.add(request)
+                if case .timeInterval = request.trigger {
+                    scheduledRecord[request.identifier] = today
+                }
+            } catch {
+                continue
+            }
         }
+
+        pruneScheduledImmediateNotifications(&scheduledRecord, keepingDay: today)
+        saveScheduledImmediateNotifications(scheduledRecord)
     }
 
     func removeNotifications(forTaskIDs taskIDs: [String], inListID listID: String) async {
@@ -107,11 +130,18 @@ struct DueDateNotificationService: DueDateNotificationServicing, Sendable {
 
         await center.removePendingNotificationRequests(withIdentifiers: identifiers)
         await center.removeDeliveredNotifications(withIdentifiers: identifiers)
+
+        var scheduledRecord = loadScheduledImmediateNotifications()
+        for identifier in identifiers {
+            scheduledRecord.removeValue(forKey: identifier)
+        }
+        saveScheduledImmediateNotifications(scheduledRecord)
     }
 
     func removeAllNotifications() async {
         await center.removeAllPendingNotificationRequests()
         await center.removeAllDeliveredNotifications()
+        saveScheduledImmediateNotifications([:])
     }
 
     private func notificationRequest(for task: TaskItem, in list: TaskList, now: Date) -> DueDateNotificationRequestData? {
@@ -169,6 +199,30 @@ struct DueDateNotificationService: DueDateNotificationServicing, Sendable {
 
     private func dueDateComponents(from dueDate: Date) -> DateComponents {
         calendar.dateComponents([.year, .month, .day], from: dueDate)
+    }
+
+    private func dayString(for date: Date) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let year = components.year ?? 0
+        let month = components.month ?? 0
+        let day = components.day ?? 0
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    private func loadScheduledImmediateNotifications() -> [String: String] {
+        defaults.dictionary(forKey: Self.scheduledImmediateNotificationsKey) as? [String: String] ?? [:]
+    }
+
+    private func saveScheduledImmediateNotifications(_ record: [String: String]) {
+        if record.isEmpty {
+            defaults.removeObject(forKey: Self.scheduledImmediateNotificationsKey)
+        } else {
+            defaults.set(record, forKey: Self.scheduledImmediateNotificationsKey)
+        }
+    }
+
+    private func pruneScheduledImmediateNotifications(_ record: inout [String: String], keepingDay day: String) {
+        record = record.filter { $0.value == day }
     }
 
     static func identifier(forTaskID taskID: String, listID: String) -> String {

@@ -30,6 +30,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private let subtaskListStack = NSStackView()
     private var subtaskScrollHeightConstraint: NSLayoutConstraint?
     private var addSubtaskField: TaskMenuTextField?
+    private weak var dueDatePicker: NSDatePicker?
     private let appStateObserver = TaskMenuAppStateObserver()
 
     init(appState: AppState, task: TaskItem, onDismiss: @escaping () -> Void) {
@@ -271,6 +272,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             picker.target = self
             picker.action = #selector(dueDateChanged(_:))
             dueDateControls.addArrangedSubview(picker)
+            dueDatePicker = picker
 
             let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearDueDate))
             clearButton.isBordered = false
@@ -278,6 +280,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             clearButton.contentTintColor = .controlAccentColor
             dueDateControls.addArrangedSubview(clearButton)
         } else {
+            dueDatePicker = nil
             let setButton = NSButton(title: "Set", target: self, action: #selector(enableDueDate))
             setButton.controlSize = .small
             setButton.bezelStyle = .rounded
@@ -333,6 +336,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let documentHeight = CGFloat(rowCount) * TaskDetailViewMetrics.subtaskRowHeight
         let visibleHeight = min(documentHeight, TaskDetailViewMetrics.subtaskScrollMaxHeight)
 
+        let previousOffset = subtaskScrollView.contentView.bounds.origin.y
+
         subtaskScrollHeightConstraint?.constant = visibleHeight
         subtaskDocumentView.frame = NSRect(
             x: 0,
@@ -341,7 +346,13 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             height: documentHeight
         )
         subtaskScrollView.hasVerticalScroller = documentHeight > visibleHeight
-        subtaskScrollView.contentView.scroll(to: .zero)
+
+        let restoredOffset = TaskDetailEditing.clampedScrollOffset(
+            previousOffset,
+            documentHeight: documentHeight,
+            visibleHeight: visibleHeight
+        )
+        subtaskScrollView.contentView.scroll(to: NSPoint(x: 0, y: restoredOffset))
         subtaskScrollView.reflectScrolledClipView(subtaskScrollView.contentView)
     }
 
@@ -455,9 +466,12 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     @objc private func saveTask() {
-        task.title = titleField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        task.title = TaskDetailEditing.effectiveTitle(fieldText: titleField.stringValue, existingTitle: task.title)
         let notes = notesTextView.string.trimmingCharacters(in: .whitespacesAndNewlines)
-        task.notes = notes.isEmpty ? nil : notesTextView.string
+        task.notes = notes.isEmpty ? nil : notes
+        if dueDateState.isEnabled, let dueDatePicker {
+            dueDateState.selection = dueDatePicker.dateValue
+        }
         let updatedTask = dueDateState.applying(to: task)
         Task { [appState, onDismiss] in
             await appState.updateTask(updatedTask)
@@ -555,5 +569,25 @@ private final class TaskDetailSubtaskRow: NSView {
 private final class TaskDetailFlippedDocumentView: NSView {
     override var isFlipped: Bool {
         true
+    }
+}
+
+enum TaskDetailEditing {
+    /// Returns the title to save: the trimmed field text, or the existing title
+    /// when the field trims to empty (matching the quick-add field's no-empty rule).
+    static func effectiveTitle(fieldText: String, existingTitle: String) -> String {
+        let trimmed = fieldText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? existingTitle : trimmed
+    }
+
+    /// Clamps a scroll offset to the valid range for the current document,
+    /// where the max offset is `documentHeight - visibleHeight` with a floor of 0.
+    static func clampedScrollOffset(
+        _ offset: CGFloat,
+        documentHeight: CGFloat,
+        visibleHeight: CGFloat
+    ) -> CGFloat {
+        let maxOffset = max(documentHeight - visibleHeight, 0)
+        return min(max(offset, 0), maxOffset)
     }
 }

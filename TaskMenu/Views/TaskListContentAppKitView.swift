@@ -27,7 +27,8 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     private var completedGroupNode: TaskOutlineNode?
     private var collapsedTaskIDs: Set<String> = []
     private var expandedCompletedSubtaskParentIDs: Set<String> = []
-    private var pendingFlashTitles: Set<String> = []
+    private var isSearching = false
+    private var pendingFlashTaskIDs: Set<String> = []
     private var flashingTaskIDs: Set<String> = []
     private var suppressExpansionCallbacks = false
 
@@ -50,8 +51,12 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
-    func flashTask(title: String) {
-        pendingFlashTitles.insert(title)
+    func flashTask(taskID: String) {
+        if nodeByTaskID[taskID] != nil {
+            applyFlash(taskID: taskID)
+        } else {
+            pendingFlashTaskIDs.insert(taskID)
+        }
     }
 
     func render(
@@ -59,7 +64,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         showCompleted: Bool,
         expandedCompletedSubtaskParentIDs: Set<String>
     ) {
-        collapsedTaskIDs = appState.collapsedTaskIDs
+        isSearching = appState.isSearching
+        // Collapse state is ignored while searching so matching subtasks stay visible.
+        collapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
         rebuildNodes(appState: appState, showCompleted: showCompleted)
         updateEmptyState(appState: appState)
@@ -143,7 +150,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         let activeRoots = TaskListPresentation.incompleteRootTasks(from: appState)
         let activeNodes = activeRoots.map { makeActiveNode(for: $0, appState: appState, level: 0) }
 
-        let completedTasks = completedTasksForFinalSection(appState.tasks)
+        let completedTasks = completedTasksForFinalSection(
+            TaskListPresentation.completedSectionSourceTasks(from: appState)
+        )
         if completedTasks.isEmpty {
             nodes = activeNodes
             return
@@ -156,21 +165,27 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
                 section: .completed
             )))
         }
-        let completedGroup = TaskOutlineNode(kind: .completedGroup(count: completedTasks.count, isExpanded: showCompleted))
+        // The completed section is auto-expanded while searching.
+        let isExpanded = showCompleted || isSearching
+        let completedGroup = TaskOutlineNode(kind: .completedGroup(count: completedTasks.count, isExpanded: isExpanded))
         completedGroupNode = completedGroup
-        nodes = activeNodes + [completedGroup] + (showCompleted ? completedNodes : [])
+        nodes = activeNodes + [completedGroup] + (isExpanded ? completedNodes : [])
     }
 
     private func makeActiveNode(for task: TaskItem, appState: AppState, level: Int) -> TaskOutlineNode {
         let entry = TaskListTaskEntry(
             task: task,
             indentLevel: level,
-            section: .active
+            section: task.isCompleted ? .completed : .active
         )
-        var children = appState.subtasks(of: task.id)
-            .filter { !$0.isCompleted }
+        // While searching, matching completed subtasks render inline instead of
+        // behind the completed-subtasks disclosure.
+        var children = TaskListPresentation.displaySubtasks(of: task.id, from: appState)
+            .filter { isSearching || !$0.isCompleted }
             .map { makeActiveNode(for: $0, appState: appState, level: level + 1) }
-        let completedSubtasks = completedSubtasksForOpenParent(task.id, tasks: appState.tasks)
+        let completedSubtasks = isSearching
+            ? []
+            : completedSubtasksForOpenParent(task.id, tasks: appState.tasks)
         if !completedSubtasks.isEmpty {
             let isExpanded = expandedCompletedSubtaskParentIDs.contains(task.id)
             children.append(TaskOutlineNode(kind: .completedSubtasksGroup(
@@ -197,8 +212,10 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     private func updateEmptyState(appState: AppState) {
         emptyStateContainer.subviews.forEach { $0.removeFromSuperview() }
 
-        let activeCount = appState.tasks.filter { !$0.isCompleted }.count
-        let shouldShowEmpty = (appState.isLoading && appState.tasks.isEmpty) || activeCount == 0
+        let showsNoResults = !appState.tasks.isEmpty
+            && appState.isSearching
+            && appState.searchFilteredTasks.isEmpty
+        let shouldShowEmpty = appState.tasks.isEmpty || showsNoResults
         emptyStateContainer.isHidden = !shouldShowEmpty
         scrollView.isHidden = shouldShowEmpty
         guard shouldShowEmpty else { return }
@@ -214,7 +231,16 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             stack.centerYAnchor.constraint(equalTo: emptyStateContainer.centerYAnchor)
         ])
 
-        if appState.isLoading {
+        if showsNoResults {
+            let image = NSImageView(image: TaskMenuAppKit.symbol("magnifyingglass", pointSize: 28, weight: .thin) ?? NSImage())
+            image.contentTintColor = .tertiaryLabelColor
+            stack.addArrangedSubview(image)
+            stack.addArrangedSubview(TaskMenuAppKit.label(
+                "No results",
+                font: .systemFont(ofSize: 13),
+                color: .secondaryLabelColor
+            ))
+        } else if appState.isLoading {
             let spinner = NSProgressIndicator()
             spinner.style = .spinning
             spinner.controlSize = .small
@@ -237,7 +263,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         defer { suppressExpansionCallbacks = false }
 
         for node in nodeByTaskID.values where !node.children.isEmpty {
-            if let task = node.task, appState.collapsedTaskIDs.contains(task.id) {
+            if let task = node.task, collapsedTaskIDs.contains(task.id) {
                 outlineView.collapseItem(node)
             } else {
                 outlineView.expandItem(node)
@@ -250,31 +276,28 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     }
 
     private func applyPendingFlashes() {
-        guard !pendingFlashTitles.isEmpty else { return }
-        let matchedNodes = nodeByTaskID.values.filter { node in
-            guard let task = node.task else { return false }
-            return pendingFlashTitles.contains(task.title)
+        guard !pendingFlashTaskIDs.isEmpty else { return }
+        for taskID in pendingFlashTaskIDs where nodeByTaskID[taskID] != nil {
+            pendingFlashTaskIDs.remove(taskID)
+            applyFlash(taskID: taskID)
         }
-        guard !matchedNodes.isEmpty else { return }
+    }
 
-        for node in matchedNodes {
-            guard let task = node.task else { continue }
-            flashingTaskIDs.insert(task.id)
-            pendingFlashTitles.remove(task.title)
-            let row = outlineView.row(forItem: node)
-            if row >= 0 {
-                outlineView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: 0))
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self, taskID = task.id] in
-                guard let self else { return }
-                self.flashingTaskIDs.remove(taskID)
-                if let node = self.nodeByTaskID[taskID] {
-                    let row = self.outlineView.row(forItem: node)
-                    if row >= 0 {
-                        self.outlineView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: 0))
-                    }
-                }
-            }
+    private func applyFlash(taskID: String) {
+        flashingTaskIDs.insert(taskID)
+        reloadRow(forTaskID: taskID)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+            guard let self else { return }
+            self.flashingTaskIDs.remove(taskID)
+            self.reloadRow(forTaskID: taskID)
+        }
+    }
+
+    private func reloadRow(forTaskID taskID: String) {
+        guard let node = nodeByTaskID[taskID] else { return }
+        let row = outlineView.row(forItem: node)
+        if row >= 0 {
+            outlineView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: 0))
         }
     }
 
@@ -338,7 +361,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
         if node.isCompletedGroup {
             onToggleCompletedSection?()
-        } else if let task = node.task {
+        } else if let task = node.task, !isSearching {
             onToggleCollapsed?(task.id)
         }
     }
@@ -351,7 +374,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
         if node.isCompletedGroup {
             onToggleCompletedSection?()
-        } else if let task = node.task {
+        } else if let task = node.task, !isSearching {
             onToggleCollapsed?(task.id)
         }
     }
@@ -392,7 +415,8 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
                 self?.onToggleTask?(entry.task)
             }
             row.onToggleCollapse = { [weak self] in
-                self?.onToggleCollapsed?(entry.task.id)
+                guard let self, !self.isSearching else { return }
+                self.onToggleCollapsed?(entry.task.id)
             }
             return row
         }

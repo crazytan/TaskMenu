@@ -59,12 +59,13 @@ enum OAuthCallbackParser {
         }
 
         let queryItems = responseQueryItems(from: components)
-        guard queryItems.first(where: { $0.name == "state" })?.value == expectedState else {
-            throw GoogleAuthError.invalidState
-        }
 
         if let error = queryItems.first(where: { $0.name == "error" })?.value {
             throw GoogleAuthError.authorizationFailed(error)
+        }
+
+        guard queryItems.first(where: { $0.name == "state" })?.value == expectedState else {
+            throw GoogleAuthError.invalidState
         }
 
         guard let code = queryItems.first(where: { $0.name == "code" })?.value, !code.isEmpty else {
@@ -417,7 +418,11 @@ final class GoogleAuthService: Sendable {
 
     private func saveTokens() {
         do {
-            try keychain.save(key: Constants.Keychain.accessTokenKey, string: accessToken ?? "")
+            if let accessToken, !accessToken.isEmpty {
+                try keychain.save(key: Constants.Keychain.accessTokenKey, string: accessToken)
+            } else {
+                try keychain.delete(key: Constants.Keychain.accessTokenKey)
+            }
             if let refreshToken {
                 try keychain.save(key: Constants.Keychain.refreshTokenKey, string: refreshToken)
             }
@@ -444,7 +449,8 @@ final class GoogleAuthService: Sendable {
 
     private func loadTokens() {
         do {
-            accessToken = try keychain.readString(key: Constants.Keychain.accessTokenKey)
+            let storedAccessToken = try keychain.readString(key: Constants.Keychain.accessTokenKey)
+            accessToken = (storedAccessToken?.isEmpty == true) ? nil : storedAccessToken
             refreshToken = try keychain.readString(key: Constants.Keychain.refreshTokenKey)
             if let expStr = try keychain.readString(key: Constants.Keychain.expirationKey),
                let interval = Double(expStr) {

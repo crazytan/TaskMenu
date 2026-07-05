@@ -291,15 +291,18 @@ final class AppState {
         }
     }
 
-    func addTask(title: String) async {
-        guard let listId = selectedListId else { return }
+    @discardableResult
+    func addTask(title: String) async -> TaskItem? {
+        guard let listId = selectedListId else { return nil }
         do {
             let task = try await api.createTask(listId: listId, title: title)
             tasks.insert(task, at: 0)
             updateVisibleTaskCacheForSelectedList()
             await syncDueDateNotificationsIfNeeded()
+            return task
         } catch {
             handleError(error)
+            return nil
         }
     }
 
@@ -327,13 +330,28 @@ final class AppState {
         guard let listId = selectedListId else { return }
         var updated = task
         updated.isCompleted.toggle()
-        
+
+        // Completing a parent also completes its open subtasks, matching Google Tasks.
+        // Un-completing a parent does not cascade.
+        let cascadedChildren = updated.isCompleted
+            ? subtasks(of: task.id).filter { !$0.isCompleted }
+            : []
+
         // Optimistic update: immediately reflect in UI
         if let index = tasks.firstIndex(where: { $0.id == task.id }) {
             tasks[index] = updated
-            updateVisibleTaskCacheForSelectedList()
         }
-        
+        var completedChildren: [TaskItem] = []
+        for child in cascadedChildren {
+            var completedChild = child
+            completedChild.isCompleted = true
+            if let index = tasks.firstIndex(where: { $0.id == child.id }) {
+                tasks[index] = completedChild
+            }
+            completedChildren.append(completedChild)
+        }
+        updateVisibleTaskCacheForSelectedList()
+
         do {
             let result = try await api.updateTask(listId: listId, taskId: task.id, task: updated)
             // Update with server response
@@ -341,15 +359,34 @@ final class AppState {
                 tasks[index] = result
             }
             updateVisibleTaskCacheForSelectedList()
-            await syncDueDateNotificationsIfNeeded()
         } catch {
-            // Revert optimistic update on failure
+            // Revert optimistic updates on failure and skip the cascaded child updates
             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                 tasks[index] = task
-                updateVisibleTaskCacheForSelectedList()
             }
+            for child in cascadedChildren {
+                if let index = tasks.firstIndex(where: { $0.id == child.id }) {
+                    tasks[index] = child
+                }
+            }
+            updateVisibleTaskCacheForSelectedList()
             handleError(error)
+            return
         }
+
+        for completedChild in completedChildren {
+            do {
+                let result = try await api.updateTask(listId: listId, taskId: completedChild.id, task: completedChild)
+                if let index = tasks.firstIndex(where: { $0.id == result.id }) {
+                    tasks[index] = result
+                }
+                updateVisibleTaskCacheForSelectedList()
+            } catch {
+                // Leave the optimistic completion in place; the next refresh reconciles
+                handleError(error)
+            }
+        }
+        await syncDueDateNotificationsIfNeeded()
     }
 
     func updateTask(_ task: TaskItem) async {

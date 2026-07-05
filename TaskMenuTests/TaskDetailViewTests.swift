@@ -65,4 +65,46 @@ final class TaskDetailViewTests: XCTestCase {
         XCTAssertEqual(updatedTask.due, DateFormatting.formatGoogleTaskDueDate(dueDate))
         XCTAssertEqual(updatedTask.dueDate, DateFormatting.parseGoogleTaskDueDate(DateFormatting.formatGoogleTaskDueDate(dueDate)))
     }
+
+    func testEffectiveTitleUsesTrimmedFieldTextWhenNonEmpty() {
+        XCTAssertEqual(
+            TaskDetailEditing.effectiveTitle(fieldText: "  New title  ", existingTitle: "Old title"),
+            "New title"
+        )
+    }
+
+    func testEffectiveTitleKeepsExistingTitleWhenFieldIsEmpty() {
+        XCTAssertEqual(
+            TaskDetailEditing.effectiveTitle(fieldText: "   \n ", existingTitle: "Old title"),
+            "Old title"
+        )
+    }
+
+    func testClampedScrollOffsetKeepsOffsetWithinRange() {
+        // documentHeight 12 rows * 32 = 384, visibleHeight 160 -> maxOffset 224
+        XCTAssertEqual(
+            TaskDetailEditing.clampedScrollOffset(100, documentHeight: 384, visibleHeight: 160),
+            100
+        )
+    }
+
+    func testClampedScrollOffsetClampsToMaxWhenDocumentShrinks() {
+        // Offset 300 exceeds maxOffset (384 - 160 = 224).
+        XCTAssertEqual(
+            TaskDetailEditing.clampedScrollOffset(300, documentHeight: 384, visibleHeight: 160),
+            224
+        )
+    }
+
+    func testClampedScrollOffsetFloorsAtZeroWhenDocumentFits() {
+        // documentHeight <= visibleHeight -> maxOffset floors at 0.
+        XCTAssertEqual(
+            TaskDetailEditing.clampedScrollOffset(50, documentHeight: 96, visibleHeight: 160),
+            0
+        )
+        XCTAssertEqual(
+            TaskDetailEditing.clampedScrollOffset(-10, documentHeight: 384, visibleHeight: 160),
+            0
+        )
+    }
 }

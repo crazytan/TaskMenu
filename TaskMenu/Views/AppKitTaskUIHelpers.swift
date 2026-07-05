@@ -217,12 +217,12 @@ final class TaskMenuTextField: NSTextField, NSTextFieldDelegate {
         onEndEditing?()
     }
 
-    override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 {
-            onEscape?()
-            return
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)), let onEscape {
+            onEscape()
+            return true
         }
-        super.keyDown(with: event)
+        return false
     }
 
     @objc private func commit() {

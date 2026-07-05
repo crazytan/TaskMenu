@@ -113,6 +113,71 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertNil(state.errorMessage)
     }
 
+    // MARK: - toggleTask: Subtask Cascade
+
+    func testToggleTaskCompletingParentCascadesToIncompleteSubtasks() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent"),
+            makeTask(id: "child-open", parent: "parent"),
+            makeTask(id: "child-done", status: .completed, parent: "parent")
+        ]
+
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json: String
+            if request.url!.absoluteString.contains("/tasks/parent") {
+                json = #"{"id":"parent","title":"Test","status":"completed"}"#
+            } else {
+                json = #"{"id":"child-open","title":"Test","status":"completed","parent":"parent"}"#
+            }
+            return (response, json.data(using: .utf8)!)
+        }
+
+        await state.toggleTask(state.tasks[0])
+
+        XCTAssertTrue(state.tasks.allSatisfy(\.isCompleted))
+        XCTAssertNil(state.errorMessage)
+        // Parent is patched first, then the cascaded child; already-completed child is untouched.
+        let patchedURLs = MockURLProtocol.requestLog.compactMap { $0.url?.absoluteString }
+        XCTAssertEqual(patchedURLs.count, 2)
+        XCTAssertTrue(patchedURLs[0].contains("/tasks/parent"))
+        XCTAssertTrue(patchedURLs[1].contains("/tasks/child-open"))
+    }
+
+    func testToggleTaskParentFailureRevertsCascadeAndSkipsChildUpdates() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent"),
+            makeTask(id: "child-open", parent: "parent")
+        ]
+
+        stubResponse(statusCode: 500, json: #"{"error":"Internal Server Error"}"#)
+
+        await state.toggleTask(state.tasks[0])
+
+        XCTAssertFalse(state.tasks[0].isCompleted)
+        XCTAssertFalse(state.tasks[1].isCompleted)
+        XCTAssertNotNil(state.errorMessage)
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
+    }
+
+    func testToggleTaskUncompletingParentDoesNotCascade() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent", status: .completed),
+            makeTask(id: "child-done", status: .completed, parent: "parent")
+        ]
+
+        stubResponse(json: #"{"id":"parent","title":"Test","status":"needsAction"}"#)
+
+        await state.toggleTask(state.tasks[0])
+
+        XCTAssertFalse(state.tasks[0].isCompleted)
+        XCTAssertTrue(state.tasks[1].isCompleted)
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
+    }
+
     // MARK: - toggleTask: Revert on Failure
 
     func testToggleTaskRevertsOnServerError() async {
@@ -412,6 +477,28 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertEqual(state.tasks.count, 2)
         XCTAssertEqual(state.tasks[0].id, "new1")
         XCTAssertEqual(state.tasks[0].title, "New Task")
+    }
+
+    func testAddTaskReturnsCreatedTask() async {
+        state.selectedListId = "list1"
+
+        stubResponse(json: #"{"id":"new1","title":"New Task","status":"needsAction"}"#)
+
+        let created = await state.addTask(title: "New Task")
+
+        XCTAssertEqual(created?.id, "new1")
+    }
+
+    func testAddTaskReturnsNilOnFailure() async {
+        state.selectedListId = "list1"
+
+        stubResponse(statusCode: 500, json: "")
+
+        let created = await state.addTask(title: "New Task")
+
+        XCTAssertNil(created)
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertNotNil(state.errorMessage)
     }
 
     // MARK: - deleteTask
