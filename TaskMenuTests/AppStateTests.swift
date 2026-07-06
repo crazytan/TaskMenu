@@ -231,6 +231,126 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(tasksSortedByGooglePosition(tasks).map(\.id), ["first", "second"])
     }
 
+    // MARK: - Reorder After Move
+
+    private func rootOrder(_ tasks: [TaskItem]) -> [String] {
+        tasksSortedByGooglePosition(tasks.filter { $0.parent == nil }).map(\.id)
+    }
+
+    private func subtaskOrder(_ tasks: [TaskItem], of parentID: String) -> [String] {
+        tasksSortedByGooglePosition(tasks.filter { $0.parent == parentID }).map(\.id)
+    }
+
+    func testReorderAfterMovePlacesRootTaskAfterPreviousSibling() throws {
+        let tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002"),
+            makeTask(id: "third", position: "00000003"),
+        ]
+
+        let reordered = try XCTUnwrap(tasksReorderedAfterMove(
+            tasks, movedTaskID: "third", newParentID: nil, previousTaskID: "first"
+        ))
+
+        XCTAssertEqual(rootOrder(reordered), ["first", "third", "second"])
+    }
+
+    func testReorderAfterMoveWithNilPreviousMovesTaskFirst() throws {
+        let tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002"),
+        ]
+
+        let reordered = try XCTUnwrap(tasksReorderedAfterMove(
+            tasks, movedTaskID: "second", newParentID: nil, previousTaskID: nil
+        ))
+
+        XCTAssertEqual(rootOrder(reordered), ["second", "first"])
+    }
+
+    func testReorderAfterMoveReordersSubtasksWithinParent() throws {
+        let tasks = [
+            makeTask(id: "parent", position: "00000001"),
+            makeTask(id: "child-1", parent: "parent", position: "00000001"),
+            makeTask(id: "child-2", parent: "parent", position: "00000002"),
+            makeTask(id: "child-3", parent: "parent", position: "00000003"),
+        ]
+
+        let reordered = try XCTUnwrap(tasksReorderedAfterMove(
+            tasks, movedTaskID: "child-1", newParentID: "parent", previousTaskID: "child-2"
+        ))
+
+        XCTAssertEqual(subtaskOrder(reordered, of: "parent"), ["child-2", "child-1", "child-3"])
+        XCTAssertEqual(rootOrder(reordered), ["parent"])
+    }
+
+    func testReorderAfterMoveReparentsTaskAndKeepsSourceOrder() throws {
+        let tasks = [
+            makeTask(id: "parent-a", position: "00000001"),
+            makeTask(id: "a-1", parent: "parent-a", position: "00000001"),
+            makeTask(id: "a-2", parent: "parent-a", position: "00000002"),
+            makeTask(id: "a-3", parent: "parent-a", position: "00000003"),
+            makeTask(id: "parent-b", position: "00000002"),
+            makeTask(id: "b-1", parent: "parent-b", position: "00000001"),
+        ]
+
+        let reordered = try XCTUnwrap(tasksReorderedAfterMove(
+            tasks, movedTaskID: "a-2", newParentID: "parent-b", previousTaskID: "b-1"
+        ))
+
+        XCTAssertEqual(subtaskOrder(reordered, of: "parent-a"), ["a-1", "a-3"])
+        XCTAssertEqual(subtaskOrder(reordered, of: "parent-b"), ["b-1", "a-2"])
+        XCTAssertEqual(reordered.first { $0.id == "a-2" }?.parent, "parent-b")
+    }
+
+    func testReorderAfterMovePromotesSubtaskToRoot() throws {
+        let tasks = [
+            makeTask(id: "parent", position: "00000001"),
+            makeTask(id: "child", parent: "parent", position: "00000001"),
+            makeTask(id: "standalone", position: "00000002"),
+        ]
+
+        let reordered = try XCTUnwrap(tasksReorderedAfterMove(
+            tasks, movedTaskID: "child", newParentID: nil, previousTaskID: "parent"
+        ))
+
+        XCTAssertEqual(rootOrder(reordered), ["parent", "child", "standalone"])
+        XCTAssertNil(reordered.first { $0.id == "child" }?.parent)
+    }
+
+    func testReorderAfterMoveRejectsMoveIntoOwnSubtree() {
+        let tasks = [
+            makeTask(id: "parent", position: "00000001"),
+            makeTask(id: "child", parent: "parent", position: "00000001"),
+        ]
+
+        XCTAssertNil(tasksReorderedAfterMove(
+            tasks, movedTaskID: "parent", newParentID: "child", previousTaskID: nil
+        ))
+        XCTAssertNil(tasksReorderedAfterMove(
+            tasks, movedTaskID: "parent", newParentID: "parent", previousTaskID: nil
+        ))
+    }
+
+    func testReorderAfterMoveRejectsPreviousThatIsNotADestinationSibling() {
+        let tasks = [
+            makeTask(id: "parent", position: "00000001"),
+            makeTask(id: "child", parent: "parent", position: "00000001"),
+            makeTask(id: "standalone", position: "00000002"),
+        ]
+
+        // "child" is not a top-level task, so it cannot anchor a root move.
+        XCTAssertNil(tasksReorderedAfterMove(
+            tasks, movedTaskID: "standalone", newParentID: nil, previousTaskID: "child"
+        ))
+        XCTAssertNil(tasksReorderedAfterMove(
+            tasks, movedTaskID: "standalone", newParentID: nil, previousTaskID: "standalone"
+        ))
+        XCTAssertNil(tasksReorderedAfterMove(
+            tasks, movedTaskID: "missing", newParentID: nil, previousTaskID: nil
+        ))
+    }
+
     // MARK: - Sign Out
 
     func testSignOutResetsAllState() throws {

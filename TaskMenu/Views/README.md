@@ -28,6 +28,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - Completed tasks are grouped into a disclosure section below the active tasks; subtasks render indented under their parent.
 - Parent task rows can collapse or expand visible subtasks; search keeps parents visible when a subtask matches.
 - Right-clicking a task row exposes Delete from the outline view context menu.
+- Active (incomplete) task rows support drag-and-drop reordering through `AppState.moveTask`: reorder top-level tasks, reorder subtasks within their parent, drop a leaf task onto a top-level row to nest it as its last subtask, and drag a subtask into a top-level gap to promote it. Dragging is disabled while searching and for completed rows; the gap directly below an expanded parent resolves to the first-subtask position.
 - Keep helper functions pure when possible and cover interaction logic in `TaskListViewTests`.
 
 ## Styling Notes

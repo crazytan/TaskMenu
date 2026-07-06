@@ -26,7 +26,8 @@ Services isolate external systems and side effects from views. Keep protocols na
 - Use typed model decoding for responses. Avoid hand-parsing JSON except for small request bodies where the current code already uses dictionaries.
 - Preserve pagination for `listTasks`; it requests completed and hidden tasks by default with `maxResults=100`.
 - `listTasks` does not request assigned tasks with `showAssigned` today. Add that intentionally if assigned Workspace tasks become product scope.
-- Subtask creation uses the optional `parent` query parameter on `createTask`; the API layer currently does not expose task reordering or list moves.
+- Subtask creation uses the optional `parent` query parameter on `createTask`; the API layer does not expose moving tasks between lists.
+- `moveTask` posts to the `/move` endpoint with optional `parent` and `previous` query parameters; omitting `parent` moves the task to the top level and omitting `previous` places it first among its siblings.
 - For task updates, send nullable `notes` and `due` values when clearing fields.
 
 ## Notifications And Metrics

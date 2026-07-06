@@ -6,6 +6,9 @@ protocol TasksAPIProtocol: Sendable {
     func createTask(listId: String, title: String, notes: String?, due: String?, parentId: String?) async throws -> TaskItem
     func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem
     func deleteTask(listId: String, taskId: String) async throws
+    /// Moves a task under `parentId` (top level when nil), directly after
+    /// sibling `previousTaskId` (first among siblings when nil).
+    func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem
 }
 
 extension TasksAPIProtocol {

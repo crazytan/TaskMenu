@@ -18,6 +18,10 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     var onToggleCollapsed: ((String) -> Void)?
     var onToggleCompletedSection: (() -> Void)?
     var onToggleCompletedSubtasks: ((String) -> Void)?
+    /// (moved task, new parent task ID or nil for top level, previous sibling task ID or nil for first).
+    var onMoveTask: ((TaskItem, String?, String?) -> Void)?
+
+    private static let taskDragType = NSPasteboard.PasteboardType("dev.crazytan.TaskMenu.task-drag")
 
     private let scrollView = NSScrollView()
     private let outlineView = TaskListOutlineView()
@@ -104,6 +108,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         outlineView.menuForRow = { [weak self] row in
             self?.contextMenu(forRow: row)
         }
+        outlineView.registerForDraggedTypes([Self.taskDragType])
+        outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
+        outlineView.setDraggingSourceOperationMask([], forLocal: false)
 
         scrollView.documentView = outlineView
         addSubview(scrollView)
@@ -379,6 +386,174 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
     }
 
+    // MARK: - Drag And Drop
+
+    func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+        guard !isSearching,
+              let node = item as? TaskOutlineNode,
+              let entry = node.taskEntry,
+              entry.section == .active
+        else {
+            return nil
+        }
+        let pasteboardItem = NSPasteboardItem()
+        pasteboardItem.setString(entry.task.id, forType: Self.taskDragType)
+        return pasteboardItem
+    }
+
+    func outlineView(
+        _ outlineView: NSOutlineView,
+        validateDrop info: NSDraggingInfo,
+        proposedItem item: Any?,
+        proposedChildIndex index: Int
+    ) -> NSDragOperation {
+        guard let draggedNode = draggedNode(from: info) else { return [] }
+        // Keep the row-highlight feedback for drop-on-row nesting.
+        if index == NSOutlineViewDropOnItemIndex,
+           let node = item as? TaskOutlineNode,
+           !isSearching,
+           draggedNode.taskEntry?.section == .active,
+           canDrop(draggedNode, under: node) {
+            return .move
+        }
+        guard let target = resolveDropTarget(
+            item: item,
+            childIndex: index,
+            draggedNode: draggedNode,
+            location: outlineView.convert(info.draggingLocation, from: nil)
+        ) else {
+            return []
+        }
+        outlineView.setDropItem(target.parentNode, dropChildIndex: target.childIndex)
+        return .move
+    }
+
+    func outlineView(
+        _ outlineView: NSOutlineView,
+        acceptDrop info: NSDraggingInfo,
+        item: Any?,
+        childIndex index: Int
+    ) -> Bool {
+        guard let draggedNode = draggedNode(from: info),
+              let draggedTask = draggedNode.task,
+              let target = resolveDropTarget(
+                item: item,
+                childIndex: index,
+                draggedNode: draggedNode,
+                location: outlineView.convert(info.draggingLocation, from: nil)
+              )
+        else {
+            return false
+        }
+
+        // The dragged row is still in the sibling list at this point, so a drop
+        // directly below itself resolves to previous == itself: a no-op.
+        var previousTaskID: String?
+        if target.childIndex > 0 {
+            let siblings = activeSiblingNodes(under: target.parentNode)
+            previousTaskID = siblings[target.childIndex - 1].task?.id
+        }
+        guard previousTaskID != draggedTask.id else { return false }
+
+        onMoveTask?(draggedTask, target.parentNode?.task?.id, previousTaskID)
+        return true
+    }
+
+    private struct TaskDropTarget {
+        /// Destination parent node; nil is the top level.
+        let parentNode: TaskOutlineNode?
+        /// Insertion index within the destination's active sibling nodes.
+        let childIndex: Int
+    }
+
+    private func draggedNode(from info: NSDraggingInfo) -> TaskOutlineNode? {
+        guard let taskID = info.draggingPasteboard.string(forType: Self.taskDragType) else { return nil }
+        return nodeByTaskID[taskID]
+    }
+
+    /// Incomplete task nodes under the given parent (or the top level), i.e.
+    /// the sibling group a drag can reorder. Completed rows and the completed
+    /// disclosure groups always render after them and are excluded.
+    private func activeSiblingNodes(under parentNode: TaskOutlineNode?) -> [TaskOutlineNode] {
+        let candidates = parentNode?.children ?? nodes
+        return Array(candidates.prefix(while: { $0.taskEntry?.section == .active }))
+    }
+
+    private func resolveDropTarget(
+        item: Any?,
+        childIndex: Int,
+        draggedNode: TaskOutlineNode,
+        location: NSPoint
+    ) -> TaskDropTarget? {
+        guard !isSearching, draggedNode.taskEntry?.section == .active else { return nil }
+
+        if let node = item as? TaskOutlineNode {
+            guard canDrop(draggedNode, under: node) else { return nil }
+            let siblingCount = activeSiblingNodes(under: node).count
+            // Dropping on the row itself nests the task as the last subtask.
+            let resolvedIndex = childIndex == NSOutlineViewDropOnItemIndex
+                ? siblingCount
+                : min(childIndex, siblingCount)
+            return TaskDropTarget(parentNode: node, childIndex: resolvedIndex)
+        }
+
+        guard item == nil else { return nil }
+        let rootSiblings = activeSiblingNodes(under: nil)
+        // Drops on empty space or below the completed section land at the end
+        // of the top-level active tasks.
+        let resolvedIndex = childIndex == NSOutlineViewDropOnItemIndex
+            ? rootSiblings.count
+            : min(childIndex, rootSiblings.count)
+
+        // With outline indentation disabled, the gap between an expanded
+        // parent row and its first child is proposed as a root drop even
+        // though the insertion line shows the first-subtask position; treat it
+        // as one. Root placement after the parent stays reachable through the
+        // gap below the parent's last visible child.
+        if resolvedIndex > 0 {
+            let parentCandidate = rootSiblings[resolvedIndex - 1]
+            if !parentCandidate.children.isEmpty,
+               outlineView.isItemExpanded(parentCandidate),
+               isLocation(location, directlyBelowRowOf: parentCandidate),
+               canDrop(draggedNode, under: parentCandidate) {
+                return TaskDropTarget(parentNode: parentCandidate, childIndex: 0)
+            }
+        }
+
+        return TaskDropTarget(parentNode: nil, childIndex: resolvedIndex)
+    }
+
+    private func isLocation(_ location: NSPoint, directlyBelowRowOf node: TaskOutlineNode) -> Bool {
+        let row = outlineView.row(forItem: node)
+        guard row >= 0 else { return false }
+        let rowRect = outlineView.rect(ofRow: row)
+        return location.y <= rowRect.maxY + rowRect.height / 2
+    }
+
+    /// Whether the dragged task may become a child of `parentNode`. Reordering
+    /// under the current parent is always allowed; re-parenting is limited to
+    /// leaf tasks nesting under top-level tasks, matching Google Tasks' single
+    /// level of subtasks.
+    private func canDrop(_ draggedNode: TaskOutlineNode, under parentNode: TaskOutlineNode) -> Bool {
+        guard let parentEntry = parentNode.taskEntry,
+              parentEntry.section == .active,
+              parentNode !== draggedNode,
+              !isNode(parentNode, inSubtreeOf: draggedNode)
+        else {
+            return false
+        }
+        if draggedNode.task?.parent == parentEntry.task.id {
+            return true
+        }
+        return parentEntry.indentLevel == 0 && draggedNode.children.isEmpty
+    }
+
+    private func isNode(_ node: TaskOutlineNode, inSubtreeOf ancestor: TaskOutlineNode) -> Bool {
+        ancestor.children.contains { child in
+            child === node || isNode(node, inSubtreeOf: child)
+        }
+    }
+
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         guard let node = item as? TaskOutlineNode else { return nil }
 
@@ -440,8 +615,12 @@ private final class TaskOutlineNode: NSObject {
     }
 
     var task: TaskItem? {
+        taskEntry?.task
+    }
+
+    var taskEntry: TaskListTaskEntry? {
         if case .task(let entry) = kind {
-            return entry.task
+            return entry
         }
         return nil
     }

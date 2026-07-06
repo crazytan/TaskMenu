@@ -10,7 +10,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 ## AppState Rules
 
-- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `addSubtask(title:parentId:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, and update-check helpers.
+- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `addSubtask(title:parentId:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, `moveTask(_:toParent:after:)`, and update-check helpers.
 - Keep `AppState` `@MainActor`. Inject services through the initializer for tests instead of reaching for globals.
 - Preserve `toggleTask(_:)` optimistic-update rollback behavior. If an optimistic API call fails, restore the prior local task state and set `errorMessage`.
 - Keep the per-list cache in sync when adding, adding subtasks, completing, updating, deleting, or selecting lists.
@@ -20,6 +20,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 - Use `tasksSortedByGooglePosition(_:)` for any Google-position-sensitive order. It preserves API order when positions are missing.
 - Root tasks have `parent == nil`; subtasks use their parent's task ID.
+- Drag-and-drop reordering goes through `moveTask(_:toParent:after:)`, which applies `tasksReorderedAfterMove(_:movedTaskID:newParentID:previousTaskID:)` optimistically (rewriting destination sibling positions locally), calls the move API, and rolls back on failure. Exact server positions reconcile on the next refresh.
 - Search matches titles and notes, and it includes the parent of a matching subtask so the UI can preserve context.
 
 ## Due Dates

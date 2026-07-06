@@ -293,4 +293,20 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
         let removedIDs = Set([taskId] + childIDs)
         tasksByListID[listId]?.removeAll { removedIDs.contains($0.id) }
     }
+
+    func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem {
+        guard let tasks = tasksByListID[listId],
+              let reordered = tasksReorderedAfterMove(
+                tasks,
+                movedTaskID: taskId,
+                newParentID: parentId,
+                previousTaskID: previousTaskId
+              ),
+              let movedTask = reordered.first(where: { $0.id == taskId })
+        else {
+            throw APIError.serverError(400, "Invalid move")
+        }
+        tasksByListID[listId] = reordered
+        return movedTask
+    }
 }

@@ -715,6 +715,96 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertEqual(syncCall?.list.id, "list1")
         XCTAssertEqual(syncCall?.tasks.map(\.id), ["t1"])
     }
+
+    // MARK: - moveTask
+
+    func testMoveTaskAppliesOptimisticReorderAndCallsMoveEndpoint() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002"),
+            makeTask(id: "third", position: "00000003")
+        ]
+
+        stubResponse(json: #"{"id":"third","title":"Test","status":"needsAction","position":"00000000000000000001"}"#)
+
+        await state.moveTask(state.tasks[2], toParent: nil, after: "first")
+
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "third", "second"])
+        XCTAssertNil(state.errorMessage)
+
+        let request = MockURLProtocol.requestLog.last
+        XCTAssertEqual(request?.httpMethod, "POST")
+        let url = request?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("/lists/list1/tasks/third/move"))
+        XCTAssertTrue(url.contains("previous=first"))
+        XCTAssertFalse(url.contains("parent="))
+    }
+
+    func testMoveTaskReparentsSubtaskAndSendsParentParam() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent-a", position: "00000001"),
+            makeTask(id: "child", parent: "parent-a", position: "00000001"),
+            makeTask(id: "parent-b", position: "00000002")
+        ]
+
+        stubResponse(json: #"{"id":"child","title":"Test","status":"needsAction","parent":"parent-b","position":"00000000000000000000"}"#)
+
+        await state.moveTask(state.tasks[1], toParent: "parent-b", after: nil)
+
+        XCTAssertEqual(state.subtasks(of: "parent-a").map(\.id), [])
+        XCTAssertEqual(state.subtasks(of: "parent-b").map(\.id), ["child"])
+        XCTAssertNil(state.errorMessage)
+
+        let url = MockURLProtocol.requestLog.last?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("/lists/list1/tasks/child/move"))
+        XCTAssertTrue(url.contains("parent=parent-b"))
+        XCTAssertFalse(url.contains("previous="))
+    }
+
+    func testMoveTaskRollsBackOnServerError() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002")
+        ]
+
+        stubResponse(statusCode: 500, json: #"{"error":"boom"}"#)
+
+        await state.moveTask(state.tasks[1], toParent: nil, after: nil)
+
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "second"])
+        XCTAssertNotNil(state.errorMessage)
+    }
+
+    func testMoveTaskSkipsDropThatDoesNotChangeOrder() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002")
+        ]
+
+        await state.moveTask(state.tasks[1], toParent: nil, after: "first")
+
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "second"])
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testMoveTaskIgnoresInvalidMove() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent", position: "00000001"),
+            makeTask(id: "child", parent: "parent", position: "00000001")
+        ]
+
+        await state.moveTask(state.tasks[0], toParent: "child", after: nil)
+
+        XCTAssertEqual(state.rootTasks.map(\.id), ["parent"])
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertNil(state.errorMessage)
+    }
 }
 
 private actor DelayedTasksAPI: TasksAPIProtocol {
@@ -765,6 +855,10 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     }
 
     func deleteTask(listId: String, taskId: String) async throws {
+        throw APIError.serverError(501, "Not implemented")
+    }
+
+    func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem {
         throw APIError.serverError(501, "Not implemented")
     }
 }

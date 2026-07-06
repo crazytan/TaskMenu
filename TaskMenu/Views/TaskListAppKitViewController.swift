@@ -152,6 +152,11 @@ final class TaskListAppKitViewController: NSViewController {
                 await appState.deleteTask(task)
             }
         }
+        contentView.onMoveTask = { [appState] task, newParentID, previousTaskID in
+            Task {
+                await appState.moveTask(task, toParent: newParentID, after: previousTaskID)
+            }
+        }
         contentView.onToggleCollapsed = { [weak self] taskID in
             Task { @MainActor [weak self] in
                 self?.appState.toggleCollapsed(taskID)

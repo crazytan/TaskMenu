@@ -18,6 +18,63 @@ func tasksSortedByGooglePosition(_ tasks: [TaskItem]) -> [TaskItem] {
         .map(\.element)
 }
 
+/// Recomputes local ordering after a drag-and-drop move, mirroring the Google
+/// Tasks move API: the moved task lands under `newParentID` (top level when
+/// nil) directly after sibling `previousTaskID` (first among siblings when
+/// nil). Positions of the destination sibling group are rewritten so
+/// `tasksSortedByGooglePosition(_:)` reflects the new order; the source
+/// group's relative order is untouched. Returns nil when the move is invalid:
+/// unknown task, moving under itself or its own subtree, or a `previousTaskID`
+/// that is not a destination sibling.
+func tasksReorderedAfterMove(
+    _ tasks: [TaskItem],
+    movedTaskID: String,
+    newParentID: String?,
+    previousTaskID: String?
+) -> [TaskItem]? {
+    guard let movedIndex = tasks.firstIndex(where: { $0.id == movedTaskID }),
+          movedTaskID != newParentID,
+          movedTaskID != previousTaskID
+    else {
+        return nil
+    }
+
+    if let newParentID {
+        guard tasks.contains(where: { $0.id == newParentID }) else { return nil }
+        // Walk the destination's ancestor chain to reject moves into the
+        // moved task's own subtree (and bail out on malformed parent cycles).
+        var visitedIDs: Set<String> = []
+        var ancestorID: String? = newParentID
+        while let currentID = ancestorID {
+            guard currentID != movedTaskID, visitedIDs.insert(currentID).inserted else { return nil }
+            ancestorID = tasks.first(where: { $0.id == currentID })?.parent
+        }
+    }
+
+    var movedTask = tasks[movedIndex]
+    movedTask.parent = newParentID
+
+    var siblings = tasksSortedByGooglePosition(
+        tasks.filter { $0.parent == newParentID && $0.id != movedTaskID }
+    )
+    let insertionIndex: Int
+    if let previousTaskID {
+        guard let previousIndex = siblings.firstIndex(where: { $0.id == previousTaskID }) else { return nil }
+        insertionIndex = previousIndex + 1
+    } else {
+        insertionIndex = 0
+    }
+    siblings.insert(movedTask, at: insertionIndex)
+
+    var updatedTasksByID: [String: TaskItem] = [:]
+    for (index, sibling) in siblings.enumerated() {
+        var updated = sibling
+        updated.position = String(format: "%020d", index)
+        updatedTasksByID[updated.id] = updated
+    }
+    return tasks.map { updatedTasksByID[$0.id] ?? $0 }
+}
+
 @MainActor
 @Observable
 final class AppState {
@@ -417,6 +474,52 @@ final class AppState {
                 inListID: listId
             )
         } catch {
+            handleError(error)
+        }
+    }
+
+    /// Moves a task under `newParentID` (top level when nil), directly after
+    /// sibling `previousTaskID` (first among siblings when nil). Applies the
+    /// reorder optimistically and rolls back if the API move fails.
+    func moveTask(_ task: TaskItem, toParent newParentID: String?, after previousTaskID: String?) async {
+        guard let listId = selectedListId,
+              let reordered = tasksReorderedAfterMove(
+                tasks,
+                movedTaskID: task.id,
+                newParentID: newParentID,
+                previousTaskID: previousTaskID
+              )
+        else {
+            return
+        }
+
+        // Skip drops that leave the task exactly where it was.
+        let currentParentID = tasks.first(where: { $0.id == task.id })?.parent
+        if currentParentID == newParentID {
+            let siblingIDs = { (source: [TaskItem]) in
+                tasksSortedByGooglePosition(source.filter { $0.parent == newParentID }).map(\.id)
+            }
+            if siblingIDs(tasks) == siblingIDs(reordered) { return }
+        }
+
+        let snapshot = tasks
+        tasks = reordered
+        updateVisibleTaskCacheForSelectedList()
+
+        do {
+            // The optimistic order already matches the server outcome; exact
+            // server positions reconcile on the next refresh.
+            _ = try await api.moveTask(
+                listId: listId,
+                taskId: task.id,
+                parentId: newParentID,
+                previousTaskId: previousTaskID
+            )
+        } catch {
+            taskCacheByListID[listId] = snapshot
+            if selectedListId == listId {
+                tasks = snapshot
+            }
             handleError(error)
         }
     }

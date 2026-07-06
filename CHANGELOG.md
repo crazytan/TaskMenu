@@ -9,6 +9,7 @@
 ## Unreleased
 
 ### Added
+- Drag-and-drop task reordering in the popover task list, synced to Google Tasks via the move API: reorder top-level tasks, reorder subtasks within their parent, drop a task onto a top-level task to nest it as a subtask, and drag a subtask out to the top level. A parent dragged with its subtasks moves as a family; the new order is applied optimistically and rolled back if the sync fails.
 - Restored the task search/filter bar in the popover, lost in the AppKit rewrite: real-time title/notes filtering, result count, matching subtasks shown with their parents, and an auto-expanded Completed section during search.
 - Added Homebrew tap installation instructions and release maintenance notes.
 - Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
