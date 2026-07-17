@@ -45,7 +45,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 @MainActor
 private enum SettingsLayout {
     static let windowWidth: CGFloat = 360
-    static let windowHeight: CGFloat = 650
+    static let windowHeight: CGFloat = 570
     static let minimumWindowHeight: CGFloat = 460
     static let contentInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
     static let contentWidth: CGFloat = windowWidth - contentInsets.left - contentInsets.right
@@ -160,30 +160,26 @@ private final class SettingsViewController: NSViewController {
                 equalTo: documentView.topAnchor,
                 constant: SettingsLayout.contentInsets.top
             ),
+            // Let the stack hug its natural height instead of stretching to
+            // fill a taller window; the document still grows to contain it.
             stack.bottomAnchor.constraint(
-                equalTo: documentView.bottomAnchor,
+                lessThanOrEqualTo: documentView.bottomAnchor,
                 constant: -SettingsLayout.contentInsets.bottom
             )
         ])
     }
 
     private func rootStack() -> NSStackView {
-        let stack = verticalStack(spacing: 16)
+        let stack = verticalStack(spacing: 18)
 
         stack.addArrangedSubview(preferencesSection())
-        stack.addArrangedSubview(separator())
+        stack.addArrangedSubview(updatesSection())
         stack.addArrangedSubview(accountSection())
-        stack.addArrangedSubview(separator())
-        stack.addArrangedSubview(tipsSection())
-        stack.addArrangedSubview(separator())
-        stack.addArrangedSubview(supportSection())
-        stack.addArrangedSubview(separator())
+        stack.addArrangedSubview(communitySection())
         stack.addArrangedSubview(aboutSection())
-        stack.addArrangedSubview(separator())
         stack.addArrangedSubview(centered(
             actionButton(
                 title: "Quit TaskMenu",
-                role: .destructive,
                 onPress: { _ in
                     NSApplication.shared.terminate(nil)
                 }
@@ -195,153 +191,132 @@ private final class SettingsViewController: NSViewController {
 
     private func preferencesSection() -> NSView {
         section("General", views: [
-            toggle(
-                title: "Launch at login",
-                isOn: SMAppService.mainApp.status == .enabled,
-                onChange: { [weak self] isOn in
-                    self?.setLaunchAtLogin(isOn)
-                }
-            ),
-            toggle(
-                title: "Due date notifications",
-                isOn: appState.dueDateNotificationsEnabled,
-                onChange: { [appState] isOn in
-                    appState.dueDateNotificationsEnabled = isOn
-                }
-            ),
-            toggle(
-                title: "Automatically check for updates",
-                isOn: appState.automaticUpdateChecksEnabled,
-                onChange: { [appState] isOn in
-                    appState.automaticUpdateChecksEnabled = isOn
-                }
-            ),
-            currentVersionRow(),
-            updateStatusLabel(),
-            updateActions()
+            groupBox(rows: [
+                switchRow(
+                    title: "Launch at login",
+                    isOn: SMAppService.mainApp.status == .enabled,
+                    onChange: { [weak self] isOn in
+                        self?.setLaunchAtLogin(isOn)
+                    }
+                ),
+                switchRow(
+                    title: "Due date notifications",
+                    isOn: appState.dueDateNotificationsEnabled,
+                    onChange: { [appState] isOn in
+                        appState.dueDateNotificationsEnabled = isOn
+                    }
+                ),
+                switchRow(
+                    title: "Automatically check for updates",
+                    isOn: appState.automaticUpdateChecksEnabled,
+                    onChange: { [appState] isOn in
+                        appState.automaticUpdateChecksEnabled = isOn
+                    }
+                )
+            ])
         ])
     }
 
-    private func currentVersionRow() -> NSView {
-        let row = horizontalStack(spacing: 8)
-        row.addArrangedSubview(label("Current version", font: .callout, color: .secondaryLabelColor))
-        row.addArrangedSubview(TaskMenuAppKit.spacer())
-        row.addArrangedSubview(label("v\(appState.currentAppVersion)", font: .callout, color: .secondaryLabelColor))
-        constrainToContentWidth(row)
-        return row
-    }
-
-    private func updateStatusLabel() -> NSView {
-        let status = label(
-            updateStatusText,
-            font: .callout,
-            color: appState.updateCheckErrorMessage == nil ? .secondaryLabelColor : .systemRed,
-            lines: 0
-        )
-        return status
-    }
-
-    private func updateActions() -> NSView {
-        let stack = horizontalStack(spacing: 8)
-
+    private func updatesSection() -> NSView {
         let checkButton = actionButton(
-            title: appState.isCheckingForUpdates ? "Checking" : "Check Now",
-            symbolName: "arrow.clockwise",
+            title: appState.isCheckingForUpdates ? "Checking…" : "Check Now",
             onPress: { [appState] _ in
                 Task {
                     await appState.checkForUpdatesManually()
                 }
             }
         )
+        checkButton.controlSize = .small
         checkButton.isEnabled = !appState.isCheckingForUpdates
-        stack.addArrangedSubview(checkButton)
+
+        var rows = [
+            settingRow(
+                title: "Version \(appState.currentAppVersion)",
+                subtitle: updateStatusText,
+                subtitleColor: appState.updateCheckErrorMessage == nil ? .secondaryLabelColor : .systemRed,
+                control: checkButton
+            )
+        ]
 
         if let update = appState.latestAvailableUpdate {
-            stack.addArrangedSubview(actionButton(
-                title: "Download Update",
+            let downloadButton = actionButton(
+                title: "Download",
                 symbolName: "arrow.down.circle",
                 role: .prominent,
                 onPress: { [weak self] _ in
                     self?.openUpdateRelease(update)
                 }
+            )
+            downloadButton.controlSize = .small
+            rows.append(settingRow(
+                title: "\(update.displayVersion) is available",
+                control: downloadButton
             ))
         }
 
-        constrainToContentWidth(stack)
-        return stack
+        return section("Updates", views: [groupBox(rows: rows)])
     }
 
     private func accountSection() -> NSView {
-        let row = horizontalStack(spacing: 12)
-        let title = label(accountTitle, font: .mediumBody)
-        title.lineBreakMode = .byTruncatingMiddle
-        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
         let disconnectButton = actionButton(
-            title: "Disconnect",
+            title: "Disconnect…",
             role: .destructive,
             onPress: { [weak self] _ in
                 self?.confirmDisconnect()
             }
         )
+        disconnectButton.controlSize = .small
         disconnectButton.isEnabled = appState.isSignedIn
 
-        row.addArrangedSubview(title)
-        row.addArrangedSubview(TaskMenuAppKit.spacer())
-        row.addArrangedSubview(disconnectButton)
-        constrainToContentWidth(row)
+        let title = label(accountTitle)
+        title.lineBreakMode = .byTruncatingMiddle
 
-        return section("Account", views: [row])
-    }
-
-    private func tipsSection() -> NSView {
-        section("Tips", views: [
-            label(
-                "TaskMenu will stay free forever and is developed by one person. If it saves you time, tips are deeply appreciated.",
-                font: .callout,
-                color: .secondaryLabelColor,
-                lines: 0
-            ),
-            fullWidthButton(
-                title: "Buy Me a Coffee",
-                symbolName: "heart.fill",
-                role: .prominent,
-                onPress: { [coffeeURL] _ in
-                    NSWorkspace.shared.open(coffeeURL)
-                }
-            )
+        return section("Account", views: [
+            groupBox(rows: [
+                settingRow(titleView: title, control: disconnectButton)
+            ])
         ])
     }
 
-    private func supportSection() -> NSView {
-        section("Support", views: [
+    private func communitySection() -> NSView {
+        let coffeeButton = actionButton(
+            title: "Buy Me a Coffee",
+            symbolName: "heart.fill",
+            role: .prominent,
+            onPress: { [coffeeURL] _ in
+                NSWorkspace.shared.open(coffeeURL)
+            }
+        )
+
+        let discordButton = actionButton(
+            title: "Join Discord",
+            image: NSImage(named: "DiscordIcon"),
+            onPress: { [discordURL] _ in
+                NSWorkspace.shared.open(discordURL)
+            }
+        )
+
+        let buttons = horizontalStack(spacing: 8)
+        buttons.addArrangedSubview(coffeeButton)
+        buttons.addArrangedSubview(discordButton)
+
+        return section("Support TaskMenu", views: [
             label(
-                "Noticed a bug or have a feature request? Join our Discord server with the developer and other users!",
+                "TaskMenu is free and developed by one person. Tips keep it going, and the Discord is the place for bugs and feature requests.",
                 font: .callout,
                 color: .secondaryLabelColor,
                 lines: 0
             ),
-            fullWidthButton(
-                title: "Join Discord",
-                image: NSImage(named: "DiscordIcon"),
-                role: .prominent,
-                onPress: { [discordURL] _ in
-                    NSWorkspace.shared.open(discordURL)
-                }
-            )
+            centered(buttons)
         ])
     }
 
     private func aboutSection() -> NSView {
-        let links = horizontalStack(spacing: 12)
-        links.addArrangedSubview(linkButton(title: "GitHub", symbolName: "link", url: githubURL))
-        links.addArrangedSubview(linkButton(title: "Support", symbolName: "questionmark.circle", url: supportURL))
-        links.addArrangedSubview(linkButton(title: "Privacy", symbolName: "lock", url: privacyURL))
-
-        return section("About", views: [
-            label("TaskMenu v\(appState.currentAppVersion)", font: .callout, color: .secondaryLabelColor),
-            links
-        ])
+        let links = horizontalStack(spacing: 16)
+        links.addArrangedSubview(linkButton(title: "GitHub", url: githubURL))
+        links.addArrangedSubview(linkButton(title: "Support", url: supportURL))
+        links.addArrangedSubview(linkButton(title: "Privacy", url: privacyURL))
+        return section("About", views: [links])
     }
 
     private var accountTitle: String {
@@ -363,10 +338,10 @@ private final class SettingsViewController: NSViewController {
         }
 
         if let lastUpdateCheckDate = appState.lastUpdateCheckDate {
-            return "TaskMenu is up to date. Last checked \(relativeDateString(for: lastUpdateCheckDate))."
+            return "Up to date · checked \(relativeDateString(for: lastUpdateCheckDate))"
         }
 
-        return "No update check yet."
+        return "Not checked yet"
     }
 
     private func confirmDisconnect() {
@@ -414,13 +389,14 @@ private final class SettingsViewController: NSViewController {
     }
 
     private func relativeDateString(for date: Date) -> String {
+        guard abs(date.timeIntervalSinceNow) >= 60 else { return "just now" }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private func section(_ title: String, views: [NSView]) -> NSView {
-        let stack = verticalStack(spacing: 10)
+        let stack = verticalStack(spacing: 8)
         let titleLabel = label(title, font: .sectionTitle, color: .secondaryLabelColor)
         stack.addArrangedSubview(titleLabel)
 
@@ -435,42 +411,89 @@ private final class SettingsViewController: NSViewController {
         return stack
     }
 
-    private func toggle(
+    /// A rounded inset box holding setting rows separated by hairlines,
+    /// matching the meta group styling in the task detail screen.
+    private func groupBox(rows: [NSView]) -> NSView {
+        let box = SettingsGroupBoxView()
+        let stack = verticalStack(spacing: 0)
+        stack.alignment = .width
+        for (index, row) in rows.enumerated() {
+            if index > 0 {
+                stack.addArrangedSubview(TaskMenuAppKit.separator())
+            }
+            stack.addArrangedSubview(row)
+        }
+        box.addSubview(stack)
+        TaskMenuAppKit.pin(stack, to: box)
+        constrainToContentWidth(box)
+        return box
+    }
+
+    private func settingRow(
+        title: String,
+        subtitle: String? = nil,
+        subtitleColor: NSColor = .secondaryLabelColor,
+        control: NSView
+    ) -> NSView {
+        settingRow(titleView: label(title), subtitle: subtitle, subtitleColor: subtitleColor, control: control)
+    }
+
+    private func settingRow(
+        titleView: NSTextField,
+        subtitle: String? = nil,
+        subtitleColor: NSColor = .secondaryLabelColor,
+        control: NSView
+    ) -> NSView {
+        let titles = verticalStack(spacing: 2)
+        titleView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        titles.addArrangedSubview(titleView)
+        if let subtitle {
+            let subtitleLabel = label(subtitle, font: .callout, color: subtitleColor, lines: 0)
+            subtitleLabel.preferredMaxLayoutWidth = SettingsLayout.contentWidth - 120
+            titles.addArrangedSubview(subtitleLabel)
+        }
+
+        let row = horizontalStack(spacing: 8)
+        row.addArrangedSubview(titles)
+        row.addArrangedSubview(TaskMenuAppKit.spacer())
+        row.addArrangedSubview(control)
+
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(row)
+        TaskMenuAppKit.pin(
+            row,
+            to: container,
+            insets: NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        )
+        container.heightAnchor.constraint(greaterThanOrEqualToConstant: 38).isActive = true
+        return container
+    }
+
+    private func switchRow(
         title: String,
         isOn: Bool,
         onChange: @escaping (Bool) -> Void
     ) -> NSView {
-        let button = SettingsButton(title: title, buttonType: .switch) { button in
-            onChange(button.state == .on)
-        }
-        button.state = isOn ? .on : .off
-        constrainToContentWidth(button)
-        return button
+        let toggle = SettingsSwitch(onChange: onChange)
+        toggle.controlSize = .small
+        toggle.state = isOn ? .on : .off
+        toggle.setAccessibilityLabel(title)
+        return settingRow(title: title, control: toggle)
     }
 
-    private func linkButton(title: String, symbolName: String, url: URL) -> NSButton {
-        actionButton(title: title, symbolName: symbolName) { _ in
+    private func linkButton(title: String, url: URL) -> NSButton {
+        let button = SettingsButton(title: title) { _ in
             NSWorkspace.shared.open(url)
         }
-    }
-
-    private func fullWidthButton(
-        title: String,
-        symbolName: String? = nil,
-        image: NSImage? = nil,
-        role: SettingsButtonRole = .standard,
-        onPress: @escaping (SettingsButton) -> Void
-    ) -> NSButton {
-        let button = actionButton(
-            title: title,
-            symbolName: symbolName,
-            image: image,
-            role: role,
-            controlSize: .large,
-            onPress: onPress
+        button.isBordered = false
+        button.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .foregroundColor: NSColor.linkColor,
+                .font: NSFont.callout
+            ]
         )
-        button.alignment = .center
-        constrainToContentWidth(button)
         return button
     }
 
@@ -479,20 +502,20 @@ private final class SettingsViewController: NSViewController {
         symbolName: String? = nil,
         image: NSImage? = nil,
         role: SettingsButtonRole = .standard,
-        controlSize: NSControl.ControlSize = .regular,
         onPress: @escaping (SettingsButton) -> Void
     ) -> SettingsButton {
         let button = SettingsButton(title: title, onPress: onPress)
         button.bezelStyle = .rounded
-        button.controlSize = controlSize
+        button.controlSize = .regular
         button.imagePosition = .imageLeading
 
         if let symbolName {
-            button.image = TaskMenuAppKit.symbol(symbolName, pointSize: 13)
+            button.image = TaskMenuAppKit.symbol(symbolName, pointSize: 12)
         } else if let image {
             let buttonImage = image.copy() as? NSImage ?? image
-            buttonImage.isTemplate = false
-            buttonImage.size = NSSize(width: 16, height: 16)
+            // Single-color asset icons follow the title color as templates.
+            buttonImage.isTemplate = true
+            buttonImage.size = NSSize(width: 14, height: 14)
             button.image = buttonImage
         }
 
@@ -501,28 +524,38 @@ private final class SettingsViewController: NSViewController {
             break
         case .prominent:
             button.bezelColor = .controlAccentColor
-            button.contentTintColor = .white
+            // bezelColor does not recolor the title or template image; do both.
+            button.attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [.foregroundColor: NSColor.white]
+            )
+            if let symbolName {
+                button.image = TaskMenuAppKit.symbol(symbolName, pointSize: 12)?
+                    .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.white]))
+            }
         case .destructive:
-            button.bezelColor = .systemRed
-            button.contentTintColor = .white
+            button.hasDestructiveAction = true
+            button.attributedTitle = NSAttributedString(
+                string: title,
+                attributes: [.foregroundColor: NSColor.systemRed]
+            )
         }
 
         return button
     }
 
     private func centered(_ view: NSView) -> NSView {
-        let stack = horizontalStack(spacing: 0)
-        stack.addArrangedSubview(TaskMenuAppKit.spacer())
-        stack.addArrangedSubview(view)
-        stack.addArrangedSubview(TaskMenuAppKit.spacer())
-        constrainToContentWidth(stack)
-        return stack
-    }
-
-    private func separator() -> NSView {
-        let separator = TaskMenuAppKit.separator()
-        constrainToContentWidth(separator)
-        return separator
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(view)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            view.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            view.topAnchor.constraint(equalTo: container.topAnchor),
+            view.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+        constrainToContentWidth(container)
+        return container
     }
 
     private func label(
@@ -567,13 +600,65 @@ private enum SettingsButtonRole {
     case destructive
 }
 
+/// Rounded inset background for a group of setting rows; reapplies its
+/// layer colors on appearance changes so light/dark switches stay correct.
+@MainActor
+private final class SettingsGroupBoxView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.borderWidth = 1
+        applyBackgroundColors()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyBackgroundColors()
+    }
+
+    private func applyBackgroundColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
+            layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
+        }
+    }
+}
+
+@MainActor
+private final class SettingsSwitch: NSSwitch {
+    private let onChange: (Bool) -> Void
+
+    init(onChange: @escaping (Bool) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero)
+        target = self
+        action = #selector(changed)
+        translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    @objc private func changed() {
+        onChange(state == .on)
+    }
+}
+
 @MainActor
 private final class SettingsButton: NSButton {
     private let onPress: (SettingsButton) -> Void
 
     init(
         title: String,
-        buttonType: NSButton.ButtonType? = nil,
         onPress: @escaping (SettingsButton) -> Void
     ) {
         self.onPress = onPress
@@ -582,14 +667,8 @@ private final class SettingsButton: NSButton {
         target = self
         action = #selector(press)
         translatesAutoresizingMaskIntoConstraints = false
-
-        if let buttonType {
-            setButtonType(buttonType)
-            isBordered = false
-        } else {
-            setButtonType(.momentaryPushIn)
-            isBordered = true
-        }
+        setButtonType(.momentaryPushIn)
+        isBordered = true
     }
 
     @available(*, unavailable)

@@ -23,6 +23,7 @@
 - Added a Long Subtasks testing-window list with a parent task containing 12 subtasks, including several completed subtasks.
 
 ### Changed
+- Redesigned the Settings window with native macOS grouped sections: rounded setting boxes with switch rows, a single Updates row combining version and check status, a compact Account row, side-by-side tips/Discord buttons with one prominent call to action, link-style About buttons, and a standard (non-red) Quit button. Destructive actions now use red text instead of filled red buttons, single-color button icons render as templates, and the group backgrounds follow light/dark appearance changes.
 - Refreshed Markdown documentation for current Xcode project settings, release workflow, testing-window behavior, and Google Tasks API boundaries.
 - Simplified task caching to a single per-list cache after removing the unused first-load/completed-task cache path.
 
