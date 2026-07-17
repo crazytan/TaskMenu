@@ -109,7 +109,7 @@ final class TaskListHeaderView: NSView {
         if !taskLists.isEmpty {
             menu.addItem(.separator())
         }
-        let newListItem = NSMenuItem(title: "New List...", action: nil, keyEquivalent: "")
+        let newListItem = NSMenuItem(title: "New List…", action: nil, keyEquivalent: "")
         newListItem.isEnabled = false
         menu.addItem(newListItem)
 
@@ -147,6 +147,7 @@ final class TaskListHeaderView: NSView {
     private func refreshControlContainer() -> NSView {
         refreshSpinner.style = .spinning
         refreshSpinner.controlSize = .small
+        refreshSpinner.setAccessibilityLabel("Refreshing tasks")
         refreshSpinner.isDisplayedWhenStopped = false
         refreshSpinner.isHidden = true
         refreshSpinner.translatesAutoresizingMaskIntoConstraints = false
@@ -184,7 +185,7 @@ final class TaskListHeaderView: NSView {
     private func showOverflowMenu() {
         let menu = NSMenu()
         menu.autoenablesItems = false
-        menu.addItem(ClosureMenuItem(title: "Settings...") { [weak self] in
+        menu.addItem(ClosureMenuItem(title: "Settings…") { [weak self] in
             self?.onOpenSettings?()
         })
         menu.addItem(.separator())
@@ -238,17 +239,30 @@ final class TaskQuickAddView: NSView {
         }
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyBackgroundColors()
+    }
+
+    /// Layer colors are resolved CGColors; reapply them when the effective
+    /// appearance changes so light/dark switches don't leave stale colors.
+    private func applyBackgroundColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
+            container.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
+            container.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
+        }
+    }
+
     private func setup() {
         translatesAutoresizingMaskIntoConstraints = false
         wantsLayer = true
-        layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
 
         container.wantsLayer = true
         container.layer?.cornerRadius = 7
         container.layer?.borderWidth = 1
-        container.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
-        container.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
         container.translatesAutoresizingMaskIntoConstraints = false
+        applyBackgroundColors()
 
         let stack = NSStackView()
         stack.orientation = .horizontal
@@ -342,15 +356,28 @@ final class TaskSearchBarView: NSView {
         resultCountLabel.stringValue = searchResultCountText(resultCount)
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyBackgroundColors()
+    }
+
+    /// Layer colors are resolved CGColors; reapply them when the effective
+    /// appearance changes so light/dark switches don't leave stale colors.
+    private func applyBackgroundColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            container.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
+            container.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
+        }
+    }
+
     private func setup() {
         translatesAutoresizingMaskIntoConstraints = false
 
         container.wantsLayer = true
         container.layer?.cornerRadius = 7
         container.layer?.borderWidth = 1
-        container.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
-        container.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
         container.translatesAutoresizingMaskIntoConstraints = false
+        applyBackgroundColors()
 
         let stack = NSStackView()
         stack.orientation = .horizontal

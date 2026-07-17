@@ -7,16 +7,25 @@ final class TaskListAppKitViewController: NSViewController {
     private let onRequestClose: () -> Void
     private let appStateObserver = TaskMenuAppStateObserver()
 
-    private var selectedTask: TaskItem?
     private var showCompleted = false
     private var expandedCompletedSubtaskParentIDs: Set<String> = []
-    private var preservedListScrollOffset: NSPoint?
 
-    private let rootStack = NSStackView()
+    private let containerView = NSView()
+    private let listPageView = NSStackView()
     private let headerView = TaskListHeaderView()
     private let searchBarView = TaskSearchBarView()
     private let quickAddView = TaskQuickAddView()
-    private var contentView: TaskListContentView?
+    private let contentView = TaskListContentView()
+
+    private var detailController: TaskDetailAppKitViewController?
+    private var detailPageView: NSView?
+    private var listLeadingConstraint: NSLayoutConstraint?
+    private var detailLeadingConstraint: NSLayoutConstraint?
+    private var isTransitioningDetail = false
+
+    /// How far the list page parallax-slides behind an incoming detail page.
+    private static let listParallaxFactor: CGFloat = 0.3
+    private static let detailTransitionDuration: TimeInterval = 0.28
 
     init(
         appState: AppState,
@@ -41,17 +50,15 @@ final class TaskListAppKitViewController: NSViewController {
     }
 
     override func loadView() {
-        rootStack.orientation = .vertical
-        rootStack.alignment = .width
-        rootStack.spacing = 0
-        rootStack.translatesAutoresizingMaskIntoConstraints = false
-        view = rootStack
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        view = containerView
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         configureControls()
-        buildListScreen()
+        buildListPage()
+        renderListScreen()
         observeAppState()
     }
 
@@ -79,7 +86,7 @@ final class TaskListAppKitViewController: NSViewController {
             self?.appState.searchText = ""
             Task { [weak self] in
                 guard let task = await self?.appState.addTask(title: title) else { return }
-                self?.contentView?.flashTask(taskID: task.id)
+                self?.contentView.flashTask(taskID: task.id)
             }
         }
         quickAddView.onEscapeWithEmptyField = { [weak self] in
@@ -94,53 +101,147 @@ final class TaskListAppKitViewController: NSViewController {
         }
     }
 
-    private func buildListScreen() {
-        contentView = nil
-        children.forEach { child in
-            child.view.removeFromSuperview()
-            child.removeFromParent()
-        }
-        rootStack.arrangedSubviews.forEach { view in
-            rootStack.removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
+    private func buildListPage() {
+        configureContentView(contentView)
 
-        if let selectedTask {
-            let detailController = TaskDetailAppKitViewController(appState: appState, task: selectedTask) { [weak self] in
-                self?.returnToList()
-            }
-            addChild(detailController)
-            rootStack.addArrangedSubview(detailController.view)
+        listPageView.orientation = .vertical
+        listPageView.alignment = .width
+        listPageView.spacing = 0
+        listPageView.translatesAutoresizingMaskIntoConstraints = false
+
+        listPageView.addArrangedSubview(headerView)
+        listPageView.addArrangedSubview(TaskMenuAppKit.separator())
+        listPageView.addArrangedSubview(searchBarView)
+        listPageView.addArrangedSubview(TaskMenuAppKit.separator())
+        listPageView.addArrangedSubview(contentView)
+        listPageView.addArrangedSubview(TaskMenuAppKit.separator())
+        listPageView.addArrangedSubview(quickAddView)
+
+        containerView.addSubview(listPageView)
+        let leading = listPageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor)
+        listLeadingConstraint = leading
+        NSLayoutConstraint.activate([
+            leading,
+            listPageView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            listPageView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            listPageView.widthAnchor.constraint(equalTo: containerView.widthAnchor),
+            contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 1)
+        ])
+    }
+
+    // MARK: - Detail Navigation
+
+    /// Pushes the edit screen over the list with a navigation slide; the list
+    /// page parallax-slides behind it. Skips motion when the user prefers
+    /// reduced motion.
+    private func presentTaskDetail(for task: TaskItem) {
+        guard detailController == nil, !isTransitioningDetail else { return }
+
+        let detail = TaskDetailAppKitViewController(appState: appState, task: task) { [weak self] in
+            self?.dismissTaskDetail()
+        }
+        addChild(detail)
+        detailController = detail
+
+        // An opaque-ish backing occludes the list page while the detail page
+        // slides over it, matching the popover material.
+        let pageView = NSVisualEffectView()
+        pageView.material = .popover
+        pageView.blendingMode = .withinWindow
+        pageView.state = .active
+        pageView.translatesAutoresizingMaskIntoConstraints = false
+        let detailView = detail.view
+        detailView.translatesAutoresizingMaskIntoConstraints = false
+        pageView.addSubview(detailView)
+        TaskMenuAppKit.pin(detailView, to: pageView)
+
+        containerView.addSubview(pageView)
+        let leading = pageView.leadingAnchor.constraint(
+            equalTo: containerView.leadingAnchor,
+            constant: containerView.bounds.width
+        )
+        detailLeadingConstraint = leading
+        NSLayoutConstraint.activate([
+            leading,
+            pageView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            pageView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            pageView.widthAnchor.constraint(equalTo: containerView.widthAnchor)
+        ])
+        detailPageView = pageView
+
+        guard shouldAnimateDetailTransition else {
+            leading.constant = 0
+            listPageView.isHidden = true
             return
         }
 
-        let contentView = TaskListContentView()
-        self.contentView = contentView
-        configureContentView(contentView)
+        containerView.layoutSubtreeIfNeeded()
+        isTransitioningDetail = true
+        NSAnimationContext.runAnimationGroup({ [weak self] context in
+            guard let self else { return }
+            context.duration = Self.detailTransitionDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.allowsImplicitAnimation = true
+            leading.constant = 0
+            listLeadingConstraint?.constant = -containerView.bounds.width * Self.listParallaxFactor
+            containerView.layoutSubtreeIfNeeded()
+        }, completionHandler: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.listPageView.isHidden = true
+                self.isTransitioningDetail = false
+            }
+        })
+    }
 
-        rootStack.addArrangedSubview(headerView)
-        rootStack.addArrangedSubview(TaskMenuAppKit.separator())
-        rootStack.addArrangedSubview(searchBarView)
-        rootStack.addArrangedSubview(TaskMenuAppKit.separator())
-        rootStack.addArrangedSubview(contentView)
-        rootStack.addArrangedSubview(TaskMenuAppKit.separator())
-        rootStack.addArrangedSubview(quickAddView)
-        NSLayoutConstraint.activate([
-            contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: 1)
-        ])
+    /// Pops the edit screen and slides the list page back into place.
+    private func dismissTaskDetail() {
+        guard let detail = detailController, !isTransitioningDetail else { return }
 
-        renderListScreen()
-        if let preservedListScrollOffset {
-            contentView.restoreScrollOffset(preservedListScrollOffset)
-            self.preservedListScrollOffset = nil
+        listPageView.isHidden = false
+
+        guard shouldAnimateDetailTransition else {
+            listLeadingConstraint?.constant = 0
+            removeDetail(detail)
+            return
         }
+
+        isTransitioningDetail = true
+        NSAnimationContext.runAnimationGroup({ [weak self] context in
+            guard let self else { return }
+            context.duration = Self.detailTransitionDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.allowsImplicitAnimation = true
+            detailLeadingConstraint?.constant = containerView.bounds.width
+            listLeadingConstraint?.constant = 0
+            containerView.layoutSubtreeIfNeeded()
+        }, completionHandler: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.removeDetail(detail)
+                self.isTransitioningDetail = false
+            }
+        })
+    }
+
+    private func removeDetail(_ detail: TaskDetailAppKitViewController) {
+        detail.view.removeFromSuperview()
+        detail.removeFromParent()
+        detailPageView?.removeFromSuperview()
+        detailPageView = nil
+        detailController = nil
+        detailLeadingConstraint = nil
+    }
+
+    private var shouldAnimateDetailTransition: Bool {
+        view.window != nil
+            && containerView.bounds.width > 0
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
     private func configureContentView(_ contentView: TaskListContentView) {
         contentView.onOpenTask = { [weak self] task in
-            self?.preservedListScrollOffset = self?.contentView?.scrollOffset
-            self?.selectedTask = task
-            self?.buildListScreen()
+            self?.presentTaskDetail(for: task)
         }
         contentView.onToggleTask = { [appState] task in
             Task {
@@ -199,7 +300,7 @@ final class TaskListAppKitViewController: NSViewController {
     }
 
     private func renderListContent() {
-        contentView?.render(
+        contentView.render(
             appState: appState,
             showCompleted: showCompleted,
             expandedCompletedSubtaskParentIDs: expandedCompletedSubtaskParentIDs
@@ -214,11 +315,6 @@ final class TaskListAppKitViewController: NSViewController {
         Task { [appState] in
             await appState.selectList(listID)
         }
-    }
-
-    private func returnToList() {
-        selectedTask = nil
-        buildListScreen()
     }
 
     private func observeAppState() {

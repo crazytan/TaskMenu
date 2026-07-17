@@ -145,7 +145,7 @@ final class TaskPopoverViewController: NSViewController {
         spinner.startAnimation(nil)
         stack.addArrangedSubview(spinner)
         stack.addArrangedSubview(TaskMenuAppKit.label(
-            "Loading tasks...",
+            "Loading tasks…",
             font: .systemFont(ofSize: NSFont.systemFontSize),
             color: .secondaryLabelColor
         ))
@@ -188,7 +188,7 @@ final class TaskPopoverViewController: NSViewController {
         stack.addArrangedSubview(message)
 
         let signInButton = NSButton(
-            title: appState.isLoading ? "Signing in..." : "Sign in with Google",
+            title: appState.isLoading ? "Signing in…" : "Sign in with Google",
             target: self,
             action: #selector(signIn)
         )

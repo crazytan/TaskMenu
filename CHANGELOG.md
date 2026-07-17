@@ -9,6 +9,11 @@
 ## Unreleased
 
 ### Added
+- Animated task-list updates: completing, adding, deleting, and reordering tasks now slide/fade rows into place instead of snapping, including the Completed section and completed-subtasks disclosures. Row animations respect the system Reduce Motion setting, and list switches or search keystrokes still render instantly without animation.
+- A navigation slide transition between the task list and the task edit screen (with a parallax return), also honoring Reduce Motion.
+- The list and the empty state now crossfade instead of swapping abruptly.
+- A "Notes" placeholder in the task edit screen's notes field, plus an accessibility label for VoiceOver.
+- Task checkboxes and subtask disclosure chevrons now include the task title in their accessibility labels, and the refresh/loading spinners are labeled for VoiceOver.
 - Drag-and-drop task reordering in the popover task list, synced to Google Tasks via the move API: reorder top-level tasks, reorder subtasks within their parent, drop a task onto a top-level task to nest it as a subtask, and drag a subtask out to the top level. A parent dragged with its subtasks moves as a family; the new order is applied optimistically and rolled back if the sync fails.
 - Restored the task search/filter bar in the popover, lost in the AppKit rewrite: real-time title/notes filtering, result count, matching subtasks shown with their parents, and an auto-expanded Completed section during search.
 - Added Homebrew tap installation instructions and release maintenance notes.
@@ -25,6 +30,10 @@
 - Removed dead code left over from the SwiftUI-to-AppKit migration: the unused `TaskRowAppKitView`, task indent/outdent support, the never-called `loadTasks` first-load path, the unused `moveTask` API, and obsolete presentation/layout helpers and their tests.
 
 ### Fixed
+- The "Delete Task" button in the edit screen now renders in red; its destructive tint was silently ignored on bordered buttons.
+- Quick-add and search bar backgrounds now refresh their layer colors when the system appearance changes instead of keeping stale light/dark colors.
+- Long list names no longer collide with the centered "Edit Task" title; the back button truncates.
+- Menu and status labels consistently use the typographic ellipsis (…) instead of three periods.
 - Completing a parent task now also completes its open subtasks (matching Google Tasks behavior), and incomplete subtasks under completed parents stay visible in the Completed section instead of disappearing from the list.
 - Kept the Completed section reachable when every task is done; the "No open tasks" empty state now appears only when the list is truly empty.
 - Escape now reaches the quick-add and add-subtask fields (clearing text, dismissing the inline field, or closing the popover) instead of being swallowed by the field editor.

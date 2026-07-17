@@ -27,6 +27,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     private let outlineView = TaskListOutlineView()
     private let emptyStateContainer = NSView()
     private var nodes: [TaskOutlineNode] = []
+    private var nodeByKey: [String: TaskOutlineNode] = [:]
     private var nodeByTaskID: [String: TaskOutlineNode] = [:]
     private var completedGroupNode: TaskOutlineNode?
     private var collapsedTaskIDs: Set<String> = []
@@ -35,6 +36,10 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     private var pendingFlashTaskIDs: Set<String> = []
     private var flashingTaskIDs: Set<String> = []
     private var suppressExpansionCallbacks = false
+    private var hasRenderedOnce = false
+    /// Identifies the list/search context of the last render; a context switch
+    /// (different list, search keystroke) re-renders without row animations.
+    private var lastRenderContextKey = ""
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -70,13 +75,176 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     ) {
         isSearching = appState.isSearching
         // Collapse state is ignored while searching so matching subtasks stay visible.
-        collapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
+        let newCollapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
-        rebuildNodes(appState: appState, showCompleted: showCompleted)
+
+        let contextKey = "\(appState.selectedListId ?? "")|\(appState.searchText)"
+        let animated = hasRenderedOnce
+            && contextKey == lastRenderContextKey
+            && window != nil
+            && !emptyStateWillChangeVisibility(appState: appState)
+        lastRenderContextKey = contextKey
+
+        if animated {
+            applyAnimatedRender(appState: appState, showCompleted: showCompleted, newCollapsedTaskIDs: newCollapsedTaskIDs)
+        } else {
+            collapsedTaskIDs = newCollapsedTaskIDs
+            rebuildNodes(appState: appState, showCompleted: showCompleted)
+            outlineView.reloadData()
+            restoreExpansionState()
+        }
         updateEmptyState(appState: appState)
-        outlineView.reloadData()
-        restoreExpansionState(appState: appState)
         applyPendingFlashes()
+        hasRenderedOnce = true
+    }
+
+    /// Row animations look wrong when the whole list swaps with the empty
+    /// state, so those renders fall back to a plain reload.
+    private func emptyStateWillChangeVisibility(appState: AppState) -> Bool {
+        let showsNoResults = !appState.tasks.isEmpty
+            && appState.isSearching
+            && appState.searchFilteredTasks.isEmpty
+        let willShowEmpty = appState.tasks.isEmpty || showsNoResults
+        return willShowEmpty != scrollView.isHidden
+    }
+
+    // MARK: - Animated Diff Rendering
+
+    /// Reconciles the outline against the new app state with row animations:
+    /// per-parent keyed index diffs inside a begin/endUpdates batch, animated
+    /// expand/collapse for disclosure changes, and cell reloads for rows whose
+    /// content changed. Falls back to fades when Reduce Motion is on.
+    private func applyAnimatedRender(
+        appState: AppState,
+        showCompleted: Bool,
+        newCollapsedTaskIDs: Set<String>
+    ) {
+        let previousNodeByKey = nodeByKey
+        let previousCollapsedTaskIDs = collapsedTaskIDs
+        collapsedTaskIDs = newCollapsedTaskIDs
+
+        let previousTopNodes = nodes
+        let previousSignatures = previousNodeByKey.mapValues { $0.signature }
+        let previousChildren = previousNodeByKey.mapValues { $0.children }
+
+        rebuildNodes(appState: appState, showCompleted: showCompleted, reusingNodesFrom: previousNodeByKey)
+
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let removeAnimation: NSTableView.AnimationOptions = reduceMotion ? .effectFade : [.slideUp, .effectFade]
+        let insertAnimation: NSTableView.AnimationOptions = reduceMotion ? .effectFade : [.slideDown, .effectFade]
+
+        var keptNodes: [TaskOutlineNode] = []
+        var insertedNodes: [TaskOutlineNode] = []
+
+        outlineView.beginUpdates()
+        applyChildDiffs(
+            parent: nil,
+            oldChildren: previousTopNodes,
+            previousChildrenByKey: previousChildren,
+            removeAnimation: removeAnimation,
+            insertAnimation: insertAnimation,
+            keptNodes: &keptNodes,
+            insertedNodes: &insertedNodes
+        )
+        outlineView.endUpdates()
+
+        // Newly inserted parents start collapsed; expand them to match state
+        // without animating (their row just slid in).
+        suppressExpansionCallbacks = true
+        for node in insertedNodes where !node.children.isEmpty {
+            if let task = node.task, collapsedTaskIDs.contains(task.id) {
+                outlineView.collapseItem(node)
+            } else {
+                outlineView.expandItem(node)
+            }
+        }
+        suppressExpansionCallbacks = false
+
+        // Kept parents whose disclosure state changed animate open/closed.
+        for node in keptNodes {
+            guard let task = node.task, !node.children.isEmpty else { continue }
+            let wasCollapsed = previousCollapsedTaskIDs.contains(task.id)
+            let isCollapsed = collapsedTaskIDs.contains(task.id)
+            guard wasCollapsed != isCollapsed else { continue }
+            suppressExpansionCallbacks = true
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = reduceMotion ? 0 : 0.22
+                if isCollapsed {
+                    outlineView.animator().collapseItem(node)
+                } else {
+                    outlineView.animator().expandItem(node)
+                }
+            }
+            suppressExpansionCallbacks = false
+        }
+
+        // Refresh rows whose content changed (titles, counts, chevrons, ...).
+        for node in keptNodes where previousSignatures[node.key] != node.signature {
+            let row = outlineView.row(forItem: node)
+            if row >= 0 {
+                outlineView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: 0))
+            }
+        }
+    }
+
+    /// Emits animated remove/insert batches for one parent's children and
+    /// recurses into kept nodes. Removed subtrees vanish with their root row,
+    /// and inserted subtrees arrive with theirs, so neither recurses.
+    private func applyChildDiffs(
+        parent: TaskOutlineNode?,
+        oldChildren: [TaskOutlineNode],
+        previousChildrenByKey: [String: [TaskOutlineNode]],
+        removeAnimation: NSTableView.AnimationOptions,
+        insertAnimation: NSTableView.AnimationOptions,
+        keptNodes: inout [TaskOutlineNode],
+        insertedNodes: inout [TaskOutlineNode]
+    ) {
+        let newChildren = parent?.children ?? nodes
+        let difference = newChildren.map { $0.key }.difference(from: oldChildren.map { $0.key })
+
+        var removedOffsets = IndexSet()
+        var insertedKeys = Set<String>()
+        var insertedOffsets = IndexSet()
+        for change in difference {
+            switch change {
+            case .remove(let offset, _, _):
+                removedOffsets.insert(offset)
+            case .insert(let offset, let key, _):
+                insertedOffsets.insert(offset)
+                insertedKeys.insert(key)
+            }
+        }
+        if !removedOffsets.isEmpty {
+            outlineView.removeItems(at: removedOffsets, inParent: parent, withAnimation: removeAnimation)
+        }
+        if !insertedOffsets.isEmpty {
+            outlineView.insertItems(at: insertedOffsets, inParent: parent, withAnimation: insertAnimation)
+        }
+
+        for child in newChildren {
+            if insertedKeys.contains(child.key) {
+                insertedNodes.append(child)
+                collectInsertedDescendants(of: child, into: &insertedNodes)
+            } else {
+                keptNodes.append(child)
+                applyChildDiffs(
+                    parent: child,
+                    oldChildren: previousChildrenByKey[child.key] ?? [],
+                    previousChildrenByKey: previousChildrenByKey,
+                    removeAnimation: removeAnimation,
+                    insertAnimation: insertAnimation,
+                    keptNodes: &keptNodes,
+                    insertedNodes: &insertedNodes
+                )
+            }
+        }
+    }
+
+    private func collectInsertedDescendants(of node: TaskOutlineNode, into insertedNodes: inout [TaskOutlineNode]) {
+        for child in node.children {
+            insertedNodes.append(child)
+            collectInsertedDescendants(of: child, into: &insertedNodes)
+        }
     }
 
     private func setup() {
@@ -150,69 +318,109 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         return menu
     }
 
-    private func rebuildNodes(appState: AppState, showCompleted: Bool) {
+    private func rebuildNodes(
+        appState: AppState,
+        showCompleted: Bool,
+        reusingNodesFrom previousNodeByKey: [String: TaskOutlineNode] = [:]
+    ) {
+        nodeByKey = [:]
         nodeByTaskID = [:]
         completedGroupNode = nil
 
+        let builder = NodeBuilder(previousNodeByKey: previousNodeByKey)
+
         let activeRoots = TaskListPresentation.incompleteRootTasks(from: appState)
-        let activeNodes = activeRoots.map { makeActiveNode(for: $0, appState: appState, level: 0) }
+        let activeNodes = activeRoots.map { makeActiveNode(for: $0, appState: appState, level: 0, builder: builder, parentKey: nil) }
 
         let completedTasks = completedTasksForFinalSection(
             TaskListPresentation.completedSectionSourceTasks(from: appState)
         )
         if completedTasks.isEmpty {
             nodes = activeNodes
+            registerNodes(nodes)
             return
         }
 
         let completedNodes = completedTasks.map { task in
-            TaskOutlineNode(kind: .task(TaskListTaskEntry(
-                task: task,
-                indentLevel: task.parent == nil ? 0 : 1,
-                section: .completed
-            )))
+            builder.node(
+                kind: .task(TaskListTaskEntry(
+                    task: task,
+                    indentLevel: task.parent == nil ? 0 : 1,
+                    section: .completed
+                )),
+                parentKey: nil
+            )
         }
         // The completed section is auto-expanded while searching.
         let isExpanded = showCompleted || isSearching
-        let completedGroup = TaskOutlineNode(kind: .completedGroup(count: completedTasks.count, isExpanded: isExpanded))
+        let completedGroup = builder.node(
+            kind: .completedGroup(count: completedTasks.count, isExpanded: isExpanded),
+            parentKey: nil
+        )
         completedGroupNode = completedGroup
         nodes = activeNodes + [completedGroup] + (isExpanded ? completedNodes : [])
+        registerNodes(nodes)
     }
 
-    private func makeActiveNode(for task: TaskItem, appState: AppState, level: Int) -> TaskOutlineNode {
+    private func registerNodes(_ topNodes: [TaskOutlineNode]) {
+        func register(_ node: TaskOutlineNode) {
+            nodeByKey[node.key] = node
+            if let task = node.task {
+                nodeByTaskID[task.id] = node
+            }
+            node.children.forEach(register)
+        }
+        topNodes.forEach(register)
+    }
+
+    private func makeActiveNode(
+        for task: TaskItem,
+        appState: AppState,
+        level: Int,
+        builder: NodeBuilder,
+        parentKey: String?
+    ) -> TaskOutlineNode {
         let entry = TaskListTaskEntry(
             task: task,
             indentLevel: level,
             section: task.isCompleted ? .completed : .active
         )
+        let nodeKey = TaskOutlineNode.key(forTaskID: task.id)
         // While searching, matching completed subtasks render inline instead of
         // behind the completed-subtasks disclosure.
         var children = TaskListPresentation.displaySubtasks(of: task.id, from: appState)
             .filter { isSearching || !$0.isCompleted }
-            .map { makeActiveNode(for: $0, appState: appState, level: level + 1) }
+            .map { makeActiveNode(for: $0, appState: appState, level: level + 1, builder: builder, parentKey: nodeKey) }
         let completedSubtasks = isSearching
             ? []
             : completedSubtasksForOpenParent(task.id, tasks: appState.tasks)
         if !completedSubtasks.isEmpty {
             let isExpanded = expandedCompletedSubtaskParentIDs.contains(task.id)
-            children.append(TaskOutlineNode(kind: .completedSubtasksGroup(
-                parentID: task.id,
-                count: completedSubtasks.count,
-                isExpanded: isExpanded,
-                indentLevel: level + 1
-            )))
+            children.append(builder.node(
+                kind: .completedSubtasksGroup(
+                    parentID: task.id,
+                    count: completedSubtasks.count,
+                    isExpanded: isExpanded,
+                    indentLevel: level + 1
+                ),
+                parentKey: nodeKey
+            ))
             if isExpanded {
                 children.append(contentsOf: completedSubtasks.map { child in
-                    TaskOutlineNode(kind: .task(TaskListTaskEntry(
-                        task: child,
-                        indentLevel: level + 1,
-                        section: .completed
-                    )))
+                    builder.node(
+                        kind: .task(TaskListTaskEntry(
+                            task: child,
+                            indentLevel: level + 1,
+                            section: .completed
+                        )),
+                        parentKey: nodeKey
+                    )
                 })
             }
         }
-        let node = TaskOutlineNode(kind: .task(entry), children: children)
-        nodeByTaskID[task.id] = node
+        let node = builder.node(kind: .task(entry), parentKey: parentKey)
+        node.children = children
+        node.isCollapsed = collapsedTaskIDs.contains(task.id)
         return node
     }
 
@@ -223,8 +431,19 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             && appState.isSearching
             && appState.searchFilteredTasks.isEmpty
         let shouldShowEmpty = appState.tasks.isEmpty || showsNoResults
+        let wasShowingEmpty = !emptyStateContainer.isHidden
         emptyStateContainer.isHidden = !shouldShowEmpty
         scrollView.isHidden = shouldShowEmpty
+
+        // Crossfade when the list and the empty state swap places.
+        if shouldShowEmpty != wasShowingEmpty, hasRenderedOnce, window != nil {
+            let incoming: NSView = shouldShowEmpty ? emptyStateContainer : scrollView
+            incoming.alphaValue = 0
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.18
+                incoming.animator().alphaValue = 1
+            }
+        }
         guard shouldShowEmpty else { return }
 
         let stack = NSStackView()
@@ -251,6 +470,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             let spinner = NSProgressIndicator()
             spinner.style = .spinning
             spinner.controlSize = .small
+            spinner.setAccessibilityLabel("Loading tasks")
             spinner.startAnimation(nil)
             stack.addArrangedSubview(spinner)
         } else {
@@ -265,7 +485,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
     }
 
-    private func restoreExpansionState(appState: AppState) {
+    private func restoreExpansionState() {
         suppressExpansionCallbacks = true
         defer { suppressExpansionCallbacks = false }
 
@@ -598,6 +818,31 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     }
 }
 
+/// Creates outline nodes for a render pass, reusing the previous render's
+/// instances for unchanged keys so `NSOutlineView` keeps item identity across
+/// animated diffs. A node is only reused under its previous parent; a task
+/// that moved to a different parent gets a fresh instance so one batch never
+/// removes and reinserts the same object.
+@MainActor
+private final class NodeBuilder {
+    private let previousNodeByKey: [String: TaskOutlineNode]
+
+    init(previousNodeByKey: [String: TaskOutlineNode]) {
+        self.previousNodeByKey = previousNodeByKey
+    }
+
+    func node(kind: TaskOutlineNode.Kind, parentKey: String?) -> TaskOutlineNode {
+        let key = TaskOutlineNode.key(for: kind)
+        if let existing = previousNodeByKey[key], existing.parentKey == parentKey {
+            existing.kind = kind
+            existing.children = []
+            existing.isCollapsed = false
+            return existing
+        }
+        return TaskOutlineNode(kind: kind, parentKey: parentKey)
+    }
+}
+
 @MainActor
 private final class TaskOutlineNode: NSObject {
     enum Kind {
@@ -606,12 +851,48 @@ private final class TaskOutlineNode: NSObject {
         case task(TaskListTaskEntry)
     }
 
-    let kind: Kind
-    let children: [TaskOutlineNode]
+    var kind: Kind
+    var children: [TaskOutlineNode]
+    var isCollapsed = false
+    let parentKey: String?
 
-    init(kind: Kind, children: [TaskOutlineNode] = []) {
+    init(kind: Kind, children: [TaskOutlineNode] = [], parentKey: String? = nil) {
         self.kind = kind
         self.children = children
+        self.parentKey = parentKey
+    }
+
+    static func key(forTaskID taskID: String) -> String {
+        "task:\(taskID)"
+    }
+
+    static func key(for kind: Kind) -> String {
+        switch kind {
+        case .completedGroup:
+            return "completed-group"
+        case .completedSubtasksGroup(let parentID, _, _, _):
+            return "completed-subtasks:\(parentID)"
+        case .task(let entry):
+            return key(forTaskID: entry.task.id)
+        }
+    }
+
+    var key: String {
+        Self.key(for: kind)
+    }
+
+    /// Cheap description of everything the row's cell renders; kept rows
+    /// reload when it changes between renders.
+    var signature: String {
+        switch kind {
+        case .completedGroup(let count, let isExpanded):
+            return "group|\(count)|\(isExpanded)"
+        case .completedSubtasksGroup(let parentID, let count, let isExpanded, let indentLevel):
+            return "subgroup|\(parentID)|\(count)|\(isExpanded)|\(indentLevel)"
+        case .task(let entry):
+            let due = entry.task.due ?? ""
+            return "task|\(entry.task.title)|\(entry.task.isCompleted)|\(due)|\(entry.indentLevel)|\(entry.section)|\(children.isEmpty)|\(isCollapsed)"
+        }
     }
 
     var task: TaskItem? {
@@ -789,7 +1070,9 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
             symbolName: entry.task.isCompleted ? "checkmark.circle.fill" : "circle",
             pointSize: entry.indentLevel > 0 ? 16 : 18,
             weight: .regular,
-            accessibilityDescription: entry.task.isCompleted ? "Mark incomplete" : "Mark complete"
+            accessibilityDescription: entry.task.isCompleted
+                ? "Mark \(entry.task.title) incomplete"
+                : "Mark \(entry.task.title) complete"
         ) { [weak self] in
             self?.onToggle?()
         }
@@ -847,7 +1130,9 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
             symbolName: isCollapsed ? "chevron.right" : "chevron.down",
             pointSize: 9,
             weight: .semibold,
-            accessibilityDescription: isCollapsed ? "Expand subtasks" : "Collapse subtasks"
+            accessibilityDescription: isCollapsed
+                ? "Expand subtasks of \(entry.task.title)"
+                : "Collapse subtasks of \(entry.task.title)"
         ) { [weak self] in
             self?.onToggleCollapse?()
         }

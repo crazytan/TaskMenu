@@ -23,6 +23,11 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private let rootStack = NSStackView()
     private let titleField = NSTextField()
     private let notesTextView = NSTextView()
+    private let notesPlaceholderLabel = TaskMenuAppKit.label(
+        "Notes",
+        font: .systemFont(ofSize: 13),
+        color: .tertiaryLabelColor
+    )
     private let dueDateControls = NSStackView()
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let subtaskScrollView = NSScrollView()
@@ -69,6 +74,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         onDismiss()
     }
 
+    func textDidChange(_ notification: Notification) {
+        notesPlaceholderLabel.isHidden = !notesTextView.string.isEmpty
+    }
+
     private func header() -> NSView {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
@@ -89,6 +98,9 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         }
         backButton.imagePosition = .imageLeading
         backButton.contentTintColor = .controlAccentColor
+        // Keep long list names from colliding with the centered title.
+        backButton.cell?.lineBreakMode = .byTruncatingTail
+        backButton.widthAnchor.constraint(lessThanOrEqualToConstant: 110).isActive = true
         stack.addArrangedSubview(backButton)
 
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
@@ -180,7 +192,15 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         notesTextView.delegate = self
         notesTextView.textContainerInset = NSSize(width: 6, height: 5)
         notesTextView.backgroundColor = .textBackgroundColor
+        notesTextView.setAccessibilityLabel("Notes")
         scrollView.documentView = notesTextView
+
+        notesPlaceholderLabel.isHidden = !notesTextView.string.isEmpty
+        notesTextView.addSubview(notesPlaceholderLabel)
+        NSLayoutConstraint.activate([
+            notesPlaceholderLabel.leadingAnchor.constraint(equalTo: notesTextView.leadingAnchor, constant: 11),
+            notesPlaceholderLabel.topAnchor.constraint(equalTo: notesTextView.topAnchor, constant: 5)
+        ])
 
         NSLayoutConstraint.activate([
             scrollView.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth),
@@ -430,7 +450,12 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let deleteButton = NSButton(title: "Delete Task", target: self, action: #selector(deleteTask))
         deleteButton.bezelStyle = .rounded
         deleteButton.controlSize = .small
-        deleteButton.contentTintColor = .systemRed
+        deleteButton.hasDestructiveAction = true
+        // Bordered buttons ignore contentTintColor for titles; color it directly.
+        deleteButton.attributedTitle = NSAttributedString(
+            string: "Delete Task",
+            attributes: [.foregroundColor: NSColor.systemRed]
+        )
         stack.addArrangedSubview(deleteButton)
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
         return container

@@ -351,7 +351,7 @@ private final class SettingsViewController: NSViewController {
 
     private var updateStatusText: String {
         if appState.isCheckingForUpdates {
-            return "Checking for updates..."
+            return "Checking for updates…"
         }
 
         if let errorMessage = appState.updateCheckErrorMessage {
