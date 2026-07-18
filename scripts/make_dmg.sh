@@ -65,7 +65,6 @@ cp -R "$app_path" "$staging_dir/"
 ln -s /Applications "$staging_dir/Applications"
 
 codesign --verify --deep --strict --verbose=2 "$app_path"
-spctl --assess --type execute --verbose "$app_path" || true
 
 hdiutil create \
   -volname "TaskMenu ${version}" \
@@ -90,13 +89,31 @@ if [[ -n "${APP_STORE_CONNECT_KEY_ID:-}" || -n "${APP_STORE_CONNECT_ISSUER_ID:-}
     exit 65
   fi
 
+  # notarytool submit can exit 0 even when the verdict is Invalid, so parse
+  # the JSON status and fetch the notarization log before failing.
+  submission_json="$staging_dir/notarytool-submit.json"
   xcrun notarytool submit "$dmg_path" \
     --key "$APP_STORE_CONNECT_KEY_PATH" \
     --key-id "$APP_STORE_CONNECT_KEY_ID" \
     --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
-    --wait
+    --wait \
+    --output-format json > "$submission_json"
+  submission_id="$(plutil -extract id raw -o - "$submission_json")"
+  submission_status="$(plutil -extract status raw -o - "$submission_json")"
+  echo "Notarization submission ${submission_id} finished with status: ${submission_status}"
+  if [[ "$submission_status" != "Accepted" ]]; then
+    xcrun notarytool log "$submission_id" \
+      --key "$APP_STORE_CONNECT_KEY_PATH" \
+      --key-id "$APP_STORE_CONNECT_KEY_ID" \
+      --issuer "$APP_STORE_CONNECT_ISSUER_ID" || true
+    echo "Notarization failed with status: ${submission_status}" >&2
+    exit 65
+  fi
   xcrun stapler staple "$dmg_path"
   xcrun stapler validate "$dmg_path"
+  spctl --assess --type execute --verbose "$app_path"
+else
+  echo "skipping Gatekeeper assessment (no notarization credentials)"
 fi
 
 (cd "$output_dir" && shasum -a 256 "$(basename "$dmg_path")") | tee "${dmg_path}.sha256"

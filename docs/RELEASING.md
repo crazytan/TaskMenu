@@ -57,13 +57,7 @@ Store the key ID in `APP_STORE_CONNECT_KEY_ID` and the issuer ID in `APP_STORE_C
 
 ## Notarization troubleshooting
 
-If the release job fails with:
-
-```text
-source=Unnotarized Developer ID
-```
-
-before the `notarytool submit` command, that is expected. The app has not been notarized yet, so the workflow packages the signed app into a DMG and submits that DMG to Apple.
+If Apple rejects the submission (status `Invalid`), the release job prints the full notarization log from `notarytool log` before failing. The per-file issues in that log are the place to start.
 
 If the release job fails with:
 
@@ -144,6 +138,11 @@ git push
 
 You can also run **Release** manually from GitHub Actions. Enter the version without the leading `v` and choose whether the GitHub release should be marked as a prerelease. The workflow still expects `project.yml` and `CHANGELOG.md` to match that version.
 
+Two guards apply to manual runs:
+
+- If the tag `vX.Y.Z` already exists, the workflow must be dispatched from that tag (or a ref pointing at the same commit); it fails if the checked-out commit differs from the tagged commit. If the tag does not exist yet, publishing creates it at the dispatched commit.
+- Release assets are immutable: if the release already has a DMG or checksum with the same name, the upload fails instead of replacing it. Delete the bad asset (or the release) manually first if you really need to republish.
+
 ## Local DMG packaging
 
 After producing a signed app bundle, you can package it locally:
@@ -159,3 +158,5 @@ APP_STORE_CONNECT_KEY_PATH="$HOME/private_keys/AuthKey_XXXXXXXXXX.p8" \
   --version "$VERSION" \
   --output-dir build/artifacts
 ```
+
+When the `APP_STORE_CONNECT_*` variables are set, the script notarizes the DMG, staples it, and runs a Gatekeeper assessment (`spctl --assess`) that must pass. Without them it skips notarization and prints `skipping Gatekeeper assessment (no notarization credentials)`; such a DMG is fine for local testing but is not distributable.

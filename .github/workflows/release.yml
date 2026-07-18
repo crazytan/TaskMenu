@@ -36,13 +36,16 @@ jobs:
       - name: Resolve release version
         id: release
         shell: bash
+        env:
+          RAW_VERSION: ${{ inputs.version }}
+          RAW_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           set -euo pipefail
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            version="${{ inputs.version }}"
+            version="$RAW_VERSION"
             tag_name="v${version}"
-            prerelease="${{ inputs.prerelease }}"
+            prerelease="$RAW_PRERELEASE"
           else
             tag_name="${GITHUB_REF_NAME}"
             version="${tag_name#v}"
@@ -52,6 +55,22 @@ jobs:
           if [[ ! "$version" =~ ^[0-9]+[.][0-9]+[.][0-9]+$ ]]; then
             echo "Version must use x.y.z format: $version" >&2
             exit 64
+          fi
+
+          # A manual dispatch for an already-tagged version must run from the
+          # tagged commit, so published assets always match the tag's source.
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if git fetch --depth 1 origin "+refs/tags/${tag_name}:refs/tags/${tag_name}" 2>/dev/null; then
+              tag_commit="$(git rev-parse "refs/tags/${tag_name}^{commit}")"
+              head_commit="$(git rev-parse HEAD)"
+              if [[ "$tag_commit" != "$head_commit" ]]; then
+                echo "Tag ${tag_name} points at ${tag_commit}, but the checked-out HEAD is ${head_commit}." >&2
+                echo "Re-run the workflow from the ${tag_name} tag, or delete the tag first if it is wrong." >&2
+                exit 65
+              fi
+            else
+              echo "Tag ${tag_name} does not exist yet; gh release create will create it at HEAD."
+            fi
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -151,9 +170,6 @@ jobs:
           fi
           chmod 600 "$key_path"
 
-          echo "Decoded API key bytes: $(wc -c < "$key_path" | tr -d '[:space:]')"
-          echo "Decoded API key lines: $(wc -l < "$key_path" | tr -d '[:space:]')"
-          echo "Decoded API key SHA-256: $(shasum -a 256 "$key_path" | awk '{print $1}')"
           if grep -q -- "-----BEGIN PRIVATE KEY-----" "$key_path" && grep -q -- "-----END PRIVATE KEY-----" "$key_path"; then
             echo "Decoded API key PEM envelope: present"
           else
@@ -258,7 +274,9 @@ jobs:
           set -euo pipefail
 
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "$ARTIFACTS_PATH"/* --clobber
+            # No --clobber: published release assets are immutable. If assets
+            # with these names already exist, gh fails and the job stops here.
+            gh release upload "$TAG_NAME" "$ARTIFACTS_PATH"/*
             if [[ "$PRERELEASE" == "true" ]]; then
               gh release edit "$TAG_NAME" \
                 --title "TaskMenu ${VERSION}" \
