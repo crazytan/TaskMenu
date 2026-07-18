@@ -17,6 +17,8 @@ final class TaskPopoverViewController: NSViewController {
     private var signedInContentHeightConstraint: NSLayoutConstraint?
     private var errorSeparator: NSView?
     private var errorStrip: NSView?
+    private var signInButton: NSButton?
+    private var signInErrorLabel: NSTextField?
     private let appStateObserver = TaskMenuAppStateObserver()
 
     init(
@@ -78,6 +80,7 @@ final class TaskPopoverViewController: NSViewController {
         if force || currentMode != mode {
             render(mode)
         } else {
+            updateSignedOutState()
             updateErrorStrip()
         }
         let contentSize = contentSize(for: mode)
@@ -88,6 +91,8 @@ final class TaskPopoverViewController: NSViewController {
     private func render(_ mode: Mode) {
         currentMode = mode
         signedInContentHeightConstraint = nil
+        signInButton = nil
+        signInErrorLabel = nil
         children.forEach { child in
             child.view.removeFromSuperview()
             child.removeFromParent()
@@ -188,32 +193,48 @@ final class TaskPopoverViewController: NSViewController {
         stack.addArrangedSubview(message)
 
         let signInButton = NSButton(
-            title: appState.isLoading ? "Signing in…" : "Sign in with Google",
+            title: "Sign in with Google",
             target: self,
             action: #selector(signIn)
         )
         signInButton.bezelStyle = .rounded
         signInButton.controlSize = .large
-        signInButton.isEnabled = !appState.isLoading
         stack.addArrangedSubview(signInButton)
         signInButton.widthAnchor.constraint(equalToConstant: 250).isActive = true
+        self.signInButton = signInButton
 
         let quitButton = NSButton(title: "Quit TaskMenu", target: self, action: #selector(quit))
         quitButton.isBordered = false
         quitButton.controlSize = .small
         stack.addArrangedSubview(quitButton)
 
-        if let errorMessage = appState.errorMessage {
-            let error = TaskMenuAppKit.label(
-                errorMessage,
-                font: .systemFont(ofSize: NSFont.smallSystemFontSize),
-                color: .systemRed,
-                lines: 3
-            )
-            stack.addArrangedSubview(error)
-        }
+        let error = TaskMenuAppKit.label(
+            "",
+            font: .systemFont(ofSize: NSFont.smallSystemFontSize),
+            color: .systemRed,
+            lines: 3
+        )
+        stack.addArrangedSubview(error)
+        signInErrorLabel = error
 
+        updateSignedOutState()
         return container
+    }
+
+    /// Refreshes the signed-out controls in place. Sign-in progress and
+    /// failures happen while the mode stays `.signedOut`, so a full re-render
+    /// never runs; the button and error label must update from state directly.
+    private func updateSignedOutState() {
+        guard currentMode == .signedOut else { return }
+        signInButton?.title = appState.isLoading ? "Signing in…" : "Sign in with Google"
+        signInButton?.isEnabled = !appState.isLoading
+        if let errorMessage = appState.errorMessage {
+            signInErrorLabel?.stringValue = errorMessage
+            signInErrorLabel?.isHidden = false
+        } else {
+            signInErrorLabel?.stringValue = ""
+            signInErrorLabel?.isHidden = true
+        }
     }
 
     private func updateErrorStrip() {

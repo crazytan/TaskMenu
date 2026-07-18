@@ -5,6 +5,34 @@ enum TaskMenuUIMode: Equatable {
     case testingWindow
 }
 
+/// User response to the update-available alert. "Later" only defers until the
+/// next due automatic check (nothing is persisted); "Download" and
+/// "Skip This Version" persist the version so it is not alerted again.
+enum UpdateAlertChoice: Equatable, Sendable {
+    case download
+    case later
+    case skipThisVersion
+
+    init(modalResponse: NSApplication.ModalResponse) {
+        switch modalResponse {
+        case .alertFirstButtonReturn:
+            self = .download
+        case .alertThirdButtonReturn:
+            self = .skipThisVersion
+        default:
+            self = .later
+        }
+    }
+
+    var persistsAlertedVersion: Bool {
+        self != .later
+    }
+
+    var opensReleasePage: Bool {
+        self == .download
+    }
+}
+
 @MainActor
 enum TaskMenuApp {
     static let isUnitTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -69,6 +97,7 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var testingWindowController: TestingWindowController?
     private var settingsWindowController: SettingsWindowController?
+    private var automaticUpdateCheckTask: Task<Void, Never>?
     private let metricKitService = MetricKitService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -96,13 +125,43 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startAutomaticUpdateCheck() {
-        Task { [weak self] in
-            guard let self,
-                  let release = await appState.checkForUpdatesIfNeeded() else {
-                return
+        let interval = appState.updateCheckInterval
+        automaticUpdateCheckTask = Task { [weak self] in
+            await TaskMenuAppDelegate.runAutomaticUpdateChecks(
+                checkForUpdates: { [weak self] in
+                    guard let self else { return nil }
+                    return await self.appState.checkForUpdatesIfNeeded()
+                },
+                presentAlert: { [weak self] release in
+                    self?.presentUpdateAlert(for: release)
+                },
+                sleepBetweenChecks: {
+                    try await Task.sleep(for: .seconds(interval))
+                }
+            )
+        }
+    }
+
+    /// Long-lived automatic check loop for the resident menu-bar app: check at
+    /// launch, then re-check each time the sleep interval elapses.
+    /// `checkForUpdatesIfNeeded` already gates on the user preference and the
+    /// 24-hour due window, so the loop can unconditionally call it. The loop
+    /// ends when its `Task` is cancelled or the sleep throws.
+    static func runAutomaticUpdateChecks(
+        checkForUpdates: @MainActor () async -> AppUpdateRelease?,
+        presentAlert: @MainActor (AppUpdateRelease) -> Void,
+        sleepBetweenChecks: @MainActor () async throws -> Void
+    ) async {
+        while !Task.isCancelled {
+            if let release = await checkForUpdates() {
+                presentAlert(release)
             }
 
-            presentUpdateAlert(for: release)
+            do {
+                try await sleepBetweenChecks()
+            } catch {
+                return
+            }
         }
     }
 
@@ -113,12 +172,18 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = "You are using TaskMenu \(appState.currentAppVersion). Download the latest release from GitHub?"
         alert.addButton(withTitle: "Download")
         alert.addButton(withTitle: "Later")
+        alert.addButton(withTitle: "Skip This Version")
 
         NSApplication.shared.activate(ignoringOtherApps: true)
-        let response = alert.runModal()
-        appState.markUpdateAlertShown(for: release)
+        let choice = UpdateAlertChoice(modalResponse: alert.runModal())
 
-        if response == .alertFirstButtonReturn {
+        // "Later" leaves the version eligible so the next due automatic check
+        // re-alerts; the other choices persist it as seen.
+        if choice.persistsAlertedVersion {
+            appState.markUpdateAlertShown(for: release)
+        }
+
+        if choice.opensReleasePage {
             NSWorkspace.shared.open(release.releaseURL)
         }
     }

@@ -87,6 +87,22 @@ final class AppStateBehaviorTests: XCTestCase {
         )
     }
 
+    private func waitUntil(_ condition: @MainActor @escaping () -> Bool) async {
+        for _ in 0..<50 {
+            if condition() { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    private func waitUntil(_ condition: @escaping () async -> Bool) async {
+        for _ in 0..<50 {
+            if await condition() { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
     // MARK: - toggleTask: Optimistic Update
 
     func testToggleTaskCompletesSuccessfully() async {
@@ -805,12 +821,283 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
         XCTAssertNil(state.errorMessage)
     }
+
+    // MARK: - deleteTask: Transitive Descendants
+
+    func testDeleteTaskRemovesTransitiveDescendants() async {
+        state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.tasks = [
+            makeTask(id: "parent"),
+            makeTask(id: "child", parent: "parent"),
+            makeTask(id: "grandchild", parent: "child"),
+            makeTask(id: "unrelated")
+        ]
+
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        await state.deleteTask(state.tasks[0])
+
+        // The nested grandchild must not linger as an invisible orphan, and
+        // its due-date notification must be removed with the rest.
+        XCTAssertEqual(state.tasks.map(\.id), ["unrelated"])
+        let removedTaskIDs = await dueDateNotificationService.removedTaskIDs
+        XCTAssertEqual(removedTaskIDs, [["parent", "child", "grandchild"]])
+    }
+
+    // MARK: - Interleaving: mutations vs. loads
+
+    func testRefreshTasksDoesNotClobberTaskAddedDuringFetch() async {
+        let api = DelayedTasksAPI(
+            taskLists: [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)],
+            tasksByListID: ["list1": [makeTask(id: "existing", title: "Existing")]],
+            delaysByListID: ["list1": .milliseconds(200)]
+        )
+        let state = makeState(api: api)
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+        state.tasks = [makeTask(id: "existing", title: "Existing")]
+
+        let refreshTask = Task { await state.refreshTasks() }
+        await waitUntil { state.isLoading }
+
+        await state.addTask(title: "Quick Add")
+        XCTAssertEqual(state.tasks.first?.id, "created-Quick Add")
+
+        await refreshTask.value
+
+        // The fetch snapshot predates the add and must be discarded.
+        XCTAssertEqual(state.tasks.map(\.id), ["created-Quick Add", "existing"])
+        XCTAssertFalse(state.isLoading)
+    }
+
+    func testAddTaskDuringListSwitchCommitsToOriginalList() async {
+        let lists = [
+            TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "list2", title: "Work", selfLink: nil, updated: nil)
+        ]
+        let api = DelayedTasksAPI(
+            taskLists: lists,
+            tasksByListID: [
+                "list1": [makeTask(id: "list1-task")],
+                "list2": [makeTask(id: "list2-task")]
+            ]
+        )
+        await api.setCreateTaskDelay(.milliseconds(200))
+        let state = makeState(api: api)
+        state.taskLists = lists
+        state.selectedListId = "list1"
+        state.tasks = [makeTask(id: "list1-task")]
+
+        let addTaskHandle = Task { await state.addTask(title: "For List 1") }
+        await Task.yield()
+
+        await state.selectList("list2")
+        XCTAssertEqual(state.tasks.map(\.id), ["list2-task"])
+
+        _ = await addTaskHandle.value
+
+        // The created task belongs to list1 and must not leak into list2.
+        XCTAssertEqual(state.selectedListId, "list2")
+        XCTAssertFalse(state.tasks.contains { $0.id == "created-For List 1" })
+
+        // Switching back surfaces it from list1's cache before the refresh lands.
+        await api.setDelay(.milliseconds(200), for: "list1")
+        let switchBack = Task { await state.selectList("list1") }
+        await waitUntil { state.selectedListId == "list1" }
+        XCTAssertTrue(state.tasks.contains { $0.id == "created-For List 1" })
+        await switchBack.value
+    }
+
+    func testToggleTaskFailureRevertPreservesEditCommittedDuringRequest() async {
+        let task = makeTask(id: "t1", title: "Old Title")
+        let api = DelayedTasksAPI(
+            taskLists: [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)],
+            tasksByListID: ["list1": [task]]
+        )
+        // First update (the toggle) fails slowly; second (the edit) succeeds.
+        await api.addUpdateStub(
+            forTaskID: "t1",
+            delay: .milliseconds(200),
+            result: .failure(.serverError(500, "boom"))
+        )
+        await api.addUpdateStub(
+            forTaskID: "t1",
+            result: .success(makeTask(id: "t1", title: "New Title", status: .completed))
+        )
+        let state = makeState(api: api)
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+        state.tasks = [task]
+
+        let toggleHandle = Task { await state.toggleTask(task) }
+        await waitUntil { await api.updateTaskCallCount == 1 }
+        XCTAssertTrue(state.tasks[0].isCompleted)
+
+        var edited = state.tasks[0]
+        edited.title = "New Title"
+        await state.updateTask(edited)
+        XCTAssertEqual(state.tasks[0].title, "New Title")
+
+        await toggleHandle.value
+
+        // The failed toggle rewinds only the completion status; the title
+        // edit committed while the toggle was in flight survives.
+        XCTAssertEqual(state.tasks[0].title, "New Title")
+        XCTAssertFalse(state.tasks[0].isCompleted)
+        XCTAssertNotNil(state.errorMessage)
+    }
+
+    func testMoveTaskFailureRollbackPreservesToggleCommittedDuringMove() async {
+        let api = DelayedTasksAPI(
+            taskLists: [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)],
+            tasksByListID: [:]
+        )
+        await api.setMoveTaskFailure(delay: .milliseconds(200), error: .serverError(500, "boom"))
+        await api.addUpdateStub(
+            forTaskID: "second",
+            result: .success(makeTask(id: "second", status: .completed, position: "00000000000000000002"))
+        )
+        let state = makeState(api: api)
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002"),
+            makeTask(id: "third", position: "00000003")
+        ]
+
+        let moveHandle = Task { await state.moveTask(state.tasks[2], toParent: nil, after: "first") }
+        await Task.yield()
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "third", "second"])
+
+        await state.toggleTask(state.tasks.first { $0.id == "second" }!)
+        XCTAssertTrue(state.tasks.first { $0.id == "second" }!.isCompleted)
+
+        await moveHandle.value
+
+        // The rollback undoes only the move; the toggle that committed while
+        // the move was in flight survives.
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "second", "third"])
+        XCTAssertTrue(state.tasks.first { $0.id == "second" }!.isCompleted)
+        XCTAssertNotNil(state.errorMessage)
+    }
+
+    // MARK: - Interleaving: sign-out vs. in-flight work
+
+    func testSignOutDuringLoadTaskListsDiscardsResponse() async {
+        let api = DelayedTasksAPI(
+            taskLists: [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)],
+            tasksByListID: [:]
+        )
+        await api.setListTaskListsDelay(.milliseconds(200))
+        let state = makeState(api: api)
+        XCTAssertTrue(state.isSignedIn)
+
+        let loadHandle = Task { await state.loadTaskLists() }
+        await waitUntil { state.isLoading }
+
+        state.signOut()
+        await loadHandle.value
+
+        // The stale response must not repopulate signed-out state or surface
+        // a "session expired" error to a user who deliberately signed out.
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertTrue(state.taskLists.isEmpty)
+        XCTAssertNil(state.selectedListId)
+        XCTAssertNil(state.errorMessage)
+        XCTAssertFalse(state.hasCompletedInitialTaskLoad)
+        XCTAssertFalse(state.isLoading)
+    }
+
+    func testSignOutDuringAddTaskDoesNotRestoreClearedState() async {
+        let api = DelayedTasksAPI(
+            taskLists: [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)],
+            tasksByListID: ["list1": []]
+        )
+        await api.setCreateTaskDelay(.milliseconds(200))
+        let state = makeState(api: api)
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+
+        let addHandle = Task { await state.addTask(title: "Ghost") }
+        await Task.yield()
+
+        state.signOut()
+        let created = await addHandle.value
+
+        XCTAssertNil(created)
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertNil(state.selectedListId)
+
+        // The sign-out's removeAll must be the final notification operation;
+        // no sync may be enqueued after it.
+        let notificationService: TestDueDateNotificationService = dueDateNotificationService
+        await waitUntil { await notificationService.removeAllCallCount == 1 }
+        let events = await dueDateNotificationService.eventLog
+        XCTAssertEqual(events, ["removeAll"])
+    }
+
+    // MARK: - Notification preference toggling
+
+    func testRapidNotificationPreferenceTogglingEndingDisabledRemovesNotifications() async {
+        state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.tasks = [makeTask()]
+
+        state.dueDateNotificationsEnabled = false
+        state.dueDateNotificationsEnabled = true
+        state.dueDateNotificationsEnabled = false
+
+        let notificationService: TestDueDateNotificationService = dueDateNotificationService
+        await waitUntil { await notificationService.eventLog.count == 3 }
+
+        // Every operation re-reads the final (disabled) preference, so no
+        // sync may run and notifications end up removed.
+        let events = await dueDateNotificationService.eventLog
+        XCTAssertEqual(events, ["removeAll", "removeAll", "removeAll"])
+        let syncCallCount = await dueDateNotificationService.syncCalls.count
+        XCTAssertEqual(syncCallCount, 0)
+    }
+
+    func testRapidNotificationPreferenceTogglingEndingEnabledSyncs() async {
+        state.selectedListId = "list1"
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.tasks = [makeTask()]
+
+        state.dueDateNotificationsEnabled = false
+        state.dueDateNotificationsEnabled = true
+
+        let notificationService: TestDueDateNotificationService = dueDateNotificationService
+        await waitUntil { await notificationService.eventLog.count == 2 }
+
+        // Every operation re-reads the final (enabled) preference, so the
+        // notifications end up scheduled rather than removed.
+        let events = await dueDateNotificationService.eventLog
+        XCTAssertEqual(events, ["sync", "sync"])
+        let removeAllCallCount = await dueDateNotificationService.removeAllCallCount
+        XCTAssertEqual(removeAllCallCount, 0)
+    }
 }
 
 private actor DelayedTasksAPI: TasksAPIProtocol {
+    struct UpdateStub {
+        let delay: Duration?
+        let result: Result<TaskItem, APIError>
+    }
+
     private var taskLists: [TaskList]
     private var tasksByListID: [String: [TaskItem]]
     private var delaysByListID: [String: Duration]
+    private var listTaskListsDelay: Duration?
+    private var createTaskDelay: Duration?
+    private var updateStubsByTaskID: [String: [UpdateStub]] = [:]
+    private var moveTaskDelay: Duration?
+    private var moveTaskError: APIError?
+    private(set) var updateTaskCallCount = 0
 
     init(
         taskLists: [TaskList],
@@ -830,16 +1117,39 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
         delaysByListID[listID] = delay
     }
 
+    func setListTaskListsDelay(_ delay: Duration) {
+        listTaskListsDelay = delay
+    }
+
+    func setCreateTaskDelay(_ delay: Duration) {
+        createTaskDelay = delay
+    }
+
+    /// Queues one updateTask response for the task; stubs are consumed in call order.
+    func addUpdateStub(forTaskID taskID: String, delay: Duration? = nil, result: Result<TaskItem, APIError>) {
+        updateStubsByTaskID[taskID, default: []].append(UpdateStub(delay: delay, result: result))
+    }
+
+    func setMoveTaskFailure(delay: Duration? = nil, error: APIError) {
+        moveTaskDelay = delay
+        moveTaskError = error
+    }
+
     func listTaskLists() async throws -> [TaskList] {
-        taskLists
+        if let listTaskListsDelay {
+            try? await Task.sleep(for: listTaskListsDelay)
+        }
+        return taskLists
     }
 
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {
+        // Snapshot before the delay to model a server response computed when
+        // the request arrived, not when the response lands.
+        let tasks = tasksByListID[listId] ?? []
         if let delay = delaysByListID[listId] {
             try? await Task.sleep(for: delay)
         }
 
-        let tasks = tasksByListID[listId] ?? []
         if showCompleted {
             return tasks
         }
@@ -847,11 +1157,38 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     }
 
     func createTask(listId: String, title: String, notes: String?, due: String?, parentId: String?) async throws -> TaskItem {
-        throw APIError.serverError(501, "Not implemented")
+        if let createTaskDelay {
+            try? await Task.sleep(for: createTaskDelay)
+        }
+        return TaskItem(
+            id: "created-\(title)",
+            title: title,
+            notes: notes,
+            status: .needsAction,
+            due: due,
+            selfLink: nil,
+            parent: parentId,
+            position: nil,
+            updated: nil
+        )
     }
 
     func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem {
-        throw APIError.serverError(501, "Not implemented")
+        updateTaskCallCount += 1
+        guard var stubs = updateStubsByTaskID[taskId], !stubs.isEmpty else {
+            throw APIError.serverError(501, "Not implemented")
+        }
+        let stub = stubs.removeFirst()
+        updateStubsByTaskID[taskId] = stubs
+        if let delay = stub.delay {
+            try? await Task.sleep(for: delay)
+        }
+        switch stub.result {
+        case .success(let updatedTask):
+            return updatedTask
+        case .failure(let error):
+            throw error
+        }
     }
 
     func deleteTask(listId: String, taskId: String) async throws {
@@ -859,6 +1196,12 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     }
 
     func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem {
+        if let moveTaskDelay {
+            try? await Task.sleep(for: moveTaskDelay)
+        }
+        if let moveTaskError {
+            throw moveTaskError
+        }
         throw APIError.serverError(501, "Not implemented")
     }
 }

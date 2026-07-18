@@ -11,6 +11,7 @@ enum GoogleAuthError: LocalizedError, Sendable {
     case canceled
     case invalidCallback
     case invalidState
+    case secureRandomGenerationFailed(OSStatus)
     case tokenExchangeFailed(String)
     case unableToStartAuthenticationSession
 
@@ -24,6 +25,8 @@ enum GoogleAuthError: LocalizedError, Sendable {
             return "Google returned an invalid sign-in response."
         case .invalidState:
             return "Google returned a sign-in response that did not match this session."
+        case .secureRandomGenerationFailed(let status):
+            return "Unable to generate a secure random value for sign in (OSStatus \(status))."
         case .tokenExchangeFailed(let message):
             return "Google token exchange failed: \(message)"
         case .unableToStartAuthenticationSession:
@@ -168,6 +171,7 @@ final class GoogleAuthService: Sendable {
     private(set) var refreshToken: String?
     private(set) var tokenExpiration: Date?
     private(set) var accountProfile: GoogleAccountProfile?
+    private var refreshTask: Task<Void, any Error>?
 
     var isSignedIn: Bool {
         refreshToken != nil
@@ -192,10 +196,10 @@ final class GoogleAuthService: Sendable {
     // MARK: - Sign In
 
     func signIn() async throws {
-        let codeVerifier = generateCodeVerifier()
+        let codeVerifier = try generateCodeVerifier()
         let codeChallenge = generateCodeChallenge(from: codeVerifier)
-        let state = generateState()
-        let nonce = generateState()
+        let state = try generateState()
+        let nonce = try generateState()
         let redirectScheme = Constants.googleRedirectScheme
         let redirectURI = Constants.googleRedirectURI
 
@@ -235,16 +239,22 @@ final class GoogleAuthService: Sendable {
         )
     }
 
-    func disconnect() async {
+    /// Always signs out locally. Returns `false` when a token was present but Google
+    /// revocation failed, so the OAuth grant may remain active on the user's account.
+    @discardableResult
+    func disconnect() async -> Bool {
+        var revocationSucceeded = true
         let tokenToRevoke = refreshToken ?? accessToken
         if let tokenToRevoke {
             do {
                 try await revokeToken(tokenToRevoke)
             } catch {
+                revocationSucceeded = false
                 logger.error("Failed to revoke Google OAuth token: \(error.localizedDescription)")
             }
         }
         signOut()
+        return revocationSucceeded
     }
 
     func signOut() {
@@ -266,7 +276,18 @@ final class GoogleAuthService: Sendable {
             throw APIError.unauthorized
         }
 
-        try await refreshAccessToken(refreshToken: refresh)
+        // Coalesce concurrent callers onto a single in-flight refresh request.
+        let task: Task<Void, any Error>
+        if let inFlight = refreshTask {
+            task = inFlight
+        } else {
+            task = Task {
+                defer { self.refreshTask = nil }
+                try await self.refreshAccessToken(refreshToken: refresh)
+            }
+            refreshTask = task
+        }
+        try await task.value
 
         guard let token = accessToken else {
             throw APIError.unauthorized
@@ -326,6 +347,10 @@ final class GoogleAuthService: Sendable {
         let (data, response) = try await session.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            guard isDefinitiveRefreshRejection(statusCode: httpResponse.statusCode, data: data) else {
+                // Transient failures (5xx, 429, undecodable bodies) must not destroy the stored refresh token.
+                throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
+            }
             signOut()
             throw APIError.unauthorized
         }
@@ -334,6 +359,14 @@ final class GoogleAuthService: Sendable {
         accessToken = tokenResponse.accessToken
         tokenExpiration = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
         saveTokens()
+    }
+
+    private func isDefinitiveRefreshRejection(statusCode: Int, data: Data) -> Bool {
+        guard statusCode == 400 || statusCode == 401 else { return false }
+        guard let tokenError = try? JSONDecoder().decode(TokenErrorResponse.self, from: data) else {
+            return false
+        }
+        return tokenError.error == "invalid_grant" || tokenError.error == "invalid_client"
     }
 
     private func revokeToken(_ token: String) async throws {
@@ -480,10 +513,8 @@ final class GoogleAuthService: Sendable {
 
     // MARK: - PKCE
 
-    private func generateCodeVerifier() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return Data(bytes).base64URLEncoded()
+    private func generateCodeVerifier() throws -> String {
+        try secureRandomData(count: 32).base64URLEncoded()
     }
 
     private func generateCodeChallenge(from verifier: String) -> String {
@@ -492,10 +523,18 @@ final class GoogleAuthService: Sendable {
         return Data(hash).base64URLEncoded()
     }
 
-    private func generateState() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return Data(bytes).base64URLEncoded()
+    private func generateState() throws -> String {
+        try secureRandomData(count: 32).base64URLEncoded()
+    }
+
+    private func secureRandomData(count: Int) throws -> Data {
+        var bytes = [UInt8](repeating: 0, count: count)
+        let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)
+        guard status == errSecSuccess else {
+            // A zeroed buffer would make the PKCE verifier and CSRF state predictable; abort sign-in.
+            throw GoogleAuthError.secureRandomGenerationFailed(status)
+        }
+        return Data(bytes)
     }
 }
 

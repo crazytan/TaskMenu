@@ -191,6 +191,109 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertEqual(token, "valid-token")
     }
 
+    // MARK: - Token Refresh
+
+    private func seedExpiredTokens() throws {
+        try keychain.save(key: Constants.Keychain.accessTokenKey, string: "expired-access-token")
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "stored-refresh-token")
+        let pastDate = Date().addingTimeInterval(-3600)
+        try keychain.save(key: Constants.Keychain.expirationKey, string: String(pastDate.timeIntervalSince1970))
+    }
+
+    func testRefreshServerErrorDoesNotSignOutOrDeleteRefreshToken() async throws {
+        try seedExpiredTokens()
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!
+            return (response, Data("Service Unavailable".utf8))
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session)
+
+        do {
+            _ = try await auth.validAccessToken()
+            XCTFail("Expected APIError.serverError")
+        } catch {
+            guard case APIError.serverError(let code, _) = error else {
+                XCTFail("Expected APIError.serverError, got \(error)")
+                return
+            }
+            XCTAssertEqual(code, 503)
+        }
+
+        XCTAssertTrue(auth.isSignedIn)
+        XCTAssertEqual(auth.refreshToken, "stored-refresh-token")
+        XCTAssertEqual(try keychain.readString(key: Constants.Keychain.refreshTokenKey), "stored-refresh-token")
+    }
+
+    func testRefreshBadRequestWithUndecodableBodyDoesNotSignOut() async throws {
+        try seedExpiredTokens()
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!
+            return (response, Data("gateway glitch".utf8))
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session)
+
+        do {
+            _ = try await auth.validAccessToken()
+            XCTFail("Expected APIError.serverError")
+        } catch {
+            guard case APIError.serverError(400, _) = error else {
+                XCTFail("Expected APIError.serverError, got \(error)")
+                return
+            }
+        }
+
+        XCTAssertTrue(auth.isSignedIn)
+        XCTAssertEqual(try keychain.readString(key: Constants.Keychain.refreshTokenKey), "stored-refresh-token")
+    }
+
+    func testRefreshInvalidGrantSignsOutAndClearsKeychain() async throws {
+        try seedExpiredTokens()
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!
+            let json = #"{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session)
+
+        do {
+            _ = try await auth.validAccessToken()
+            XCTFail("Expected APIError.unauthorized")
+        } catch {
+            guard case APIError.unauthorized = error else {
+                XCTFail("Expected APIError.unauthorized, got \(error)")
+                return
+            }
+        }
+
+        XCTAssertFalse(auth.isSignedIn)
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
+    }
+
+    func testConcurrentValidAccessTokenCallsShareOneRefreshRequest() async throws {
+        try seedExpiredTokens()
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"access_token":"refreshed-access-token","expires_in":3600,"token_type":"Bearer"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session)
+
+        async let first = auth.validAccessToken()
+        async let second = auth.validAccessToken()
+        let tokens = try await [first, second]
+
+        XCTAssertEqual(tokens, ["refreshed-access-token", "refreshed-access-token"])
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
+    }
+
     // MARK: - OAuth Callback Parsing
 
     func testOAuthCallbackParserReturnsCodeWhenStateMatches() throws {
@@ -445,8 +548,9 @@ final class GoogleAuthServiceTests: XCTestCase {
         }
 
         let auth = GoogleAuthService(keychain: keychain, session: session)
-        await auth.disconnect()
+        let revoked = await auth.disconnect()
 
+        XCTAssertTrue(revoked)
         XCTAssertFalse(auth.isSignedIn)
         XCTAssertNil(auth.accessToken)
         XCTAssertNil(auth.refreshToken)
@@ -457,6 +561,34 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertEqual(revokeRequest.url?.absoluteString, Constants.googleRevocationURL)
         let body = formParameters(from: try XCTUnwrap(Self.capturedRequestBody))
         XCTAssertEqual(body["token"], "refresh-token")
+    }
+
+    func testDisconnectReturnsFalseWhenRevocationFailsButStillSignsOutLocally() async throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "refresh-token")
+
+        let session = MockURLProtocol.mockSession()
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 503, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        let auth = GoogleAuthService(keychain: keychain, session: session)
+        let revoked = await auth.disconnect()
+
+        XCTAssertFalse(revoked)
+        XCTAssertFalse(auth.isSignedIn)
+        XCTAssertNil(auth.refreshToken)
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
+    }
+
+    func testDisconnectReturnsTrueWhenNoTokenNeedsRevocation() async {
+        let session = MockURLProtocol.mockSession()
+        let auth = GoogleAuthService(keychain: keychain, session: session)
+
+        let revoked = await auth.disconnect()
+
+        XCTAssertTrue(revoked)
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
     }
 }
 

@@ -76,26 +76,15 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
             return
         }
 
-        // Delete existing item first
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainError.saveFailed(status)
+        do {
+            try addItem(key: key, data: data, useDataProtection: true)
+        } catch KeychainError.saveFailed(let status) where status == errSecMissingEntitlement {
+            // Unsigned/dev builds cannot use the data-protection keychain; keep legacy behavior.
+            try addItem(key: key, data: data, useDataProtection: false)
+            return
         }
+        // Remove any stale legacy copy so it cannot shadow the migrated value later.
+        _ = deleteItem(key: key, useDataProtection: false)
     }
 
     func save(key: String, string: String) throws {
@@ -110,26 +99,27 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
             return testStore.read(service: service, key: key)
         }
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+        do {
+            if let data = try copyItem(key: key, useDataProtection: true) {
+                return data
+            }
+        } catch KeychainError.readFailed(let status) where status == errSecMissingEntitlement {
+            // Unsigned/dev builds cannot use the data-protection keychain; keep legacy behavior.
+            return try copyItem(key: key, useDataProtection: false)
+        }
 
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        if status == errSecItemNotFound {
+        guard let legacyData = try copyItem(key: key, useDataProtection: false) else {
             return nil
         }
 
-        guard status == errSecSuccess else {
-            throw KeychainError.readFailed(status)
+        // Transparent migration: move the legacy login-keychain item to the data-protection keychain.
+        do {
+            try addItem(key: key, data: legacyData, useDataProtection: true)
+            _ = deleteItem(key: key, useDataProtection: false)
+        } catch {
+            // Leave the legacy item in place so the value survives when migration cannot complete.
         }
-
-        return result as? Data
+        return legacyData
     }
 
     func readString(key: String) throws -> String? {
@@ -143,15 +133,15 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
             return
         }
 
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: key,
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw KeychainError.deleteFailed(status)
+        for status in [
+            deleteItem(key: key, useDataProtection: true),
+            deleteItem(key: key, useDataProtection: false),
+        ] {
+            guard status == errSecSuccess
+                || status == errSecItemNotFound
+                || status == errSecMissingEntitlement else {
+                throw KeychainError.deleteFailed(status)
+            }
         }
     }
 
@@ -170,5 +160,61 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
         ] {
             try delete(key: key)
         }
+    }
+
+    // MARK: - SecItem Helpers
+
+    // `useDataProtection: false` is the legacy login-keychain location used before the
+    // data-protection keychain migration; it also serves unsigned/dev builds that lack
+    // the entitlement (SecItem calls return errSecMissingEntitlement there).
+    private func baseQuery(key: String, useDataProtection: Bool) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+        ]
+        if useDataProtection {
+            query[kSecUseDataProtectionKeychain as String] = true
+        }
+        return query
+    }
+
+    private func addItem(key: String, data: Data, useDataProtection: Bool) throws {
+        // Delete existing item first
+        _ = deleteItem(key: key, useDataProtection: useDataProtection)
+
+        var query = baseQuery(key: key, useDataProtection: useDataProtection)
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = useDataProtection
+            ? kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            : kSecAttrAccessibleAfterFirstUnlock
+
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw KeychainError.saveFailed(status)
+        }
+    }
+
+    private func copyItem(key: String, useDataProtection: Bool) throws -> Data? {
+        var query = baseQuery(key: key, useDataProtection: useDataProtection)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            return nil
+        }
+
+        guard status == errSecSuccess else {
+            throw KeychainError.readFailed(status)
+        }
+
+        return result as? Data
+    }
+
+    private func deleteItem(key: String, useDataProtection: Bool) -> OSStatus {
+        SecItemDelete(baseQuery(key: key, useDataProtection: useDataProtection) as CFDictionary)
     }
 }

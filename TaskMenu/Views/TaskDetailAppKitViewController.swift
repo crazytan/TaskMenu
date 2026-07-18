@@ -32,10 +32,12 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let subtaskScrollView = NSScrollView()
     private let subtaskDocumentView = TaskDetailFlippedDocumentView()
-    private let subtaskListStack = NSStackView()
+    let subtaskListStack = NSStackView()
     private var subtaskScrollHeightConstraint: NSLayoutConstraint?
-    private var addSubtaskField: TaskMenuTextField?
-    private weak var dueDatePicker: NSDatePicker?
+    private(set) var addSubtaskField: TaskMenuTextField?
+    private(set) var addSubtaskRowView: NSView?
+    private var addSubtaskFieldNeedsInitialFocus = false
+    private(set) weak var dueDatePicker: NSDatePicker?
     private let appStateObserver = TaskMenuAppStateObserver()
 
     init(appState: AppState, task: TaskItem, onDismiss: @escaping () -> Void) {
@@ -66,6 +68,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        renderDueDateControls()
         renderSubtasks()
         observeAppState()
     }
@@ -210,16 +213,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func metaGroup() -> NSView {
-        let group = NSStackView()
+        let group = TaskDetailGroupBoxView()
         group.orientation = .vertical
         group.alignment = .width
         group.spacing = 0
-        group.wantsLayer = true
-        group.layer?.cornerRadius = 8
-        group.layer?.borderWidth = 1
-        group.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
-        group.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
-        group.translatesAutoresizingMaskIntoConstraints = false
         group.setContentHuggingPriority(.required, for: .vertical)
         group.setContentCompressionResistancePriority(.required, for: .vertical)
         group.widthAnchor.constraint(equalToConstant: TaskDetailViewMetrics.contentWidth).isActive = true
@@ -274,6 +271,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         return listPopup
     }
 
+    /// Rebuilt only at load and when the user enables or clears the due date.
+    /// Task updates must not reach these controls so the picker instance,
+    /// in-progress typing, and first-responder status survive background
+    /// refreshes.
     private func renderDueDateControls() {
         dueDateControls.arrangedSubviews.forEach { view in
             dueDateControls.removeArrangedSubview(view)
@@ -337,17 +338,23 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         return subtaskScrollView
     }
 
-    private func renderSubtasks() {
-        renderDueDateControls()
-        subtaskListStack.arrangedSubviews.forEach { view in
+    func renderSubtasks() {
+        // The add-subtask row is kept alive across renders so an open field's
+        // typing and focus survive background task mutations.
+        let addRow = currentAddSubtaskRow()
+        for view in subtaskListStack.arrangedSubviews where view !== addRow {
             subtaskListStack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
 
+        var index = 0
         for child in subtasksWithCompletedLast(appState.subtasks(of: task.id)) {
-            subtaskListStack.addArrangedSubview(subtaskRow(for: child))
+            subtaskListStack.insertArrangedSubview(subtaskRow(for: child), at: index)
+            index += 1
         }
-        subtaskListStack.addArrangedSubview(addSubtaskGhostRow())
+        if addRow.superview == nil {
+            subtaskListStack.addArrangedSubview(addRow)
+        }
         updateSubtaskScrollMetrics()
     }
 
@@ -385,7 +392,16 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         return row
     }
 
-    private func addSubtaskGhostRow() -> NSView {
+    private func currentAddSubtaskRow() -> NSView {
+        if let addSubtaskRowView {
+            return addSubtaskRowView
+        }
+        let row = makeAddSubtaskRow()
+        addSubtaskRowView = row
+        return row
+    }
+
+    private func makeAddSubtaskRow() -> NSView {
         if let addSubtaskField {
             let stack = NSStackView()
             stack.orientation = .horizontal
@@ -397,23 +413,56 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
                 self?.addSubtask()
             }
             addSubtaskField.onEscape = { [weak self] in
-                self?.addSubtaskField = nil
-                self?.renderSubtasks()
+                self?.closeAddSubtaskField()
             }
-            DispatchQueue.main.async { [weak addSubtaskField] in
-                addSubtaskField?.window?.makeFirstResponder(addSubtaskField)
-            }
+            focusAddSubtaskFieldIfNeeded()
             return paddedRow(stack)
         }
 
         let button = TaskMenuActionButton(title: "Add subtask", symbolName: "plus", pointSize: 11, weight: .medium, accessibilityDescription: "Add subtask") { [weak self] in
-            self?.addSubtaskField = TaskMenuTextField(placeholder: "Add subtask")
-            self?.renderSubtasks()
+            self?.openAddSubtaskField()
         }
         button.alignment = .left
         button.imagePosition = .imageLeading
         button.contentTintColor = .tertiaryLabelColor
         return paddedRow(button)
+    }
+
+    func openAddSubtaskField() {
+        addSubtaskField = TaskMenuTextField(placeholder: "Add subtask")
+        addSubtaskField?.setAccessibilityLabel("Add subtask")
+        addSubtaskFieldNeedsInitialFocus = true
+        rebuildAddSubtaskRow()
+    }
+
+    private func closeAddSubtaskField() {
+        addSubtaskField = nil
+        addSubtaskFieldNeedsInitialFocus = false
+        rebuildAddSubtaskRow()
+    }
+
+    private func rebuildAddSubtaskRow() {
+        if let row = addSubtaskRowView {
+            subtaskListStack.removeArrangedSubview(row)
+            row.removeFromSuperview()
+        }
+        addSubtaskRowView = nil
+        renderSubtasks()
+    }
+
+    /// Focus is requested only when the field was just opened, never from a
+    /// re-render, so background task updates cannot steal first responder or
+    /// restart (and select-all) an in-progress editing session.
+    private func focusAddSubtaskFieldIfNeeded() {
+        guard addSubtaskFieldNeedsInitialFocus, let field = addSubtaskField else { return }
+        addSubtaskFieldNeedsInitialFocus = false
+        DispatchQueue.main.async { [weak field] in
+            guard let field, let window = field.window else { return }
+            if let editor = field.currentEditor(), window.firstResponder === editor {
+                return
+            }
+            window.makeFirstResponder(field)
+        }
     }
 
     private func paddedRow(_ child: NSView) -> NSView {
@@ -431,10 +480,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func footer() -> NSView {
-        let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.wantsLayer = true
-        container.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
+        let container = TaskDetailFooterView()
 
         let stack = NSStackView()
         stack.orientation = .horizontal
@@ -594,6 +640,69 @@ private final class TaskDetailSubtaskRow: NSView {
 private final class TaskDetailFlippedDocumentView: NSView {
     override var isFlipped: Bool {
         true
+    }
+}
+
+/// Rounded inset background for the detail meta rows; reapplies its
+/// layer colors on appearance changes so light/dark switches stay correct.
+@MainActor
+final class TaskDetailGroupBoxView: NSStackView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.borderWidth = 1
+        applyBackgroundColors()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyBackgroundColors()
+    }
+
+    /// Layer colors are resolved CGColors; reapply them when the effective
+    /// appearance changes so light/dark switches don't leave stale colors.
+    private func applyBackgroundColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
+            layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
+        }
+    }
+}
+
+/// Footer strip behind the delete action; reapplies its layer color on
+/// appearance changes so light/dark switches stay correct.
+@MainActor
+final class TaskDetailFooterView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+        wantsLayer = true
+        applyBackgroundColors()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyBackgroundColors()
+    }
+
+    /// Layer colors are resolved CGColors; reapply them when the effective
+    /// appearance changes so light/dark switches don't leave stale colors.
+    private func applyBackgroundColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
+        }
     }
 }
 

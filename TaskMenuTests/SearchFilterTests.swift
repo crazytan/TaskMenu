@@ -222,6 +222,41 @@ final class SearchFilterTests: XCTestCase {
         XCTAssertEqual(state.searchFilteredRootTasks.first?.id, "parent1")
     }
 
+    // MARK: - Search Match Count
+
+    func testSearchMatchCountExcludesContextParents() {
+        let tasks = [
+            makeTask(id: "parent1", title: "Errands"),
+            makeTask(id: "child1", title: "Overdue bill", parent: "parent1"),
+            makeTask(id: "task2", title: "Overdue library book"),
+        ]
+        let state = makeAppState(tasks: tasks)
+        state.searchText = "overdue"
+
+        // The non-matching parent is visible for context but is not a result.
+        XCTAssertEqual(state.searchFilteredTasks.count, 3)
+        XCTAssertEqual(state.searchMatchCount, 2)
+    }
+
+    func testSearchMatchCountEqualsDirectMatchesForRootMatches() {
+        let tasks = [
+            makeTask(id: "1", title: "Buy groceries"),
+            makeTask(id: "2", title: "Buy shoes"),
+            makeTask(id: "3", title: "Walk the dog"),
+        ]
+        let state = makeAppState(tasks: tasks)
+        state.searchText = "buy"
+
+        XCTAssertEqual(state.searchMatchCount, 2)
+    }
+
+    func testSearchMatchCountIsZeroWhenNotSearching() {
+        let state = makeAppState(tasks: [makeTask(id: "1", title: "Buy groceries")])
+        state.searchText = ""
+
+        XCTAssertEqual(state.searchMatchCount, 0)
+    }
+
     // MARK: - Search Filtered Subtasks
 
     func testSearchFilteredSubtasks() {

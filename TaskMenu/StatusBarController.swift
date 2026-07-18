@@ -58,7 +58,11 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
-        if NSApp.currentEvent?.type == .rightMouseUp {
+        let event = NSApp.currentEvent
+        if StatusItemClickRouting.shouldShowContextMenu(
+            eventType: event?.type,
+            modifierFlags: event?.modifierFlags ?? []
+        ) {
             showContextMenu(from: sender)
         } else {
             togglePopover(from: sender)
@@ -181,6 +185,18 @@ final class MenuPresentationRefreshTrigger {
         Task { @MainActor in
             await refresh()
         }
+    }
+}
+
+enum StatusItemClickRouting {
+    /// Right-clicks and Control+left-clicks (the standard secondary-click
+    /// equivalent) open the context menu; plain left-clicks toggle the popover.
+    static func shouldShowContextMenu(
+        eventType: NSEvent.EventType?,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> Bool {
+        if eventType == .rightMouseUp { return true }
+        return eventType == .leftMouseUp && modifierFlags.contains(.control)
     }
 }
 

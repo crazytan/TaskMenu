@@ -14,7 +14,8 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 - Keep `AppState` `@MainActor`. Inject services through the initializer for tests instead of reaching for globals.
 - Preserve `toggleTask(_:)` optimistic-update rollback behavior. If an optimistic API call fails, restore the prior local task state and set `errorMessage`.
 - Keep the per-list cache in sync when adding, adding subtasks, completing, updating, deleting, or selecting lists.
-- Use `taskLoadRequestID` guards when introducing async task-loading work so stale responses cannot overwrite the active list.
+- Use `taskLoadRequestID` guards when introducing async task-loading work so stale responses cannot overwrite the active list. Fetches also capture `taskStateGeneration`, which every committed mutation bumps, so a fetch snapshot taken before a local change is discarded rather than applied.
+- Route post-await mutation writes through `commitTaskChange(to:_:)`: it re-checks the captured list against the current selection and writes to the live array or `taskCacheByListID` accordingly. Re-check `isSignedIn` after every await before touching state.
 
 ## Task Ordering And Search
 

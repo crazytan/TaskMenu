@@ -381,11 +381,64 @@ private final class SettingsViewController: NSViewController {
             } else {
                 try SMAppService.mainApp.unregister()
             }
+
+            // register() can return without throwing while the login item is
+            // held at .requiresApproval; without a nudge the toggle silently
+            // snaps back on the next render.
+            if SettingsLaunchAtLogin.needsApprovalNotice(
+                enabling: enabled,
+                status: SMAppService.mainApp.status
+            ) {
+                presentLaunchAtLoginNotice(
+                    style: .informational,
+                    title: "Approval Needed for Launch at Login",
+                    message: "macOS needs your approval before TaskMenu can launch at login. "
+                        + "Approve TaskMenu under Login Items in System Settings."
+                )
+            }
         } catch {
-            // Users can retry from Settings if macOS rejects the request.
+            // macOS can reject the request (e.g. the login item was disabled
+            // in System Settings); retrying from here fails identically, so
+            // point the user at Login Items settings.
+            presentLaunchAtLoginNotice(
+                style: .warning,
+                title: enabled
+                    ? "Couldn't Enable Launch at Login"
+                    : "Couldn't Disable Launch at Login",
+                message: "\(error.localizedDescription)\n\n"
+                    + "You can manage TaskMenu under Login Items in System Settings."
+            )
         }
 
+        // The toggle re-renders from the actual SMAppService status.
         render()
+    }
+
+    private func presentLaunchAtLoginNotice(
+        style: NSAlert.Style,
+        title: String,
+        message: String
+    ) {
+        let alert = NSAlert()
+        alert.alertStyle = style
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Open Login Items Settings")
+
+        let openLoginItems: () -> Void = {
+            SMAppService.openSystemSettingsLoginItems()
+        }
+
+        if let window = view.window {
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertSecondButtonReturn {
+                    openLoginItems()
+                }
+            }
+        } else if alert.runModal() == .alertSecondButtonReturn {
+            openLoginItems()
+        }
     }
 
     private func relativeDateString(for date: Date) -> String {
@@ -590,6 +643,18 @@ private final class SettingsViewController: NSViewController {
     private func constrainToContentWidth(_ view: NSView) {
         view.translatesAutoresizingMaskIntoConstraints = false
         view.widthAnchor.constraint(equalToConstant: SettingsLayout.contentWidth).isActive = true
+    }
+}
+
+/// Pure decision logic for the "Launch at login" toggle, kept off the view
+/// controller so unit tests can pin it without presenting alerts.
+enum SettingsLaunchAtLogin {
+    /// `SMAppService.register()` can return without throwing while the login
+    /// item stays at `.requiresApproval` ("registered, but the user needs to
+    /// take action in System Settings"). Surface a notice in that case so the
+    /// toggle snapping back is explained.
+    static func needsApprovalNotice(enabling: Bool, status: SMAppService.Status) -> Bool {
+        enabling && status == .requiresApproval
     }
 }
 

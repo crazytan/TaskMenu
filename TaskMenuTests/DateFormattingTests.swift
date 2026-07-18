@@ -23,6 +23,11 @@ final class DateFormattingTests: XCTestCase {
         XCTAssertTrue(formatted.contains("2026-03-15"))
     }
 
+    func testFormatRFC3339EmitsGregorianAsciiOutput() {
+        let date = DateFormatting.parseRFC3339("2026-03-15T00:00:00.000Z")!
+        XCTAssertEqual(DateFormatting.formatRFC3339(date), "2026-03-15T00:00:00.000Z")
+    }
+
     func testParseGoogleTaskDueDatePreservesCalendarDayInNegativeOffsetTimeZone() {
         let calendar = Self.calendar(timeZoneIdentifier: "America/Los_Angeles")
         let date = DateFormatting.parseGoogleTaskDueDate("2026-05-06T00:00:00.000Z", calendar: calendar)
@@ -40,6 +45,57 @@ final class DateFormattingTests: XCTestCase {
         let formatted = DateFormatting.formatGoogleTaskDueDate(date, calendar: calendar)
 
         XCTAssertEqual(formatted, "2026-01-02T00:00:00.000Z")
+    }
+
+    // The next four tests pin each direction against an independent Gregorian
+    // reference: a plain parse -> format round trip would pass even if both
+    // directions misinterpreted era years symmetrically.
+
+    func testParseGoogleTaskDueDateWithBuddhistCalendarYieldsGregorianDay() {
+        let calendar = Self.calendar(identifier: .buddhist, timeZoneIdentifier: "Asia/Bangkok")
+        let date = DateFormatting.parseGoogleTaskDueDate("2026-05-06T00:00:00.000Z", calendar: calendar)!
+
+        let gregorian = Self.calendar(identifier: .gregorian, timeZoneIdentifier: "Asia/Bangkok")
+        let components = gregorian.dateComponents([.year, .month, .day], from: date)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 5)
+        XCTAssertEqual(components.day, 6)
+        XCTAssertEqual(date, calendar.startOfDay(for: date))
+    }
+
+    func testFormatGoogleTaskDueDateWithBuddhistCalendarEmitsGregorianYear() {
+        let gregorian = Self.calendar(identifier: .gregorian, timeZoneIdentifier: "Asia/Bangkok")
+        let date = gregorian.date(from: DateComponents(year: 2026, month: 5, day: 6))!
+        let calendar = Self.calendar(identifier: .buddhist, timeZoneIdentifier: "Asia/Bangkok")
+
+        XCTAssertEqual(DateFormatting.formatGoogleTaskDueDate(date, calendar: calendar), "2026-05-06T00:00:00.000Z")
+    }
+
+    func testParseGoogleTaskDueDateWithJapaneseCalendarYieldsGregorianDay() {
+        let calendar = Self.calendar(identifier: .japanese, timeZoneIdentifier: "Asia/Tokyo")
+        let date = DateFormatting.parseGoogleTaskDueDate("2026-05-06T00:00:00.000Z", calendar: calendar)!
+
+        let gregorian = Self.calendar(identifier: .gregorian, timeZoneIdentifier: "Asia/Tokyo")
+        let components = gregorian.dateComponents([.year, .month, .day], from: date)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 5)
+        XCTAssertEqual(components.day, 6)
+        XCTAssertEqual(date, calendar.startOfDay(for: date))
+    }
+
+    func testFormatGoogleTaskDueDateWithJapaneseCalendarEmitsGregorianYear() {
+        let gregorian = Self.calendar(identifier: .gregorian, timeZoneIdentifier: "Asia/Tokyo")
+        let date = gregorian.date(from: DateComponents(year: 2026, month: 5, day: 6))!
+        let calendar = Self.calendar(identifier: .japanese, timeZoneIdentifier: "Asia/Tokyo")
+
+        XCTAssertEqual(DateFormatting.formatGoogleTaskDueDate(date, calendar: calendar), "2026-05-06T00:00:00.000Z")
+    }
+
+    func testGoogleTaskDueDateRoundTripWithBuddhistCalendar() {
+        let calendar = Self.calendar(identifier: .buddhist, timeZoneIdentifier: "Asia/Bangkok")
+        let date = DateFormatting.parseGoogleTaskDueDate("2026-05-06T00:00:00.000Z", calendar: calendar)!
+
+        XCTAssertEqual(DateFormatting.formatGoogleTaskDueDate(date, calendar: calendar), "2026-05-06T00:00:00.000Z")
     }
 
     func testGoogleTaskDueDateRelativeStringUsesCalendarDay() {
@@ -77,7 +133,11 @@ final class DateFormattingTests: XCTestCase {
     }
 
     private static func calendar(timeZoneIdentifier: String) -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
+        calendar(identifier: .gregorian, timeZoneIdentifier: timeZoneIdentifier)
+    }
+
+    private static func calendar(identifier: Calendar.Identifier, timeZoneIdentifier: String) -> Calendar {
+        var calendar = Calendar(identifier: identifier)
         calendar.timeZone = TimeZone(identifier: timeZoneIdentifier)!
         return calendar
     }

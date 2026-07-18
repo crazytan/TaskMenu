@@ -77,13 +77,31 @@ final class GitHubUpdateCheckerTests: XCTestCase {
         XCTAssertNil(update)
     }
 
-    func testLatestUpdateReturnsNilForMalformedReleaseTag() async throws {
+    func testLatestUpdateThrowsDecodingFailedForMalformedReleaseTag() async throws {
         stubLatestRelease(tagName: "not-a-version")
         let checker = GitHubUpdateChecker(session: MockURLProtocol.mockSession())
 
-        let update = try await checker.latestUpdate(currentVersion: "1.1.0")
+        do {
+            _ = try await checker.latestUpdate(currentVersion: "1.1.0")
+            XCTFail("Expected a malformed release tag to throw")
+        } catch let error as UpdateCheckError {
+            guard case .decodingFailed = error else {
+                XCTFail("Expected decodingFailed, got \(error)")
+                return
+            }
+        }
+    }
+
+    func testLatestUpdateReturnsNilForUnparseableCurrentVersionWithoutRequesting() async throws {
+        stubLatestRelease(tagName: "v1.2.0")
+        let checker = GitHubUpdateChecker(session: MockURLProtocol.mockSession())
+
+        // Dev builds may carry a non-semver version; that is "no update", not
+        // an error, and should not even hit the network.
+        let update = try await checker.latestUpdate(currentVersion: "dev")
 
         XCTAssertNil(update)
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
     }
 
     private func stubLatestRelease(tagName: String) {
@@ -228,6 +246,22 @@ final class AppStateUpdateCheckTests: XCTestCase {
         XCTAssertEqual(firstUpdate, release)
         XCTAssertNil(secondUpdate)
         XCTAssertEqual(requestCount, 2)
+    }
+
+    func testUnalertedReleaseStaysEligibleOnNextDueCheck() async {
+        let release = makeRelease(version: "1.2.0")
+        let checker = TestUpdateChecker(release: release)
+        let state = makeState(updateChecker: checker)
+        state.lastUpdateCheckDate = .distantPast
+
+        // "Later" on the alert does not mark the version, so the next due
+        // automatic check must return the same release again.
+        let firstUpdate = await state.checkForUpdatesIfNeeded()
+        state.lastUpdateCheckDate = .distantPast
+        let secondUpdate = await state.checkForUpdatesIfNeeded()
+
+        XCTAssertEqual(firstUpdate, release)
+        XCTAssertEqual(secondUpdate, release)
     }
 
     private func makeState(

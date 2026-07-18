@@ -21,9 +21,22 @@ actor GoogleTasksAPI: TasksAPIProtocol {
     // MARK: - Task Lists
 
     func listTaskLists() async throws -> [TaskList] {
-        let data = try await request(path: "/users/@me/lists")
-        let response = try decode(TaskListCollection.self, from: data)
-        return response.items ?? []
+        var allLists: [TaskList] = []
+        var pageToken: String?
+
+        repeat {
+            var queryItems = [URLQueryItem(name: "maxResults", value: "100")]
+            if let pageToken {
+                queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
+            }
+
+            let data = try await request(path: "/users/@me/lists", queryItems: queryItems)
+            let response = try decode(TaskListCollection.self, from: data)
+            allLists.append(contentsOf: response.items ?? [])
+            pageToken = response.nextPageToken
+        } while pageToken != nil
+
+        return allLists
     }
 
     // MARK: - Tasks

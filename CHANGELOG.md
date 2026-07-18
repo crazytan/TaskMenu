@@ -23,6 +23,9 @@
 - Added a Long Subtasks testing-window list with a parent task containing 12 subtasks, including several completed subtasks.
 
 ### Changed
+- OAuth tokens are now stored in the data-protection keychain with a device-only accessibility class, with transparent one-time migration of existing tokens from the legacy login-keychain location.
+- MetricKit diagnostic payloads are now deduplicated by content and pruned on launch (30-day retention, 200-file cap) instead of accumulating duplicates indefinitely.
+- Hardened the release pipeline: manual release runs are now bound to the existing tag's commit, published release assets can no longer be overwritten in place, workflow inputs are injection-safe, key-derived data is no longer logged, the CI token is scoped read-only, notarization rejections now print the actual notarytool log instead of an opaque stapler error, and the Gatekeeper assessment now runs as a real gate after stapling instead of a no-op.
 - Redesigned the Settings window with native macOS grouped sections: rounded setting boxes with switch rows, a single Updates row combining version and check status, a compact Account row, side-by-side tips/Discord buttons with one prominent call to action, link-style About buttons, and a standard (non-red) Quit button. Destructive actions now use red text instead of filled red buttons, single-color button icons render as templates, and the group backgrounds follow light/dark appearance changes.
 - Refreshed Markdown documentation for current Xcode project settings, release workflow, testing-window behavior, and Google Tasks API boundaries.
 - Simplified task caching to a single per-list cache after removing the unused first-load/completed-task cache path.
@@ -31,6 +34,30 @@
 - Removed dead code left over from the SwiftUI-to-AppKit migration: the unused `TaskRowAppKitView`, task indent/outdent support, the never-called `loadTasks` first-load path, the unused `moveTask` API, and obsolete presentation/layout helpers and their tests.
 
 ### Fixed
+- Google Tasks due dates are no longer corrupted for users whose system calendar is not Gregorian (for example Buddhist or Japanese): dates read from and written to the Google Tasks API now always use Gregorian years on the wire, instead of rendering other clients' tasks centuries off and sending era years (like 2569) to Google.
+- A transient Google token-endpoint failure (5xx or rate limit) during token refresh no longer silently signs the user out and deletes the stored refresh token; only a definitive `invalid_grant`/`invalid_client` rejection does.
+- Concurrent API calls with an expired access token now share a single token refresh request instead of each firing their own.
+- A task quick-added while the popover's refresh was still in flight no longer vanishes when the stale fetch lands; fetched snapshots are discarded whenever a local change committed during the fetch.
+- Tasks added while switching lists now land in the list they were created in instead of the list being displayed when the request finished.
+- Signing out while a list load, task mutation, or notification sync is in flight no longer repopulates the signed-out state, leaks the previous account's tasks into the next session, or re-schedules notifications after they were cleared.
+- Failed toggle and move requests now roll back only the affected task, preserving edits committed while the request was in flight.
+- Deleting a parent task now removes all nested subtask descendants from the local list, not just direct children.
+- Dismissing the 9 AM "Due today" reminder no longer produces a duplicate notification at the next sync that day.
+- The overnight notification sync no longer clears delivered reminders for overdue tasks that are still incomplete.
+- Notification scheduling now stays under the system's 64-pending-request limit, prioritizing the soonest due dates.
+- Rapidly toggling the due-date notifications preference now always converges on the last chosen state.
+- The search result count no longer counts non-matching parent rows shown for context ("2 results" instead of "3" when two tasks match).
+- The signed-out popover now updates in place: cancelling or failing the Google sign-in flow restores the sign-in button and shows the error, instead of leaving a stale in-progress button with no feedback.
+- Arrow keys now browse the task list without immediately opening the edit screen; Return/Enter opens the selected task.
+- Control-clicking the menu bar icon now opens the same context menu as right-clicking.
+- Failures toggling "Launch at login" now show an alert with the error and a shortcut to Login Items settings instead of silently snapping the switch back, including when macOS holds the registration pending user approval.
+- The task edit screen no longer rebuilds the due-date picker or steals focus into the add-subtask field when a background refresh lands mid-edit; uncommitted typing and keyboard focus survive.
+- The task edit screen's metadata group and footer now follow light/dark appearance changes instead of keeping stale colors.
+- Disconnecting now reports when Google-side revocation failed (with a pointer to myaccount.google.com/permissions) instead of silently pretending access was revoked.
+- Automatic update checks now re-run every 24 hours while the app stays running instead of only once at launch; "Later" on the update alert re-alerts at the next cycle, and a new "Skip This Version" button provides the permanent dismissal that "Later" previously (and silently) was.
+- An unrecognizable GitHub release tag now surfaces as a failed update check in Settings instead of a false "Up to date".
+- Task lists beyond the API's first page are now fetched via pagination.
+- Sign-in now aborts if the system random generator fails instead of proceeding with a predictable PKCE verifier and state value.
 - The "Delete Task" button in the edit screen now renders in red; its destructive tint was silently ignored on bordered buttons.
 - Quick-add and search bar backgrounds now refresh their layer colors when the system appearance changes instead of keeping stale light/dark colors.
 - Long list names no longer collide with the centered "Edit Task" title; the back button truncates.

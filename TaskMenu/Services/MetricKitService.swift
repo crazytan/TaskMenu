@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import MetricKit
 import OSLog
@@ -8,12 +9,15 @@ struct MetricKitPayloadStore: Sendable {
         case diagnostic
     }
 
-    enum PayloadSource: String, Sendable {
+    enum PayloadSource: String, Sendable, CaseIterable {
         case delivered
         case past
     }
 
     let directoryURL: URL
+
+    static let defaultRetentionInterval: TimeInterval = 30 * 24 * 60 * 60
+    static let defaultMaxFileCount = 200
 
     static var defaultDirectoryURL: URL {
         let applicationSupport = FileManager.default.urls(
@@ -32,8 +36,7 @@ struct MetricKitPayloadStore: Sendable {
     func save(
         kind: PayloadKind,
         source: PayloadSource,
-        payloads: [Data],
-        date: Date = Date()
+        payloads: [Data]
     ) throws -> [URL] {
         guard !payloads.isEmpty else {
             return []
@@ -42,19 +45,67 @@ struct MetricKitPayloadStore: Sendable {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
-        return try payloads.map { payload in
-            let fileURL = directoryURL.appendingPathComponent(
-                "\(Self.timestamp(date))-\(source.rawValue)-\(kind.rawValue)-\(UUID().uuidString).json",
-                isDirectory: false
-            )
-            try payload.write(to: fileURL, options: .atomic)
-            return fileURL
+        return try payloads.compactMap { payload in
+            let hash = Self.contentHash(payload)
+            // MetricKit re-reports past payloads for days, and payloads delivered live are
+            // reported again as "past" on later launches; skip any content already on disk
+            // under either source so re-persisting is idempotent.
+            let alreadyStored = PayloadSource.allCases.contains { existingSource in
+                fileManager.fileExists(
+                    atPath: fileURL(source: existingSource, kind: kind, hash: hash).path
+                )
+            }
+            guard !alreadyStored else {
+                return nil
+            }
+
+            let destinationURL = fileURL(source: source, kind: kind, hash: hash)
+            try payload.write(to: destinationURL, options: .atomic)
+            return destinationURL
         }
     }
 
-    private static func timestamp(_ date: Date) -> String {
-        let milliseconds = Int(date.timeIntervalSince1970 * 1000)
-        return String(milliseconds)
+    @discardableResult
+    func prune(
+        retentionInterval: TimeInterval = MetricKitPayloadStore.defaultRetentionInterval,
+        maxFileCount: Int = MetricKitPayloadStore.defaultMaxFileCount,
+        now: Date = Date()
+    ) throws -> [URL] {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: directoryURL.path) else {
+            return []
+        }
+
+        let contents = try fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )
+        var entries = contents.map { url in
+            let modificationDate = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            return (url: url, date: modificationDate)
+        }
+        entries.sort { $0.date > $1.date }
+
+        let cutoff = now.addingTimeInterval(-retentionInterval)
+        var deleted: [URL] = []
+        for (index, entry) in entries.enumerated() where index >= maxFileCount || entry.date < cutoff {
+            try fileManager.removeItem(at: entry.url)
+            deleted.append(entry.url)
+        }
+        return deleted
+    }
+
+    private func fileURL(source: PayloadSource, kind: PayloadKind, hash: String) -> URL {
+        directoryURL.appendingPathComponent(
+            "\(source.rawValue)-\(kind.rawValue)-\(hash).json",
+            isDirectory: false
+        )
+    }
+
+    private static func contentHash(_ payload: Data) -> String {
+        SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -83,6 +134,7 @@ final class MetricKitService: NSObject, MXMetricManagerSubscriber {
         let manager = MXMetricManager.shared
         manager.add(self)
 
+        pruneStoredPayloads()
         persistMetricPayloads(manager.pastPayloads, source: .past)
         persistDiagnosticPayloads(manager.pastDiagnosticPayloads, source: .past)
 
@@ -105,6 +157,19 @@ final class MetricKitService: NSObject, MXMetricManagerSubscriber {
 
     func didReceive(_ payloads: [MXDiagnosticPayload]) {
         persistDiagnosticPayloads(payloads, source: .delivered)
+    }
+
+    private func pruneStoredPayloads() {
+        do {
+            let deleted = try store.prune()
+            guard !deleted.isEmpty else {
+                return
+            }
+
+            logger.info("Pruned \(deleted.count) stored MetricKit payload file(s)")
+        } catch {
+            logger.error("Failed to prune stored MetricKit payloads: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func persistMetricPayloads(_ payloads: [MXMetricPayload], source: MetricKitPayloadStore.PayloadSource) {

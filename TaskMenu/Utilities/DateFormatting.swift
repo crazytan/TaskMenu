@@ -15,6 +15,10 @@ enum DateFormatting: Sendable {
 
     private static let dateOnlyFormatter: DateFormatter = {
         let f = DateFormatter()
+        // Fixed-format output must not follow the user's locale, calendar, or
+        // numbering system (Apple QA1480); pin them so the wire format stays RFC 3339.
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
         f.dateFormat = "yyyy-MM-dd'T'00:00:00.000'Z'"
         f.timeZone = TimeZone(identifier: "UTC")
         return f
@@ -36,6 +40,11 @@ enum DateFormatting: Sendable {
         dateOnlyFormatter.string(from: date)
     }
 
+    // The wire format's year/month/day are Gregorian, so extraction and
+    // reconstruction both use a fixed Gregorian calendar; `calendar` supplies
+    // only the user's time zone and day boundaries. Interpreting the raw
+    // numbers in a non-Gregorian user calendar (Buddhist, Japanese) would
+    // shift dates by entire eras in both directions.
     static func parseGoogleTaskDueDate(_ string: String, calendar: Calendar = .current) -> Date? {
         guard let date = parseRFC3339(string) else { return nil }
 
@@ -44,7 +53,8 @@ enum DateFormatting: Sendable {
             let year = components.year,
             let month = components.month,
             let day = components.day,
-            let localDate = calendar.date(from: DateComponents(year: year, month: month, day: day))
+            let localDate = gregorianCalendar(in: calendar.timeZone)
+                .date(from: DateComponents(year: year, month: month, day: day))
         else {
             return nil
         }
@@ -53,7 +63,8 @@ enum DateFormatting: Sendable {
     }
 
     static func formatGoogleTaskDueDate(_ date: Date, calendar: Calendar = .current) -> String {
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let components = gregorianCalendar(in: calendar.timeZone)
+            .dateComponents([.year, .month, .day], from: date)
         guard
             let year = components.year,
             let month = components.month,
@@ -82,9 +93,14 @@ enum DateFormatting: Sendable {
     }
 
     private static func googleTaskDueDateComponents(from date: Date) -> DateComponents {
+        gregorianCalendar(in: TimeZone(secondsFromGMT: 0)!)
+            .dateComponents([.year, .month, .day], from: date)
+    }
+
+    private static func gregorianCalendar(in timeZone: TimeZone) -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return calendar.dateComponents([.year, .month, .day], from: date)
+        calendar.timeZone = timeZone
+        return calendar
     }
 
     private static func isDate(_ date: Date, offsetBy dayOffset: Int, from now: Date, calendar: Calendar) -> Bool {

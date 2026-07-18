@@ -276,6 +276,10 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         outlineView.menuForRow = { [weak self] row in
             self?.contextMenu(forRow: row)
         }
+        outlineView.onActivateSelectedRow = { [weak self] in
+            guard let self else { return }
+            self.openTask(atRow: self.outlineView.selectedRow)
+        }
         outlineView.registerForDraggedTypes([Self.taskDragType])
         outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
         outlineView.setDraggingSourceOperationMask([], forLocal: false)
@@ -301,7 +305,22 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             onToggleCompletedSection?()
         } else if let parentID = node.completedSubtasksParentID {
             onToggleCompletedSubtasks?(parentID)
+        } else if node.task != nil {
+            openTask(atRow: row)
         }
+    }
+
+    /// Deselects the row before opening so returning from the detail screen
+    /// shows no lingering highlight. Arrow keys move the selection without
+    /// opening; only clicks and Return-key activation navigate.
+    private func openTask(atRow row: Int) {
+        guard let node = outlineView.item(atRow: row) as? TaskOutlineNode,
+              let task = node.task
+        else {
+            return
+        }
+        outlineView.deselectRow(row)
+        onOpenTask?(task)
     }
 
     private func contextMenu(forRow row: Int) -> NSMenu? {
@@ -566,18 +585,6 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
 
     func outlineView(_ outlineView: NSOutlineView, shouldShowOutlineCellForItem item: Any) -> Bool {
         false
-    }
-
-    func outlineViewSelectionDidChange(_ notification: Notification) {
-        let selectedRow = outlineView.selectedRow
-        guard selectedRow >= 0,
-              let node = outlineView.item(atRow: selectedRow) as? TaskOutlineNode,
-              let task = node.task
-        else {
-            return
-        }
-        outlineView.deselectRow(selectedRow)
-        onOpenTask?(task)
     }
 
     func outlineViewItemWillExpand(_ notification: Notification) {
@@ -1105,6 +1112,8 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
             title.attributedStringValue = attributed
         }
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        // Truncated titles stay recoverable on hover.
+        title.toolTip = entry.task.title
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
 
@@ -1156,9 +1165,28 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
     }
 }
 
+/// Keys that activate (open) the selected task row.
+enum TaskListKeyboardCommands {
+    private static let returnKeyCode: UInt16 = 36
+    private static let keypadEnterKeyCode: UInt16 = 76
+
+    static func isActivationKeyCode(_ keyCode: UInt16) -> Bool {
+        keyCode == returnKeyCode || keyCode == keypadEnterKeyCode
+    }
+}
+
 @MainActor
 private final class TaskListOutlineView: NSOutlineView {
     var menuForRow: ((Int) -> NSMenu?)?
+    var onActivateSelectedRow: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        if TaskListKeyboardCommands.isActivationKeyCode(event.keyCode), selectedRow >= 0 {
+            onActivateSelectedRow?()
+            return
+        }
+        super.keyDown(with: event)
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)

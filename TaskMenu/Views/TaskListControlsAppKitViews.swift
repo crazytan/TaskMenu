@@ -74,6 +74,7 @@ final class TaskListHeaderView: NSView {
         listPopup.setContentHuggingPriority(.defaultLow, for: .horizontal)
         listPopup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         listPopup.toolTip = "Switch task list"
+        listPopup.setAccessibilityLabel("Task list")
         stack.addArrangedSubview(listPopup)
 
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
@@ -285,6 +286,7 @@ final class TaskQuickAddView: NSView {
         stack.addArrangedSubview(plus)
 
         field.font = .systemFont(ofSize: 13)
+        field.setAccessibilityLabel("Add a task")
         field.onCommit = { [weak self] _ in
             self?.commit()
         }
@@ -402,6 +404,7 @@ final class TaskSearchBarView: NSView {
         stack.addArrangedSubview(magnifier)
 
         field.font = .systemFont(ofSize: 13)
+        field.setAccessibilityLabel("Filter tasks")
         field.onChange = { [weak self] text in
             self?.onSearchTextChange?(text)
         }

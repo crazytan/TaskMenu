@@ -220,6 +220,31 @@ final class TaskItemModelTests: XCTestCase {
         XCTAssertEqual(components.day, 6)
     }
 
+    func testDueDateInBuddhistCalendarPreservesGoogleTaskDueDateDay() {
+        var calendar = Calendar(identifier: .buddhist)
+        calendar.timeZone = TimeZone(identifier: "Asia/Bangkok")!
+        let task = TaskItem(
+            id: "t1",
+            title: "Test",
+            notes: nil,
+            status: .needsAction,
+            due: "2026-05-06T00:00:00.000Z",
+            selfLink: nil,
+            parent: nil,
+            position: nil,
+            updated: nil
+        )
+
+        let dueDate = task.dueDate(in: calendar)!
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        let components = gregorian.dateComponents([.year, .month, .day], from: dueDate)
+
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 5)
+        XCTAssertEqual(components.day, 6)
+    }
+
     func testEnableDueDatePreservesExistingDueDate() {
         let originalDate = Date(timeIntervalSince1970: 1_800_000_000)
         let replacementDate = Date(timeIntervalSince1970: 1_900_000_000)

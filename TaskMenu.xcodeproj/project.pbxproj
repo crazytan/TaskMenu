@@ -41,6 +41,7 @@
 		C169507407838BDD4C665CF1 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */; };
 		C1AE79D6748EFE551C7E8F1B /* TaskMenuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF69FFA11009E78484C090A /* TaskMenuApp.swift */; };
 		C1EA9BDD5C59238997F833F1 /* TestingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9141316E1D908A6C099CF691 /* TestingWindowController.swift */; };
+		C3C41DC18427B14CEA020FD6 /* SettingsLaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */; };
 		C4D74AEE4D4E0555EA0336A2 /* GitHubUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */; };
 		D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */; };
 		D75722B06B77536D032C2FCD /* DueDateNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */; };
@@ -94,6 +95,7 @@
 		6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemModelTests.swift; sourceTree = "<group>"; };
 		77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitPayloadStoreTests.swift; sourceTree = "<group>"; };
 		7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLaunchAtLoginTests.swift; sourceTree = "<group>"; };
 		85062E7D51749F3ED4FD688D /* AppKitTaskUIHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKitTaskUIHelpers.swift; sourceTree = "<group>"; };
 		8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */ = {isa = PBXFileReference; path = AppIcon.svg; sourceTree = "<group>"; };
 		8F3614C7335BB0200D28F074 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
@@ -231,6 +233,7 @@
 				77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */,
 				BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */,
 				4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */,
+				7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */,
 				62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */,
 				6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */,
 				A2191A69341B04C760925B55 /* TaskListViewTests.swift */,
@@ -390,6 +393,7 @@
 				27A7DDF8EE882EE13FB18EF6 /* MetricKitPayloadStoreTests.swift in Sources */,
 				D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */,
 				8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */,
+				C3C41DC18427B14CEA020FD6 /* SettingsLaunchAtLoginTests.swift in Sources */,
 				F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */,
 				0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */,
 				B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */,

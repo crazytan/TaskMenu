@@ -151,7 +151,9 @@ final class AppStateTests: XCTestCase {
         )
 
         state.dueDateNotificationsEnabled = false
-        await Task.yield()
+        await waitUntil {
+            await notificationService.removeAllCallCount == 1
+        }
 
         XCTAssertEqual(
             userDefaults.object(forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey) as? Bool,
@@ -425,6 +427,29 @@ final class AppStateTests: XCTestCase {
 
         let revokeRequest = try XCTUnwrap(MockURLProtocol.requestLog.last)
         XCTAssertEqual(revokeRequest.url?.absoluteString, Constants.googleRevocationURL)
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testDisconnectShowsErrorWhenGoogleRevocationFails() async throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "refresh-token")
+
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        let authService = GoogleAuthService(keychain: keychain, session: MockURLProtocol.mockSession())
+        let state = makeState(authService: authService)
+
+        await state.disconnectGoogleAccount()
+
+        // Local sign-out proceeds, but the user must learn the Google-side
+        // grant may still be active.
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertEqual(
+            state.errorMessage,
+            "Signed out, but Google revocation failed. Review access at myaccount.google.com/permissions."
+        )
     }
 
     // MARK: - addTask guard

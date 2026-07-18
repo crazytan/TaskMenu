@@ -1,7 +1,39 @@
+import AppKit
 import XCTest
 @testable import TaskMenu
 
 final class TaskDetailViewTests: XCTestCase {
+    private func makeTask(
+        id: String,
+        title: String = "Task",
+        parent: String? = nil,
+        status: TaskItem.TaskStatus = .needsAction
+    ) -> TaskItem {
+        TaskItem(
+            id: id,
+            title: title,
+            notes: nil,
+            status: status,
+            due: nil,
+            selfLink: nil,
+            parent: parent,
+            position: nil,
+            updated: nil
+        )
+    }
+
+    @MainActor
+    private func makeDetailController(
+        task: TaskItem,
+        tasks: [TaskItem]
+    ) -> (state: AppState, controller: TaskDetailAppKitViewController) {
+        let state = AppState()
+        state.tasks = tasks
+        let controller = TaskDetailAppKitViewController(appState: state, task: task, onDismiss: {})
+        _ = controller.view
+        return (state, controller)
+    }
+
     func testDueDateStateStartsDisabledForTaskWithoutDueDate() {
         let task = TaskItem(
             id: "t1",
@@ -106,5 +138,107 @@ final class TaskDetailViewTests: XCTestCase {
             TaskDetailEditing.clampedScrollOffset(-10, documentHeight: 384, visibleHeight: 160),
             0
         )
+    }
+
+    @MainActor
+    func testDatePickerInstanceAndUncommittedValueSurviveTasksRender() {
+        var parent = makeTask(id: "p1")
+        parent.dueDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let (state, controller) = makeDetailController(task: parent, tasks: [parent])
+
+        guard let picker = controller.dueDatePicker else {
+            return XCTFail("Expected a due-date picker for a task with a due date")
+        }
+        // Simulate an in-progress edit that the user has not committed yet.
+        let uncommitted = Date(timeIntervalSince1970: 1_900_000_000)
+        picker.dateValue = uncommitted
+
+        // A background tasks mutation re-runs the subtask render path.
+        state.tasks = [parent, makeTask(id: "s1", parent: "p1")]
+        controller.renderSubtasks()
+
+        XCTAssertTrue(controller.dueDatePicker === picker)
+        XCTAssertNotNil(picker.superview)
+        XCTAssertEqual(picker.dateValue, uncommitted)
+    }
+
+    @MainActor
+    func testAddSubtaskFieldSurvivesTasksRenderWithoutRebuild() {
+        let parent = makeTask(id: "p1")
+        let (state, controller) = makeDetailController(task: parent, tasks: [parent])
+
+        controller.openAddSubtaskField()
+        guard let field = controller.addSubtaskField, let row = controller.addSubtaskRowView else {
+            return XCTFail("Expected the add-subtask field to be open")
+        }
+        field.stringValue = "half-typed subtask"
+
+        // A background tasks mutation re-runs the subtask render path.
+        state.tasks = [parent, makeTask(id: "s1", parent: "p1")]
+        controller.renderSubtasks()
+
+        XCTAssertTrue(controller.addSubtaskField === field)
+        XCTAssertTrue(controller.addSubtaskRowView === row)
+        XCTAssertTrue(controller.subtaskListStack.arrangedSubviews.last === row)
+        XCTAssertEqual(controller.subtaskListStack.arrangedSubviews.count, 2)
+        XCTAssertEqual(field.stringValue, "half-typed subtask")
+    }
+
+    @MainActor
+    func testEscapeClosesAddSubtaskFieldAndRestoresButtonRow() {
+        let parent = makeTask(id: "p1")
+        let (_, controller) = makeDetailController(task: parent, tasks: [parent])
+
+        controller.openAddSubtaskField()
+        guard let field = controller.addSubtaskField else {
+            return XCTFail("Expected the add-subtask field to be open")
+        }
+        let openRow = controller.addSubtaskRowView
+
+        field.onEscape?()
+
+        XCTAssertNil(controller.addSubtaskField)
+        XCTAssertNotNil(controller.addSubtaskRowView)
+        XCTAssertFalse(controller.addSubtaskRowView === openRow)
+        XCTAssertTrue(controller.subtaskListStack.arrangedSubviews.last === controller.addSubtaskRowView)
+    }
+
+    @MainActor
+    func testDetailGroupBoxReappliesLayerColorsOnAppearanceChange() {
+        let group = TaskDetailGroupBoxView()
+        group.appearance = NSAppearance(named: .aqua)
+        group.viewDidChangeEffectiveAppearance()
+        let lightBackground = group.layer?.backgroundColor
+
+        group.appearance = NSAppearance(named: .darkAqua)
+        group.viewDidChangeEffectiveAppearance()
+
+        var expectedBorder: CGColor?
+        var expectedBackground: CGColor?
+        group.effectiveAppearance.performAsCurrentDrawingAppearance {
+            expectedBorder = NSColor.separatorColor.withAlphaComponent(0.65).cgColor
+            expectedBackground = NSColor.textBackgroundColor.withAlphaComponent(0.42).cgColor
+        }
+        XCTAssertEqual(group.layer?.borderColor, expectedBorder)
+        XCTAssertEqual(group.layer?.backgroundColor, expectedBackground)
+        XCTAssertNotEqual(group.layer?.backgroundColor, lightBackground)
+    }
+
+    @MainActor
+    func testDetailFooterReappliesLayerColorOnAppearanceChange() {
+        let footer = TaskDetailFooterView()
+        footer.appearance = NSAppearance(named: .aqua)
+        footer.viewDidChangeEffectiveAppearance()
+        let lightBackground = footer.layer?.backgroundColor
+
+        footer.appearance = NSAppearance(named: .darkAqua)
+        footer.viewDidChangeEffectiveAppearance()
+
+        var expectedBackground: CGColor?
+        footer.effectiveAppearance.performAsCurrentDrawingAppearance {
+            expectedBackground = NSColor.windowBackgroundColor.withAlphaComponent(0.28).cgColor
+        }
+        XCTAssertEqual(footer.layer?.backgroundColor, expectedBackground)
+        XCTAssertNotEqual(footer.layer?.backgroundColor, lightBackground)
     }
 }

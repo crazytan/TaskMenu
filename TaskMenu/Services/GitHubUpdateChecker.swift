@@ -88,11 +88,18 @@ actor GitHubUpdateChecker: UpdateChecking {
     }
 
     func latestUpdate(currentVersion: String) async throws -> AppUpdateRelease? {
+        // A non-semver current version means a dev/test build (release builds
+        // pin MARKETING_VERSION to x.y.z). Treat it as "no update" instead of
+        // an error so such builds do not show a permanent failed check.
         guard let currentVersion = SemanticVersion(currentVersion) else { return nil }
 
         let response = try await latestRelease()
-        guard let releaseVersion = SemanticVersion(response.tagName),
-              releaseVersion > currentVersion else {
+        // An unparseable release tag is a malformed release, not "up to date";
+        // surface it as a failed check.
+        guard let releaseVersion = SemanticVersion(response.tagName) else {
+            throw UpdateCheckError.decodingFailed("Unrecognized release tag \(response.tagName).")
+        }
+        guard releaseVersion > currentVersion else {
             return nil
         }
 

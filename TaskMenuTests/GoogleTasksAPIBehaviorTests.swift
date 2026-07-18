@@ -395,6 +395,28 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         XCTAssertTrue(MockURLProtocol.requestLog.last!.url!.absoluteString.contains("/users/@me/lists"))
     }
 
+    func testListTaskListsMultiplePagesFollowsNextPageToken() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let url = request.url!.absoluteString
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+
+            if url.contains("pageToken=page2") {
+                let json = #"{"items":[{"id":"l3","title":"Errands"}]}"#
+                return (response, json.data(using: .utf8)!)
+            } else {
+                let json = #"{"items":[{"id":"l1","title":"My Tasks"},{"id":"l2","title":"Work"}],"nextPageToken":"page2"}"#
+                return (response, json.data(using: .utf8)!)
+            }
+        }
+
+        let lists = try await api.listTaskLists()
+
+        XCTAssertEqual(lists.map(\.id), ["l1", "l2", "l3"])
+        // Verify two requests were made (page 1 + page 2)
+        XCTAssertEqual(MockURLProtocol.requestLog.count, 2)
+        XCTAssertTrue(MockURLProtocol.requestLog.first!.url!.absoluteString.contains("maxResults=100"))
+    }
+
     func testListTaskListsEmptyReturnsEmptyArray() async throws {
         MockURLProtocol.requestHandler = { request in
             let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!

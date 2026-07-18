@@ -294,7 +294,7 @@ final class TaskListAppKitViewController: NSViewController {
         searchBarView.render(
             searchText: appState.searchText,
             isSearching: appState.isSearching,
-            resultCount: appState.searchFilteredTasks.count
+            resultCount: appState.searchMatchCount
         )
         renderListContent()
     }

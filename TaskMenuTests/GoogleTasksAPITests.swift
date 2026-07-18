@@ -50,13 +50,15 @@ final class GoogleTasksAPITests: XCTestCase {
             "items": [
                 {"id": "list1", "title": "My Tasks"},
                 {"id": "list2", "title": "Work"}
-            ]
+            ],
+            "nextPageToken": "list-page-2"
         }
         """.data(using: .utf8)!
 
         let collection = try JSONDecoder().decode(TaskListCollection.self, from: json)
         XCTAssertEqual(collection.items?.count, 2)
         XCTAssertEqual(collection.items?.first?.title, "My Tasks")
+        XCTAssertEqual(collection.nextPageToken, "list-page-2")
     }
 
     func testDecodeTaskItemList() throws {
@@ -164,6 +166,7 @@ final class GoogleTasksAPITests: XCTestCase {
 
         let collection = try JSONDecoder().decode(TaskListCollection.self, from: json)
         XCTAssertNil(collection.items)
+        XCTAssertNil(collection.nextPageToken)
     }
 
     // MARK: - TaskItem with Parent

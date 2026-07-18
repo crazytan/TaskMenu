@@ -11,4 +11,5 @@ struct TaskListCollection: Codable, Sendable {
     let kind: String?
     let etag: String?
     let items: [TaskList]?
+    let nextPageToken: String?
 }

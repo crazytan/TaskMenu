@@ -157,6 +157,65 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(completedTasks.map(\.id), ["done-parent", "open-child", "done-child"])
     }
 
+    func testTaskListActivationKeyCodesAreReturnAndKeypadEnter() {
+        XCTAssertTrue(TaskListKeyboardCommands.isActivationKeyCode(36)) // Return
+        XCTAssertTrue(TaskListKeyboardCommands.isActivationKeyCode(76)) // keypad Enter
+        XCTAssertFalse(TaskListKeyboardCommands.isActivationKeyCode(125)) // down arrow
+        XCTAssertFalse(TaskListKeyboardCommands.isActivationKeyCode(126)) // up arrow
+        XCTAssertFalse(TaskListKeyboardCommands.isActivationKeyCode(49)) // space
+    }
+
+    @MainActor
+    func testKeyboardSelectionBrowsesWithoutOpeningAndReturnOpensSelectedTask() throws {
+        let state = AppState()
+        state.tasks = [
+            makeTask(id: "1", title: "First"),
+            makeTask(id: "2", title: "Second")
+        ]
+        let content = TaskListContentView()
+        var openedTaskIDs: [String] = []
+        content.onOpenTask = { openedTaskIDs.append($0.id) }
+        content.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+
+        // Moving the selection (what arrow keys do) must not navigate.
+        outline.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        outline.selectRowIndexes(IndexSet(integer: 1), byExtendingSelection: false)
+        XCTAssertTrue(openedTaskIDs.isEmpty)
+        XCTAssertEqual(outline.selectedRow, 1)
+
+        // Return opens the selected row and clears the selection highlight.
+        let returnKey = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "\r",
+            charactersIgnoringModifiers: "\r",
+            isARepeat: false,
+            keyCode: 36
+        ))
+        outline.keyDown(with: returnKey)
+        XCTAssertEqual(openedTaskIDs, ["2"])
+        XCTAssertEqual(outline.selectedRow, -1)
+    }
+
+    @MainActor
+    private func findOutlineView(in view: NSView) -> NSOutlineView? {
+        if let outline = view as? NSOutlineView {
+            return outline
+        }
+        for subview in view.subviews {
+            if let found = findOutlineView(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
     func testSearchResultCountTextUsesSingularAndPlural() {
         XCTAssertEqual(searchResultCountText(0), "0 results")
         XCTAssertEqual(searchResultCountText(1), "1 result")
