@@ -104,7 +104,10 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
         let deleted = try store.prune(retentionInterval: retention, maxFileCount: 10, now: now)
 
-        XCTAssertEqual(canonicalPaths(deleted), canonicalPaths(oldURLs))
+        // Compare file names, not URLs: prune enumerates the directory, which may spell the
+        // temp dir as /private/var/... while save-built URLs use /var/..., depending on the
+        // Foundation version.
+        XCTAssertEqual(deleted.map(\.lastPathComponent), oldURLs.map(\.lastPathComponent))
         XCTAssertEqual(try storedFileNames(), [recentURLs[0].lastPathComponent])
     }
 
@@ -124,7 +127,10 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
         let deleted = try store.prune(retentionInterval: 30 * 24 * 60 * 60, maxFileCount: 3, now: now)
 
-        XCTAssertEqual(Set(canonicalPaths(deleted)), Set(canonicalPaths(Array(urlsByAge.prefix(2)))))
+        XCTAssertEqual(
+            Set(deleted.map(\.lastPathComponent)),
+            Set(urlsByAge.prefix(2).map(\.lastPathComponent))
+        )
         XCTAssertEqual(
             Set(try storedFileNames()),
             Set(urlsByAge.suffix(3).map(\.lastPathComponent))
@@ -138,13 +144,6 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
         XCTAssertTrue(deleted.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: temporaryDirectory.path))
-    }
-
-    // Directory enumeration may return symlink-resolved paths (/private/var/...) while URLs
-    // built from temporaryDirectory keep the /var/... spelling, depending on the Foundation
-    // version. Normalizing both sides the same way makes URL comparisons spelling-independent.
-    private func canonicalPaths(_ urls: [URL]) -> [String] {
-        urls.map { $0.resolvingSymlinksInPath().path }
     }
 
     private func storedFileNames() throws -> [String] {
