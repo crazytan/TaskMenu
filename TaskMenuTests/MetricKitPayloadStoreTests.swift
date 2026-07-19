@@ -7,7 +7,10 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
+        // Resolve /var -> /private/var up front so URLs built from this directory compare
+        // equal to the symlink-resolved URLs that directory enumeration returns.
         temporaryDirectory = FileManager.default.temporaryDirectory
+            .resolvingSymlinksInPath()
             .appendingPathComponent("TaskMenuMetricKitTests-\(UUID().uuidString)", isDirectory: true)
     }
 
