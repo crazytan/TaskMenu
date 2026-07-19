@@ -7,10 +7,7 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        // Resolve /var -> /private/var up front so URLs built from this directory compare
-        // equal to the symlink-resolved URLs that directory enumeration returns.
         temporaryDirectory = FileManager.default.temporaryDirectory
-            .resolvingSymlinksInPath()
             .appendingPathComponent("TaskMenuMetricKitTests-\(UUID().uuidString)", isDirectory: true)
     }
 
@@ -107,7 +104,7 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
         let deleted = try store.prune(retentionInterval: retention, maxFileCount: 10, now: now)
 
-        XCTAssertEqual(deleted, oldURLs)
+        XCTAssertEqual(canonicalPaths(deleted), canonicalPaths(oldURLs))
         XCTAssertEqual(try storedFileNames(), [recentURLs[0].lastPathComponent])
     }
 
@@ -127,7 +124,7 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
         let deleted = try store.prune(retentionInterval: 30 * 24 * 60 * 60, maxFileCount: 3, now: now)
 
-        XCTAssertEqual(Set(deleted), Set(urlsByAge.prefix(2)))
+        XCTAssertEqual(Set(canonicalPaths(deleted)), Set(canonicalPaths(Array(urlsByAge.prefix(2)))))
         XCTAssertEqual(
             Set(try storedFileNames()),
             Set(urlsByAge.suffix(3).map(\.lastPathComponent))
@@ -141,6 +138,13 @@ final class MetricKitPayloadStoreTests: XCTestCase {
 
         XCTAssertTrue(deleted.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: temporaryDirectory.path))
+    }
+
+    // Directory enumeration may return symlink-resolved paths (/private/var/...) while URLs
+    // built from temporaryDirectory keep the /var/... spelling, depending on the Foundation
+    // version. Normalizing both sides the same way makes URL comparisons spelling-independent.
+    private func canonicalPaths(_ urls: [URL]) -> [String] {
+        urls.map { $0.resolvingSymlinksInPath().path }
     }
 
     private func storedFileNames() throws -> [String] {
