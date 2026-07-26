@@ -38,7 +38,13 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private(set) var addSubtaskRowView: NSView?
     private var addSubtaskFieldNeedsInitialFocus = false
     private(set) weak var dueDatePicker: NSDatePicker?
+    private(set) weak var dueDateCalendarPicker: NSDatePicker?
+    private(set) weak var dueDateClearButton: NSButton?
+    private weak var dueDateCalendarButton: NSButton?
+    private var dueDateCalendarOverlay: NSView?
     private let appStateObserver = TaskMenuAppStateObserver()
+
+    var isDueDateCalendarOpen: Bool { dueDateCalendarOverlay != nil }
 
     init(appState: AppState, task: TaskItem, onDismiss: @escaping () -> Void) {
         self.appState = appState
@@ -74,6 +80,11 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     override func cancelOperation(_ sender: Any?) {
+        // Escape closes the calendar first so it does not also discard the edit.
+        if isDueDateCalendarOpen {
+            closeDueDateCalendar()
+            return
+        }
         onDismiss()
     }
 
@@ -274,8 +285,10 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     /// Rebuilt only at load and when the user enables or clears the due date.
     /// Task updates must not reach these controls so the picker instance,
     /// in-progress typing, and first-responder status survive background
-    /// refreshes.
+    /// refreshes. The calendar overlay writes straight into the existing
+    /// picker for the same reason.
     private func renderDueDateControls() {
+        closeDueDateCalendar()
         dueDateControls.arrangedSubviews.forEach { view in
             dueDateControls.removeArrangedSubview(view)
             view.removeFromSuperview()
@@ -295,13 +308,32 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             dueDateControls.addArrangedSubview(picker)
             dueDatePicker = picker
 
+            let calendarButton = NSButton(
+                image: NSImage(
+                    systemSymbolName: "calendar",
+                    accessibilityDescription: "Choose a due date"
+                ) ?? NSImage(),
+                target: self,
+                action: #selector(toggleDueDateCalendar)
+            )
+            calendarButton.bezelStyle = .texturedRounded
+            calendarButton.controlSize = .small
+            calendarButton.imagePosition = .imageOnly
+            calendarButton.setAccessibilityLabel("Choose a due date")
+            calendarButton.toolTip = "Choose a due date"
+            dueDateControls.addArrangedSubview(calendarButton)
+            dueDateCalendarButton = calendarButton
+
             let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearDueDate))
             clearButton.isBordered = false
             clearButton.controlSize = .small
             clearButton.contentTintColor = .controlAccentColor
             dueDateControls.addArrangedSubview(clearButton)
+            dueDateClearButton = clearButton
         } else {
             dueDatePicker = nil
+            dueDateCalendarButton = nil
+            dueDateClearButton = nil
             let setButton = NSButton(title: "Set", target: self, action: #selector(enableDueDate))
             setButton.controlSize = .small
             setButton.bezelStyle = .rounded
@@ -536,6 +568,99 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         dueDateState.selection = sender.dateValue
     }
 
+    @objc private func toggleDueDateCalendar() {
+        if isDueDateCalendarOpen {
+            closeDueDateCalendar()
+        } else {
+            openDueDateCalendar()
+        }
+    }
+
+    /// Shows the graphical calendar inside the detail view rather than in an
+    /// `NSPopover`. A nested popover would live in its own window, which both
+    /// the status item's `.transient` popover and its outside-click monitors
+    /// treat as a click elsewhere, closing the whole task detail mid-edit.
+    func openDueDateCalendar() {
+        guard !isDueDateCalendarOpen, dueDateState.isEnabled, let anchor = dueDateCalendarButton else { return }
+
+        let scrim = TaskDetailCalendarScrimView()
+        scrim.translatesAutoresizingMaskIntoConstraints = false
+        scrim.onClickOutside = { [weak self] in
+            self?.closeDueDateCalendar()
+        }
+
+        let panel = NSVisualEffectView()
+        panel.material = .popover
+        panel.blendingMode = .withinWindow
+        panel.state = .active
+        panel.wantsLayer = true
+        panel.layer?.cornerRadius = 8
+        panel.layer?.borderWidth = 1
+        panel.layer?.borderColor = NSColor.separatorColor.cgColor
+        panel.translatesAutoresizingMaskIntoConstraints = false
+
+        let calendar = NSDatePicker()
+        calendar.datePickerElements = .yearMonthDay
+        calendar.datePickerStyle = .clockAndCalendar
+        calendar.drawsBackground = false
+        calendar.isBordered = false
+        calendar.dateValue = dueDatePicker?.dateValue ?? dueDateState.selection
+        calendar.target = self
+        calendar.action = #selector(dueDateCalendarChanged(_:))
+        calendar.translatesAutoresizingMaskIntoConstraints = false
+
+        panel.addSubview(calendar)
+        scrim.addSubview(panel)
+        view.addSubview(scrim, positioned: .above, relativeTo: nil)
+
+        NSLayoutConstraint.activate([
+            scrim.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrim.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrim.topAnchor.constraint(equalTo: view.topAnchor),
+            scrim.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            calendar.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 10),
+            calendar.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -10),
+            calendar.topAnchor.constraint(equalTo: panel.topAnchor, constant: 10),
+            calendar.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -10),
+
+            panel.topAnchor.constraint(equalTo: anchor.bottomAnchor, constant: 6),
+            panel.trailingAnchor.constraint(
+                lessThanOrEqualTo: view.trailingAnchor,
+                constant: -TaskDetailViewMetrics.horizontalInset
+            ),
+            panel.leadingAnchor.constraint(
+                greaterThanOrEqualTo: view.leadingAnchor,
+                constant: TaskDetailViewMetrics.horizontalInset
+            )
+        ])
+
+        // Prefer right-alignment with the calendar button, but let the
+        // inset constraints above win if that would overflow the popover.
+        let preferredTrailing = panel.trailingAnchor.constraint(equalTo: anchor.trailingAnchor)
+        preferredTrailing.priority = .defaultHigh
+        preferredTrailing.isActive = true
+
+        dueDateCalendarOverlay = scrim
+        dueDateCalendarPicker = calendar
+        view.window?.makeFirstResponder(calendar)
+    }
+
+    func closeDueDateCalendar() {
+        guard let overlay = dueDateCalendarOverlay else { return }
+        overlay.removeFromSuperview()
+        dueDateCalendarOverlay = nil
+        dueDateCalendarPicker = nil
+    }
+
+    @objc private func dueDateCalendarChanged(_ sender: NSDatePicker) {
+        dueDateState.selection = sender.dateValue
+        // Write into the existing picker instead of rebuilding the row so the
+        // picker instance and first-responder status survive.
+        dueDatePicker?.dateValue = sender.dateValue
+        closeDueDateCalendar()
+    }
+
     @objc private func saveTask() {
         task.title = TaskDetailEditing.effectiveTitle(fieldText: titleField.stringValue, existingTitle: task.title)
         let notes = notesTextView.string.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -566,6 +691,23 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         Task { [appState, task] in
             await appState.addSubtask(title: title, parentId: task.id)
         }
+    }
+}
+
+/// Transparent full-bleed layer behind the due-date calendar. It stays inside
+/// the detail view's own window so dismissing the calendar never reads as a
+/// click outside the status item popover. Clicks that the calendar itself does
+/// not consume land here and close it.
+@MainActor
+final class TaskDetailCalendarScrimView: NSView {
+    var onClickOutside: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        onClickOutside?()
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        onClickOutside?()
     }
 }
 

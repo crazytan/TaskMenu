@@ -163,6 +163,87 @@ final class TaskDetailViewTests: XCTestCase {
     }
 
     @MainActor
+    func testCalendarSelectionWritesIntoExistingPickerAndCloses() {
+        var parent = makeTask(id: "p1")
+        parent.dueDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let (_, controller) = makeDetailController(task: parent, tasks: [parent])
+
+        guard let picker = controller.dueDatePicker else {
+            return XCTFail("Expected a due-date picker for a task with a due date")
+        }
+
+        controller.openDueDateCalendar()
+        guard let calendar = controller.dueDateCalendarPicker else {
+            return XCTFail("Expected the calendar overlay to be open")
+        }
+        XCTAssertTrue(controller.isDueDateCalendarOpen)
+        XCTAssertEqual(calendar.dateValue, picker.dateValue)
+
+        let picked = Date(timeIntervalSince1970: 1_900_000_000)
+        calendar.dateValue = picked
+        calendar.sendAction(calendar.action, to: calendar.target)
+
+        // The text picker is updated in place, not rebuilt.
+        XCTAssertTrue(controller.dueDatePicker === picker)
+        XCTAssertEqual(picker.dateValue, picked)
+        XCTAssertFalse(controller.isDueDateCalendarOpen)
+    }
+
+    @MainActor
+    func testEscapeClosesCalendarBeforeDismissingDetail() {
+        var parent = makeTask(id: "p1")
+        parent.dueDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let state = AppState()
+        state.tasks = [parent]
+        var dismissed = false
+        let controller = TaskDetailAppKitViewController(
+            appState: state,
+            task: parent,
+            onDismiss: { dismissed = true }
+        )
+        _ = controller.view
+
+        controller.openDueDateCalendar()
+        XCTAssertTrue(controller.isDueDateCalendarOpen)
+
+        controller.cancelOperation(nil)
+        XCTAssertFalse(controller.isDueDateCalendarOpen)
+        XCTAssertFalse(dismissed, "First Escape should only close the calendar")
+
+        controller.cancelOperation(nil)
+        XCTAssertTrue(dismissed)
+    }
+
+    @MainActor
+    func testClearingDueDateClosesOpenCalendar() {
+        var parent = makeTask(id: "p1")
+        parent.dueDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let (_, controller) = makeDetailController(task: parent, tasks: [parent])
+
+        controller.openDueDateCalendar()
+        XCTAssertTrue(controller.isDueDateCalendarOpen)
+
+        guard let clearButton = controller.dueDateClearButton else {
+            return XCTFail("Expected a Clear button while a due date is set")
+        }
+        clearButton.sendAction(clearButton.action, to: clearButton.target)
+
+        XCTAssertFalse(controller.isDueDateCalendarOpen)
+        XCTAssertNil(controller.dueDatePicker)
+    }
+
+    @MainActor
+    func testCalendarDoesNotOpenWhenNoDueDateIsSet() {
+        let parent = makeTask(id: "p1")
+        let (_, controller) = makeDetailController(task: parent, tasks: [parent])
+
+        controller.openDueDateCalendar()
+
+        XCTAssertFalse(controller.isDueDateCalendarOpen)
+        XCTAssertNil(controller.dueDateCalendarPicker)
+    }
+
+    @MainActor
     func testAddSubtaskFieldSurvivesTasksRenderWithoutRebuild() {
         let parent = makeTask(id: "p1")
         let (state, controller) = makeDetailController(task: parent, tasks: [parent])

@@ -10,6 +10,7 @@
 
 ### Added
 - Settings now shows the git commit the build came from next to the version number, e.g. `Version 1.3.0 (a1b2c3d)`. Builds made outside a git checkout show `(dev)`.
+- **Calendar picker for due dates** — the task editor's due-date row now has a calendar button that opens a month view, so a date can be picked instead of only typed or stepped. Picking a day fills the date field and closes the calendar; clicking elsewhere or pressing Escape dismisses it without discarding the edit.
 
 ## v1.3.0 (2026-07-25)
 
