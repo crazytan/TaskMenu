@@ -63,4 +63,7 @@ playground.xcworkspace
 *.key
 Secrets/
 Config.xcconfig
+
+# Generated build metadata (git commit stamp)
+BuildMetadata.xcconfig
 .wrangler/

@@ -99,6 +99,9 @@ jobs:
             printf 'DEVELOPMENT_TEAM = %s\n' "$APPLE_TEAM_ID"
           } > Config.xcconfig
 
+      - name: Stamp build metadata
+        run: ./scripts/stamp_build_metadata.sh .
+
       - name: Install signing certificate
         shell: bash
         env:

@@ -4,7 +4,7 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 
 ## Files
 
-- `Info.plist` - bundle metadata, OAuth URL scheme registration, Google config placeholders, and menu-bar-only launch flag.
+- `Info.plist` - bundle metadata, OAuth URL scheme registration, Google config placeholders, the build's git commit stamp, and menu-bar-only launch flag.
 - `TaskMenu.entitlements` - app sandbox and outbound network entitlement.
 - `Assets.xcassets` - compiled asset catalog, including app icon, menu bar icon, and Discord support-link image membership.
 - `AppIcon.svg` - source artwork for the app icon.
@@ -16,6 +16,7 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 - Testing-window launches switch activation policy at runtime; keep `LSUIElement = true` in the bundle plist.
 - Keep `CFBundleURLTypes` aligned with `GOOGLE_REDIRECT_SCHEME` for OAuth callbacks.
 - Keep `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` as build-setting placeholders; local values belong in `Config.xcconfig`.
+- `GITCommitHash` comes from `$(GIT_COMMIT_HASH)`, which `scripts/stamp_build_metadata.sh` writes into the untracked `BuildMetadata.xcconfig` (included from `BuildConfig.xcconfig`). It is empty when the build is not made from a git checkout, and `AppState` then shows `dev`.
 
 ## Entitlements
 

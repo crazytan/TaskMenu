@@ -101,7 +101,7 @@ private final class SettingsViewController: NSViewController {
             _ = appState.updateCheckErrorMessage
             _ = appState.latestAvailableUpdate
             _ = appState.lastUpdateCheckDate
-            _ = appState.currentAppVersion
+            _ = appState.currentAppVersionDisplay
         } onChange: { [weak self] in
             self?.render()
         }
@@ -231,7 +231,7 @@ private final class SettingsViewController: NSViewController {
 
         var rows = [
             settingRow(
-                title: "Version \(appState.currentAppVersion)",
+                title: "Version \(appState.currentAppVersionDisplay)",
                 subtitle: updateStatusText,
                 subtitleColor: appState.updateCheckErrorMessage == nil ? .secondaryLabelColor : .systemRed,
                 control: checkButton

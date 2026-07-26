@@ -163,6 +163,49 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(removeAllCallCount, 1)
     }
 
+    // MARK: - Version Display
+
+    func testVersionDisplayIncludesBuildCommit() {
+        let state = AppState(
+            authService: GoogleAuthService(keychain: keychain),
+            userDefaults: userDefaults,
+            dueDateNotificationService: dueDateNotificationService,
+            currentAppVersion: "1.3.0",
+            currentBuildCommit: "a1b2c3d"
+        )
+
+        XCTAssertEqual(state.currentBuildCommit, "a1b2c3d")
+        XCTAssertEqual(state.currentAppVersionDisplay, "1.3.0 (a1b2c3d)")
+        XCTAssertEqual(state.currentAppVersion, "1.3.0")
+    }
+
+    func testVersionDisplayTrimsWhitespaceFromBuildCommit() {
+        let state = AppState(
+            authService: GoogleAuthService(keychain: keychain),
+            userDefaults: userDefaults,
+            dueDateNotificationService: dueDateNotificationService,
+            currentAppVersion: "1.3.0",
+            currentBuildCommit: " a1b2c3d\n"
+        )
+
+        XCTAssertEqual(state.currentAppVersionDisplay, "1.3.0 (a1b2c3d)")
+    }
+
+    func testVersionDisplayFallsBackToDevWhenBuildCommitMissing() {
+        for commit in [nil, "", "   "] as [String?] {
+            let state = AppState(
+                authService: GoogleAuthService(keychain: keychain),
+                userDefaults: userDefaults,
+                dueDateNotificationService: dueDateNotificationService,
+                currentAppVersion: "1.3.0",
+                currentBuildCommit: commit
+            )
+
+            XCTAssertNil(state.currentBuildCommit)
+            XCTAssertEqual(state.currentAppVersionDisplay, "1.3.0 (dev)")
+        }
+    }
+
     // MARK: - selectedList
 
     func testSelectedListReturnsNilWhenNoListSelected() {

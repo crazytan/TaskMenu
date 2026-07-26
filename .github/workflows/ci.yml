@@ -22,6 +22,9 @@ jobs:
           GOOGLE_REDIRECT_SCHEME = com.googleusercontent.apps.dummy-client-id
           EOF
 
+      - name: Stamp build metadata
+        run: ./scripts/stamp_build_metadata.sh .
+
       - name: Install XcodeGen
         run: brew install xcodegen
 

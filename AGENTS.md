@@ -38,7 +38,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 - If you add, remove, rename, or retarget source files, update `project.yml` and run `xcodegen generate`.
 - When files are added or deleted, update the corresponding folder-local `README.md` in the same change so its file map and ownership notes stay current.
 - Keep `TaskMenu.xcodeproj` generated; do not hand-edit it.
-- Do not commit `Config.xcconfig`; it contains local OAuth and signing values.
+- Do not commit `Config.xcconfig`; it contains local OAuth and signing values. `BuildConfig.xcconfig` is the committed entry point that includes it, plus the generated `BuildMetadata.xcconfig` git-commit stamp.
 - Preserve the menu-bar-only behavior for app launches.
 - Update `CHANGELOG.md` before committing feature or bug-fix work, under `## Unreleased` when present.
 

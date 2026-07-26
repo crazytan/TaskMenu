@@ -129,6 +129,16 @@ final class AppState {
     var isCheckingForUpdates = false
     var updateCheckErrorMessage: String?
     let currentAppVersion: String
+    /// Short git commit the running build was stamped with, or nil for builds
+    /// made outside a git checkout.
+    let currentBuildCommit: String?
+
+    /// Version plus build commit, e.g. `1.3.0 (a1b2c3d)`. Unstamped builds
+    /// show `dev` in place of the commit. Update checks compare
+    /// `currentAppVersion`, not this string.
+    var currentAppVersionDisplay: String {
+        "\(currentAppVersion) (\(currentBuildCommit ?? "dev"))"
+    }
 
     var selectedList: TaskList? {
         taskLists.first { $0.id == selectedListId }
@@ -234,7 +244,8 @@ final class AppState {
         userDefaults: UserDefaults = .standard,
         dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService(),
         updateChecker: any UpdateChecking = GitHubUpdateChecker(),
-        currentAppVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        currentAppVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
+        currentBuildCommit: String? = Bundle.main.infoDictionary?["GITCommitHash"] as? String
     ) {
         self.authService = authService
         self.api = api ?? GoogleTasksAPI(authService: authService)
@@ -242,6 +253,8 @@ final class AppState {
         self.dueDateNotificationService = dueDateNotificationService
         self.updateChecker = updateChecker
         self.currentAppVersion = currentAppVersion
+        let trimmedBuildCommit = currentBuildCommit?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.currentBuildCommit = (trimmedBuildCommit?.isEmpty ?? true) ? nil : trimmedBuildCommit
         self.dueDateNotificationsEnabled = userDefaults.object(
             forKey: Constants.UserDefaults.dueDateNotificationsEnabledKey
         ) as? Bool ?? true

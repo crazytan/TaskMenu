@@ -87,6 +87,7 @@ Or download the signed and notarized DMG from the [latest GitHub release](https:
 - XcodeGen-generated Xcode project
 - Apple frameworks only, with zero third-party dependencies
 - Strict concurrency enabled
+- Builds are stamped with the current git commit by `scripts/stamp_build_metadata.sh` (a scheme build pre-action), and Settings shows it next to the version
 
 Build from the command line with:
 

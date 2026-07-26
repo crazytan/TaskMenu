@@ -12,7 +12,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - `TaskDetailAppKitViewController.swift` - task edit screen, title/notes fields, due-date state, disabled list picker, delete action, and subtask add/toggle UI.
 - `TaskPresentation.swift` - pure task-list, notes preview, and completed-subtask ordering helper logic.
 - `TestingWindowController.swift` - opt-in testing-mode window that hosts the popover UI outside the status item.
-- `SettingsView.swift` - AppKit settings window/controller with native grouped section boxes (switch rows, update status row, account row), notification preference, launch-at-login, update checks, signed-in account email display, tips/support/about links, account disconnect confirmation, and quit controls.
+- `SettingsView.swift` - AppKit settings window/controller with native grouped section boxes (switch rows, update status row showing the version and build commit, account row), notification preference, launch-at-login, update checks, signed-in account email display, tips/support/about links, account disconnect confirmation, and quit controls.
 - `MenuBarWindowGlassSupport.swift` - macOS 26 Liquid Glass window-background support.
 
 ## UI Ownership

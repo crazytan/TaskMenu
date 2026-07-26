@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+### Added
+- Settings now shows the git commit the build came from next to the version number, e.g. `Version 1.3.0 (a1b2c3d)`. Builds made outside a git checkout show `(dev)`.
+
 ## v1.3.0 (2026-07-25)
 
 ### Added

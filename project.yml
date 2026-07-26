@@ -7,8 +7,8 @@ options:
   generateEmptyDirectories: true
 
 configFiles:
-  Debug: Config.xcconfig
-  Release: Config.xcconfig
+  Debug: BuildConfig.xcconfig
+  Release: BuildConfig.xcconfig
 
 settings:
   base:
@@ -63,3 +63,26 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TaskMenu.app/Contents/MacOS/TaskMenu"
+
+schemes:
+  TaskMenu:
+    build:
+      preActions:
+        - script: |
+            "${SRCROOT}/scripts/stamp_build_metadata.sh" "${SRCROOT}"
+          name: Stamp build metadata
+          settingsTarget: TaskMenu
+      targets:
+        TaskMenu: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - name: TaskMenuTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

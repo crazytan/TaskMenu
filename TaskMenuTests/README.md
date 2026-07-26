@@ -4,7 +4,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 
 ## Test Map
 
-- `AppStateTests.swift` - initial state, preferences, selected list helpers, ordering, sign-out/disconnect reset, and basic guarded actions.
+- `AppStateTests.swift` - initial state, preferences, version/build-commit display, selected list helpers, ordering, sign-out/disconnect reset, and basic guarded actions.
 - `AppStateBehaviorTests.swift` - task mutations, caching, stale response protection, selection changes, refresh behavior, errors, and notification sync.
 - `SearchFilterTests.swift` - title/notes search, parent context inclusion, and root/subtask filtered accessors.
 - `TaskItemModelTests.swift` and `GoogleTasksAPITests.swift` - model Codable round trips, completion helpers, parent/subtask fields, and due-date accessors.
@@ -19,6 +19,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.
 - `TaskMenuAppTests.swift` - app/app-delegate construction seams, launch UI mode parsing, the automatic update-check loop, and update-alert choice mapping.
 - `SettingsLaunchAtLoginTests.swift` - the pure launch-at-login status decision (`requiresApproval` notice) behind the Settings toggle.
+- `SettingsVersionRowTests.swift` - the rendered Settings version row, covering the `Version <version> (<commit>)` text and the `dev` fallback for unstamped builds.
 
 ## Test Doubles
 

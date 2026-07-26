@@ -37,6 +37,8 @@
 	<string>public.app-category.productivity</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>GITCommitHash</key>
+	<string>$(GIT_COMMIT_HASH)</string>
 	<key>GOOGLE_CLIENT_ID</key>
 	<string>$(GOOGLE_CLIENT_ID)</string>
 	<key>GOOGLE_REDIRECT_SCHEME</key>
