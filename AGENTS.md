@@ -44,8 +44,8 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 
 ### Version Control Notes
 
-- Default to the current branch. When explicitly asked to commit/push, commit a focused logical change and push directly to `main` if that is the current flow.
-- Do not create a feature branch or pull request unless the user asks, or unless working from a separate worktree requires it.
+- Default to the current branch. When explicitly asked to commit/push, commit a focused logical change and push directly to `main`.
+- Do not create a feature branch or pull request unless the user asks.
 
 ## Build And Test
 
