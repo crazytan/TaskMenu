@@ -583,10 +583,6 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         return node.task != nil
     }
 
-    func outlineView(_ outlineView: NSOutlineView, shouldShowOutlineCellForItem item: Any) -> Bool {
-        false
-    }
-
     func outlineViewItemWillExpand(_ notification: Notification) {
         guard !suppressExpansionCallbacks,
               let node = notification.userInfo?["NSObject"] as? TaskOutlineNode
@@ -1198,5 +1194,14 @@ private final class TaskListOutlineView: NSOutlineView {
     override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {
         let frame = super.frameOfCell(atColumn: column, row: row)
         return NSRect(x: 0, y: frame.origin.y, width: bounds.width, height: frame.height)
+    }
+
+    /// Rows draw their own disclosure chevron, so the built-in outline cell is
+    /// hidden by giving it an empty frame. Suppressing it through
+    /// `outlineView(_:shouldShowOutlineCellForItem:)` instead would also make
+    /// `NSOutlineView` refuse `expandItem`/`collapseItem` for those items, which
+    /// leaves the chevron unable to show or hide subtask rows.
+    override func frameOfOutlineCell(atRow row: Int) -> NSRect {
+        .zero
     }
 }

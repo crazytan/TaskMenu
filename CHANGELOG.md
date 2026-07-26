@@ -34,6 +34,7 @@
 - Removed dead code left over from the SwiftUI-to-AppKit migration: the unused `TaskRowAppKitView`, task indent/outdent support, the never-called `loadTasks` first-load path, the unused `moveTask` API, and obsolete presentation/layout helpers and their tests.
 
 ### Fixed
+- Clicking a parent task's subtask chevron now actually expands and collapses its subtasks. The arrow flipped direction but the subtask rows never hid or reappeared, because suppressing the outline view's built-in disclosure cell through the delegate also made it reject programmatic expand/collapse for those rows.
 - Google Tasks due dates are no longer corrupted for users whose system calendar is not Gregorian (for example Buddhist or Japanese): dates read from and written to the Google Tasks API now always use Gregorian years on the wire, instead of rendering other clients' tasks centuries off and sending era years (like 2569) to Google.
 - A transient Google token-endpoint failure (5xx or rate limit) during token refresh no longer silently signs the user out and deletes the stored refresh token; only a definitive `invalid_grant`/`invalid_client` rejection does.
 - Concurrent API calls with an expired access token now share a single token refresh request instead of each firing their own.
