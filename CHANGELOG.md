@@ -18,6 +18,7 @@
 - Restored the task search/filter bar in the popover, lost in the AppKit rewrite: real-time title/notes filtering, result count, matching subtasks shown with their parents, and an auto-expanded Completed section during search.
 - Added Homebrew tap installation instructions and release maintenance notes.
 - Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
+- The mouse cursor now turns into a pointing hand over the task completion circle, in both the task list and the task edit screen.
 - Added a right-click Delete action for task rows in the popover task list.
 - Added seeded task data for testing-window verification.
 - Added a Long Subtasks testing-window list with a parent task containing 12 subtasks, including several completed subtasks.

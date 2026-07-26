@@ -15,6 +15,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `GitHubUpdateCheckerTests.swift` - semantic-version parsing, GitHub release decoding, update-check persistence, throttling, launch-alert suppression, and AppState update outcomes.
 - `DateFormattingTests.swift` - RFC 3339, Google due-date, display, and relative-date behavior.
 - `TaskListViewTests.swift`, `TaskDetailViewTests.swift`, and `MenuBarWindowChromeTests.swift` - shared task presentation helpers and AppKit glass/window behavior.
+- `TaskMenuActionButtonTests.swift` - pointing-hand cursor opt-in on `TaskMenuActionButton` (cursor tracking areas and `cursorUpdate` behavior).
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.
 - `TaskMenuAppTests.swift` - app/app-delegate construction seams, launch UI mode parsing, the automatic update-check loop, and update-alert choice mapping.
 - `SettingsLaunchAtLoginTests.swift` - the pure launch-at-login status decision (`requiresApproval` notice) behind the Settings toggle.

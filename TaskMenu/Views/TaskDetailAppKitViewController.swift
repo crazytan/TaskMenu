@@ -606,6 +606,7 @@ private final class TaskDetailSubtaskRow: NSView {
             onPress: onToggle
         )
         toggle.contentTintColor = task.isCompleted ? .controlAccentColor : .secondaryLabelColor
+        toggle.usesPointingHandCursor = true
         NSLayoutConstraint.activate([
             toggle.widthAnchor.constraint(equalToConstant: 22),
             toggle.heightAnchor.constraint(equalToConstant: 22)
