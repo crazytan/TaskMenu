@@ -1081,6 +1081,7 @@ private final class TaskOutlineTaskCellView: NSTableCellView {
         }
         checkButton.contentTintColor = entry.task.isCompleted ? .controlAccentColor : .secondaryLabelColor
         checkButton.refusesFirstResponder = true
+        checkButton.usesPointingHandCursor = true
         NSLayoutConstraint.activate([
             checkButton.widthAnchor.constraint(equalToConstant: 26),
             checkButton.heightAnchor.constraint(lessThanOrEqualToConstant: 24)

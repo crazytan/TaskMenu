@@ -115,6 +115,13 @@ final class TaskMenuAppStateObserver {
 final class TaskMenuActionButton: NSButton {
     var onPress: (() -> Void)?
     var onHoverChanged: ((Bool) -> Void)?
+    /// Shows the pointing-hand cursor while the mouse is over the button.
+    var usesPointingHandCursor = false {
+        didSet {
+            guard usesPointingHandCursor != oldValue else { return }
+            updateTrackingAreas()
+        }
+    }
     private var hoverTrackingArea: NSTrackingArea?
 
     init(
@@ -160,15 +167,27 @@ final class TaskMenuActionButton: NSButton {
             removeTrackingArea(hoverTrackingArea)
             self.hoverTrackingArea = nil
         }
-        guard onHoverChanged != nil else { return }
+        guard onHoverChanged != nil || usesPointingHandCursor else { return }
+        var options: NSTrackingArea.Options = [.activeAlways, .mouseEnteredAndExited, .inVisibleRect]
+        if usesPointingHandCursor {
+            options.insert(.cursorUpdate)
+        }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect],
+            options: options,
             owner: self,
             userInfo: nil
         )
         hoverTrackingArea = area
         addTrackingArea(area)
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        guard usesPointingHandCursor, isEnabled else {
+            super.cursorUpdate(with: event)
+            return
+        }
+        NSCursor.pointingHand.set()
     }
 
     override func mouseEntered(with event: NSEvent) {
@@ -178,6 +197,9 @@ final class TaskMenuActionButton: NSButton {
 
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
+        if usesPointingHandCursor {
+            NSCursor.arrow.set()
+        }
         onHoverChanged?(false)
     }
 }

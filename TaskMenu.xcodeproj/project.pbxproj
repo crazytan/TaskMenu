@@ -43,6 +43,7 @@
 		C1EA9BDD5C59238997F833F1 /* TestingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9141316E1D908A6C099CF691 /* TestingWindowController.swift */; };
 		C3C41DC18427B14CEA020FD6 /* SettingsLaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */; };
 		C4D74AEE4D4E0555EA0336A2 /* GitHubUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */; };
+		CE62B34C489FAB410B59EF62 /* TaskMenuActionButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */; };
 		D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */; };
 		D75722B06B77536D032C2FCD /* DueDateNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */; };
 		DE51E84794E46D07C1401DE6 /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633899C51990EF71D24F5C89 /* TaskList.swift */; };
@@ -78,6 +79,7 @@
 		246C75CF9B4CE92C49A9A967 /* TaskListContentAppKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListContentAppKitView.swift; sourceTree = "<group>"; };
 		2667803C667BBD21DCCCD029 /* TaskListAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListAppKitViewController.swift; sourceTree = "<group>"; };
 		2C84C4C64E2BF982920144CA /* TaskListControlsAppKitViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListControlsAppKitViews.swift; sourceTree = "<group>"; };
+		33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuActionButtonTests.swift; sourceTree = "<group>"; };
 		3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPopoverViewController.swift; sourceTree = "<group>"; };
 		3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubUpdateChecker.swift; sourceTree = "<group>"; };
 		4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowGlassSupport.swift; sourceTree = "<group>"; };
@@ -90,11 +92,11 @@
 		62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailViewTests.swift; sourceTree = "<group>"; };
 		633899C51990EF71D24F5C89 /* TaskList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskList.swift; sourceTree = "<group>"; };
 		63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
+		66948CA865C6CDB97011D782 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowChromeTests.swift; sourceTree = "<group>"; };
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
 		6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemModelTests.swift; sourceTree = "<group>"; };
 		77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitPayloadStoreTests.swift; sourceTree = "<group>"; };
-		7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLaunchAtLoginTests.swift; sourceTree = "<group>"; };
 		85062E7D51749F3ED4FD688D /* AppKitTaskUIHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKitTaskUIHelpers.swift; sourceTree = "<group>"; };
 		8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */ = {isa = PBXFileReference; path = AppIcon.svg; sourceTree = "<group>"; };
@@ -122,15 +124,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		02C7954B6F0AE7D4B33301DC /* TaskMenu */ = {
-			isa = PBXGroup;
-			children = (
-				7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */,
-			);
-			name = TaskMenu;
-			path = .;
-			sourceTree = "<group>";
-		};
 		141A484087CC4923B5F2371C /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -174,6 +167,15 @@
 				633899C51990EF71D24F5C89 /* TaskList.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		82BE47CB8A813E4BEDC55BD9 /* pointing-hand-cursor */ = {
+			isa = PBXGroup;
+			children = (
+				66948CA865C6CDB97011D782 /* Config.xcconfig */,
+			);
+			name = "pointing-hand-cursor";
+			path = .;
 			sourceTree = "<group>";
 		};
 		A34BA795C75683448AFABACA /* TaskMenu */ = {
@@ -237,6 +239,7 @@
 				62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */,
 				6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */,
 				A2191A69341B04C760925B55 /* TaskListViewTests.swift */,
+				33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */,
 				9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */,
 				ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */,
 			);
@@ -246,8 +249,8 @@
 		E7776CF5C61A2557700CB1FE = {
 			isa = PBXGroup;
 			children = (
+				82BE47CB8A813E4BEDC55BD9 /* pointing-hand-cursor */,
 				A34BA795C75683448AFABACA /* TaskMenu */,
-				02C7954B6F0AE7D4B33301DC /* TaskMenu */,
 				C53DB1319E1111ADB350C841 /* TaskMenuTests */,
 				1E011DB940E268BD3223C95C /* Products */,
 			);
@@ -397,6 +400,7 @@
 				F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */,
 				0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */,
 				B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */,
+				CE62B34C489FAB410B59EF62 /* TaskMenuActionButtonTests.swift in Sources */,
 				44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */,
 				44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */,
 			);
@@ -436,7 +440,7 @@
 		};
 		6EF47391B5EF770AC931DC3F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */;
+			baseConfigurationReference = 66948CA865C6CDB97011D782 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -524,7 +528,7 @@
 		};
 		A734F39AA9B691088E02AEFF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7B9B96C944BC0E6F55E3D791 /* Config.xcconfig */;
+			baseConfigurationReference = 66948CA865C6CDB97011D782 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
