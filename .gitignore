@@ -1,4 +1,5 @@
-.claude/
+.claude/*
+!.claude/skills/
 
 # Xcode - User data
 *.xcodeproj/xcuserdata/
