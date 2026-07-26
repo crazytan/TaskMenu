@@ -8,79 +8,49 @@
 
 ## Unreleased
 
+## v1.3.0 (2026-07-25)
+
 ### Added
-- Animated task-list updates: completing, adding, deleting, and reordering tasks now slide/fade rows into place instead of snapping, including the Completed section and completed-subtasks disclosures. Row animations respect the system Reduce Motion setting, and list switches or search keystrokes still render instantly without animation.
-- A navigation slide transition between the task list and the task edit screen (with a parallax return), also honoring Reduce Motion.
-- The list and the empty state now crossfade instead of swapping abruptly.
-- A "Notes" placeholder in the task edit screen's notes field, plus an accessibility label for VoiceOver.
-- Task checkboxes and subtask disclosure chevrons now include the task title in their accessibility labels, and the refresh/loading spinners are labeled for VoiceOver.
-- Drag-and-drop task reordering in the popover task list, synced to Google Tasks via the move API: reorder top-level tasks, reorder subtasks within their parent, drop a task onto a top-level task to nest it as a subtask, and drag a subtask out to the top level. A parent dragged with its subtasks moves as a family; the new order is applied optimistically and rolled back if the sync fails.
-- Restored the task search/filter bar in the popover, lost in the AppKit rewrite: real-time title/notes filtering, result count, matching subtasks shown with their parents, and an auto-expanded Completed section during search.
-- Added Homebrew tap installation instructions and release maintenance notes.
-- Added an opt-in testing window UI mode for local AppKit interaction outside the menu bar popover.
-- The mouse cursor now turns into a pointing hand over the task completion circle, in both the task list and the task edit screen.
-- Added a right-click Delete action for task rows in the popover task list.
-- Added seeded task data for testing-window verification.
-- Added a Long Subtasks testing-window list with a parent task containing 12 subtasks, including several completed subtasks.
+- **Drag-and-drop task reordering**, synced to Google Tasks: reorder top-level tasks, reorder subtasks within a parent, drop a task onto another to nest it as a subtask, and drag a subtask back out to the top level. A parent moves together with its subtasks, and a failed sync rolls the order back.
+- **Task search** returns to the popover: real-time title and notes filtering, a result count, matching subtasks shown with their parents, and an auto-expanded Completed section while searching.
+- **Right-click Delete** on task rows in the popover list.
+- **Animated task-list updates** — completing, adding, deleting, and reordering slide and fade into place, including the Completed section and completed-subtask disclosures. The task list and edit screen now transition with a slide (and parallax on return), and the list and empty state crossfade. All animations respect Reduce Motion; list switches and search keystrokes stay instant.
+- **Accessibility improvements** — task checkboxes and subtask chevrons include the task title in their VoiceOver labels, refresh and loading spinners are labeled, and the notes field has a placeholder and label.
+- **"Skip This Version"** in the update alert, for permanently dismissing a release.
+- The cursor now shows a pointing hand over task completion circles.
 
 ### Changed
-- OAuth tokens are now stored in the data-protection keychain with a device-only accessibility class, with transparent one-time migration of existing tokens from the legacy login-keychain location.
-- MetricKit diagnostic payloads are now deduplicated by content and pruned on launch (30-day retention, 200-file cap) instead of accumulating duplicates indefinitely.
-- Hardened the release pipeline: manual release runs are now bound to the existing tag's commit, published release assets can no longer be overwritten in place, workflow inputs are injection-safe, key-derived data is no longer logged, the CI token is scoped read-only, notarization rejections now print the actual notarytool log instead of an opaque stapler error, and the Gatekeeper assessment now runs as a real gate after stapling instead of a no-op.
-- Redesigned the Settings window with native macOS grouped sections: rounded setting boxes with switch rows, a single Updates row combining version and check status, a compact Account row, side-by-side tips/Discord buttons with one prominent call to action, link-style About buttons, and a standard (non-red) Quit button. Destructive actions now use red text instead of filled red buttons, single-color button icons render as templates, and the group backgrounds follow light/dark appearance changes.
-- Refreshed Markdown documentation for current Xcode project settings, release workflow, testing-window behavior, and Google Tasks API boundaries.
-- Simplified task caching to a single per-list cache after removing the unused first-load/completed-task cache path.
-
-### Removed
-- Removed dead code left over from the SwiftUI-to-AppKit migration: the unused `TaskRowAppKitView`, task indent/outdent support, the never-called `loadTasks` first-load path, the unused `moveTask` API, and obsolete presentation/layout helpers and their tests.
+- **Redesigned Settings window** with native macOS grouped sections: rounded setting boxes, a combined Updates row, a compact Account row, side-by-side tips and Discord buttons, link-style About buttons, and a standard Quit button. Destructive actions now use red text instead of filled red buttons, and group backgrounds follow light/dark appearance changes.
+- **Completing a parent task now also completes its open subtasks**, matching Google Tasks. Incomplete subtasks under completed parents stay visible in the Completed section.
+- **Automatic update checks re-run every 24 hours** while the app is running instead of only at launch; "Later" now re-alerts on the next cycle.
+- Diagnostic reports are deduplicated and pruned on launch (30-day retention, 200-file cap) instead of accumulating indefinitely.
 
 ### Fixed
-- Clicking a parent task's subtask chevron now actually expands and collapses its subtasks. The arrow flipped direction but the subtask rows never hid or reappeared, because suppressing the outline view's built-in disclosure cell through the delegate also made it reject programmatic expand/collapse for those rows.
-- Google Tasks due dates are no longer corrupted for users whose system calendar is not Gregorian (for example Buddhist or Japanese): dates read from and written to the Google Tasks API now always use Gregorian years on the wire, instead of rendering other clients' tasks centuries off and sending era years (like 2569) to Google.
-- A transient Google token-endpoint failure (5xx or rate limit) during token refresh no longer silently signs the user out and deletes the stored refresh token; only a definitive `invalid_grant`/`invalid_client` rejection does.
-- Concurrent API calls with an expired access token now share a single token refresh request instead of each firing their own.
-- A task quick-added while the popover's refresh was still in flight no longer vanishes when the stale fetch lands; fetched snapshots are discarded whenever a local change committed during the fetch.
-- Tasks added while switching lists now land in the list they were created in instead of the list being displayed when the request finished.
-- Signing out while a list load, task mutation, or notification sync is in flight no longer repopulates the signed-out state, leaks the previous account's tasks into the next session, or re-schedules notifications after they were cleared.
-- Failed toggle and move requests now roll back only the affected task, preserving edits committed while the request was in flight.
-- Deleting a parent task now removes all nested subtask descendants from the local list, not just direct children.
-- Dismissing the 9 AM "Due today" reminder no longer produces a duplicate notification at the next sync that day.
-- The overnight notification sync no longer clears delivered reminders for overdue tasks that are still incomplete.
-- Notification scheduling now stays under the system's 64-pending-request limit, prioritizing the soonest due dates.
-- Rapidly toggling the due-date notifications preference now always converges on the last chosen state.
-- The search result count no longer counts non-matching parent rows shown for context ("2 results" instead of "3" when two tasks match).
-- The signed-out popover now updates in place: cancelling or failing the Google sign-in flow restores the sign-in button and shows the error, instead of leaving a stale in-progress button with no feedback.
-- Arrow keys now browse the task list without immediately opening the edit screen; Return/Enter opens the selected task.
+- **Due dates were corrupted for non-Gregorian system calendars** (for example Buddhist or Japanese) — dates now always use Gregorian years on the wire, instead of showing other clients' tasks centuries off and sending era years to Google.
+- **A temporary Google outage no longer signs you out** — only a definitive credential rejection clears the stored login.
+- Signing out while a load, edit, or notification sync was in flight no longer leaks the previous account's tasks into the next session or re-schedules cleared notifications.
+- A task quick-added during a refresh no longer vanishes when the stale fetch lands, and tasks added while switching lists now land in the list they were created in.
+- Failed completion and reorder requests now roll back only the affected task, preserving edits made while the request was in flight.
+- Deleting a parent task removes all nested subtask descendants, not just direct children.
+- Concurrent requests with an expired session now share a single token refresh instead of each firing their own.
+- Clicking a parent's chevron now actually expands and collapses its subtasks.
+- **Notifications** — dismissing the 9 AM "Due today" reminder no longer produces a duplicate later that day or re-fires on every refresh; the overnight sync no longer clears reminders for still-overdue tasks; scheduling stays under the system's 64-request limit by prioritizing the soonest due dates; and rapidly toggling the notifications preference now settles on the last chosen state.
+- **Task editor** — an empty title no longer overwrites the existing title, notes save trimmed, a due date typed into the picker saves on Done, the subtask list keeps its scroll position, and a background refresh mid-edit no longer discards uncommitted typing or steals keyboard focus.
+- **Keyboard** — arrow keys browse the task list without opening the edit screen (Return opens it), and Escape reaches the quick-add and add-subtask fields to clear text, dismiss the field, or close the popover.
 - Control-clicking the menu bar icon now opens the same context menu as right-clicking.
-- Failures toggling "Launch at login" now show an alert with the error and a shortcut to Login Items settings instead of silently snapping the switch back, including when macOS holds the registration pending user approval.
-- The task edit screen no longer rebuilds the due-date picker or steals focus into the add-subtask field when a background refresh lands mid-edit; uncommitted typing and keyboard focus survive.
-- The task edit screen's metadata group and footer now follow light/dark appearance changes instead of keeping stale colors.
-- Disconnecting now reports when Google-side revocation failed (with a pointer to myaccount.google.com/permissions) instead of silently pretending access was revoked.
-- Automatic update checks now re-run every 24 hours while the app stays running instead of only once at launch; "Later" on the update alert re-alerts at the next cycle, and a new "Skip This Version" button provides the permanent dismissal that "Later" previously (and silently) was.
-- An unrecognizable GitHub release tag now surfaces as a failed update check in Settings instead of a false "Up to date".
-- Task lists beyond the API's first page are now fetched via pagination.
-- Sign-in now aborts if the system random generator fails instead of proceeding with a predictable PKCE verifier and state value.
-- The "Delete Task" button in the edit screen now renders in red; its destructive tint was silently ignored on bordered buttons.
-- Quick-add and search bar backgrounds now refresh their layer colors when the system appearance changes instead of keeping stale light/dark colors.
-- Long list names no longer collide with the centered "Edit Task" title; the back button truncates.
-- Menu and status labels consistently use the typographic ellipsis (…) instead of three periods.
-- Completing a parent task now also completes its open subtasks (matching Google Tasks behavior), and incomplete subtasks under completed parents stay visible in the Completed section instead of disappearing from the list.
-- Kept the Completed section reachable when every task is done; the "No open tasks" empty state now appears only when the list is truly empty.
-- Escape now reaches the quick-add and add-subtask fields (clearing text, dismissing the inline field, or closing the popover) instead of being swallowed by the field editor.
-- Task detail editor: an empty title no longer overwrites the existing title, notes are saved trimmed, the subtask list keeps its scroll position when toggling subtasks, and due dates typed into the picker are saved on Done even without committing the field.
-- Due-today notifications no longer re-fire on every task refresh after being dismissed.
-- The new-task flash highlight now tracks the created task's ID instead of matching rows by title.
-- OAuth error redirects now surface the real error (for example `access_denied`) instead of a misleading state-mismatch message, and empty access tokens are no longer written to the Keychain.
-- Aligned the completed-section divider, disclosure chevron, completed task check icons, and subtask rows with the main task list rows.
-- Restored per-parent completed-subtask disclosure rows for open tasks, tightened their spacing, and kept those subtasks out of the global Completed section.
-- Kept the task detail metadata group at its compact two-row height and hid the unset due-date picker until Set is clicked.
-- Restored scrolling for long subtask lists in the task detail editor.
-- Fixed clipping of completed subtask rows in the task detail editor when several completed subtasks are visible.
-- Centered the task detail title in the edit header.
-- Fixed the right-click Delete menu on task rows, which never appeared because the cell-level context menu was bypassed by the outline view.
-- Fixed the completed-section header so clicking anywhere on the row reliably expands or collapses it.
-- Replaced the built-in outline disclosure triangle (which overlapped the completion circle) with a dedicated chevron column that is vertically aligned across task rows and the completed-section header, and indented subtask rows under their parents.
-- Left-aligned the Subtasks header, subtask rows, and Add subtask control in the task detail view.
+- A failed "Launch at login" toggle now shows an alert with the error and a shortcut to Login Items settings, including when macOS holds registration pending approval.
+- Disconnecting now reports when Google-side revocation failed, with a pointer to myaccount.google.com/permissions, instead of silently claiming access was revoked.
+- The signed-out popover updates in place — a cancelled or failed sign-in restores the button and shows the error.
+- The search result count no longer counts non-matching parent rows shown for context.
+- Task lists beyond the API's first page are now fetched.
+- An unrecognizable GitHub release tag now surfaces as a failed update check instead of a false "Up to date".
+- The Completed section stays reachable when every task is done; "No open tasks" appears only when the list is truly empty.
+- **Visual polish** — quick-add and search backgrounds, the edit screen's metadata group, and the footer now refresh correctly on light/dark appearance changes; the "Delete Task" button renders in red; long list names no longer collide with the centered "Edit Task" title; completed-section and subtask rows are aligned with the main list; long subtask lists scroll again and no longer clip; the new-task flash highlight tracks the created task instead of matching by title; and labels consistently use a typographic ellipsis.
+
+### Security
+- OAuth tokens now live in the data-protection keychain with a device-only accessibility class, with transparent one-time migration of existing tokens.
+- Sign-in aborts if the system random generator fails, instead of proceeding with a predictable PKCE verifier and state value.
+- OAuth error redirects surface the real error (for example `access_denied`) instead of a misleading state-mismatch message, and empty access tokens are no longer written to the Keychain.
 
 ## v1.2.0 (2026-05-16)
 
