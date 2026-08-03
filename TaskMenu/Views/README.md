@@ -7,7 +7,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - `AppKitTaskUIHelpers.swift` - shared AppKit controls, SF Symbol helpers, layout pinning, hover handling, opt-in pointing-hand cursor, menu actions, and Observation glue.
 - `TaskPopoverViewController.swift` - signed-out, initial-loading, signed-in task list, bottom error strip, popover sizing, settings handoff, and popover surface styling.
 - `TaskListAppKitViewController.swift` - task-list/detail coordination with an animated push/pop slide between the list page and the edit screen, list picker routing, search bar wiring, local list disclosure state, and `AppState` mutation wiring.
-- `TaskListControlsAppKitViews.swift` - list picker, refresh spinner, overflow menu, search bar, and quick-add field AppKit views.
+- `TaskListControlsAppKitViews.swift` - list picker, refresh spinner, overflow menu, search bar, and quick-add field AppKit views. Both text-entry views expose `focusField()` for the ⌘N/⌘F menu shortcuts.
 - `TaskListContentAppKitView.swift` - task-list empty states, outline view, active/completed sections, subtask display, and row context menus. Renders through a keyed per-parent diff over stable outline nodes so task mutations animate (slide/fade rows, animated disclosures); list switches, search keystrokes, and empty-state swaps fall back to a plain reload, and Reduce Motion downgrades slides to fades.
 - `TaskDetailAppKitViewController.swift` - task edit screen, title/notes fields, due-date state and calendar overlay, disabled list picker, delete action, and subtask add/toggle UI.
 - `TaskPresentation.swift` - pure task-list, notes preview, and completed-subtask ordering helper logic.
@@ -29,6 +29,7 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - Parent task rows can collapse or expand visible subtasks; search keeps parents visible when a subtask matches.
 - Right-clicking a task row exposes Delete from the outline view context menu.
 - Active (incomplete) task rows support drag-and-drop reordering through `AppState.moveTask`: reorder top-level tasks, reorder subtasks within their parent, drop a leaf task onto a top-level row to nest it as its last subtask, and drag a subtask into a top-level gap to promote it. Dragging is disabled while searching and for completed rows; the gap directly below an expanded parent resolves to the first-subtask position.
+- ⌘N focuses the quick-add field and ⌘F focuses the filter field. Both come from the main menu (`TaskMenuMainMenu`) and reach `TaskListAppKitViewController` through the responder chain, so they work from any focused field on the list page. They are scoped to the list page by a guard in each action plus `validateMenuItem`, which greys them out while the detail page is pushed; the guard is the load-bearing half, since a disabled item can still claim its key equivalent.
 - Keep helper functions pure when possible and cover interaction logic in `TaskListViewTests`.
 
 ## Task Detail Interaction Rules

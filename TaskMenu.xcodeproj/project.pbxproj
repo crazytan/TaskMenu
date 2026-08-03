@@ -11,12 +11,14 @@
 		068F90845303418F7954D22E /* GoogleTasksAPIBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */; };
 		0A9AE96BCBF5513327268CAD /* GoogleAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */; };
 		0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */; };
+		117EB87F2FE86EB848384CFE /* TaskMenuMainMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */; };
 		11E28771324DA02B74C9983F /* DateFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */; };
 		16F0CFB570B7684CE136B82E /* MenuBarIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = D898FA58565B1CBB9ED2695E /* MenuBarIcon.svg */; };
 		199755B8E809EBE89ADC94B0 /* SettingsVersionRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C5CAE54DF55AAAB094159CE /* SettingsVersionRowTests.swift */; };
 		27A7DDF8EE882EE13FB18EF6 /* MetricKitPayloadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */; };
 		2869F2F8237B112F7767EFE6 /* TaskDetailAppKitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6BE8A6C21B3086FFB9D3D86 /* TaskDetailAppKitViewController.swift */; };
 		3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */; };
+		3B0DD83685CB78F3CE10E606 /* TaskMenuMainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA1EC9057D88195605CE69B /* TaskMenuMainMenu.swift */; };
 		3BE650885BB92CC76E2A5B01 /* AppKitTaskUIHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85062E7D51749F3ED4FD688D /* AppKitTaskUIHelpers.swift */; };
 		423DB4F7DE968CBD6A6E805D /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BD10764723731B64E9E183 /* AppState.swift */; };
 		44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */; };
@@ -76,7 +78,9 @@
 		1C007468F67DCAC110FDF650 /* GitHubUpdateCheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubUpdateCheckerTests.swift; sourceTree = "<group>"; };
 		1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBehaviorTests.swift; sourceTree = "<group>"; };
 		1CD51E43AB6E5559C98303A3 /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
+		2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuMainMenuTests.swift; sourceTree = "<group>"; };
 		220E8145372B626FB6D267C7 /* MetricKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitService.swift; sourceTree = "<group>"; };
+		22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuildConfig.xcconfig; sourceTree = "<group>"; };
 		246C75CF9B4CE92C49A9A967 /* TaskListContentAppKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListContentAppKitView.swift; sourceTree = "<group>"; };
 		2667803C667BBD21DCCCD029 /* TaskListAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListAppKitViewController.swift; sourceTree = "<group>"; };
 		2C5CAE54DF55AAAB094159CE /* SettingsVersionRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsVersionRowTests.swift; sourceTree = "<group>"; };
@@ -85,7 +89,6 @@
 		3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPopoverViewController.swift; sourceTree = "<group>"; };
 		3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubUpdateChecker.swift; sourceTree = "<group>"; };
 		4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowGlassSupport.swift; sourceTree = "<group>"; };
-		4332DD537F3F61B0B7FAD4B1 /* BuildConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuildConfig.xcconfig; sourceTree = "<group>"; };
 		4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterTests.swift; sourceTree = "<group>"; };
 		4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPI.swift; sourceTree = "<group>"; };
 		4E2E315C1C8E04FD083F0AEA /* TaskMenu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaskMenu.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -106,6 +109,7 @@
 		8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPIBehaviorTests.swift; sourceTree = "<group>"; };
 		9141316E1D908A6C099CF691 /* TestingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingWindowController.swift; sourceTree = "<group>"; };
 		9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuAppTests.swift; sourceTree = "<group>"; };
+		9FA1EC9057D88195605CE69B /* TaskMenuMainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuMainMenu.swift; sourceTree = "<group>"; };
 		9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationServiceTests.swift; sourceTree = "<group>"; };
 		A2191A69341B04C760925B55 /* TaskListViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListViewTests.swift; sourceTree = "<group>"; };
 		ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDueDateNotificationService.swift; sourceTree = "<group>"; };
@@ -126,6 +130,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		02C7954B6F0AE7D4B33301DC /* TaskMenu */ = {
+			isa = PBXGroup;
+			children = (
+				22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */,
+			);
+			name = TaskMenu;
+			path = .;
+			sourceTree = "<group>";
+		};
 		141A484087CC4923B5F2371C /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -176,6 +189,7 @@
 			children = (
 				BB4F099FA85A0476A96ED002 /* StatusBarController.swift */,
 				5AF69FFA11009E78484C090A /* TaskMenuApp.swift */,
+				9FA1EC9057D88195605CE69B /* TaskMenuMainMenu.swift */,
 				7CA4A7AB59308D29BDE9DFD5 /* Models */,
 				141A484087CC4923B5F2371C /* Resources */,
 				2A93E24654445FC8029C75F7 /* Services */,
@@ -235,6 +249,7 @@
 				A2191A69341B04C760925B55 /* TaskListViewTests.swift */,
 				33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */,
 				9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */,
+				2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */,
 				ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */,
 			);
 			path = TaskMenuTests;
@@ -243,20 +258,11 @@
 		E7776CF5C61A2557700CB1FE = {
 			isa = PBXGroup;
 			children = (
-				FBAF85847F4317CD71BEB8FB /* git-sha-in-settings */,
 				A34BA795C75683448AFABACA /* TaskMenu */,
+				02C7954B6F0AE7D4B33301DC /* TaskMenu */,
 				C53DB1319E1111ADB350C841 /* TaskMenuTests */,
 				1E011DB940E268BD3223C95C /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		FBAF85847F4317CD71BEB8FB /* git-sha-in-settings */ = {
-			isa = PBXGroup;
-			children = (
-				4332DD537F3F61B0B7FAD4B1 /* BuildConfig.xcconfig */,
-			);
-			name = "git-sha-in-settings";
-			path = .;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -370,6 +376,7 @@
 				BED65A492A123D4A434FA95A /* TaskListContentAppKitView.swift in Sources */,
 				B433C658377AD3F4763FED0A /* TaskListControlsAppKitViews.swift in Sources */,
 				C1AE79D6748EFE551C7E8F1B /* TaskMenuApp.swift in Sources */,
+				3B0DD83685CB78F3CE10E606 /* TaskMenuMainMenu.swift in Sources */,
 				47D5A568916BF8E1E6FC0347 /* TaskPopoverViewController.swift in Sources */,
 				FC3B57327B2B0E0E23CAECD0 /* TaskPresentation.swift in Sources */,
 				939FC3A4B4EB2424F77B577C /* TasksAPIProtocol.swift in Sources */,
@@ -402,6 +409,7 @@
 				B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */,
 				CE62B34C489FAB410B59EF62 /* TaskMenuActionButtonTests.swift in Sources */,
 				44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */,
+				117EB87F2FE86EB848384CFE /* TaskMenuMainMenuTests.swift in Sources */,
 				44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -440,7 +448,7 @@
 		};
 		6EF47391B5EF770AC931DC3F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4332DD537F3F61B0B7FAD4B1 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -528,7 +536,7 @@
 		};
 		A734F39AA9B691088E02AEFF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4332DD537F3F61B0B7FAD4B1 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

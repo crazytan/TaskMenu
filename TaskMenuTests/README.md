@@ -18,6 +18,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 - `TaskMenuActionButtonTests.swift` - pointing-hand cursor opt-in on `TaskMenuActionButton` (cursor tracking areas and `cursorUpdate` behavior).
 - `MetricKitPayloadStoreTests.swift` - local payload persistence.
 - `TaskMenuAppTests.swift` - app/app-delegate construction seams, launch UI mode parsing, the automatic update-check loop, and update-alert choice mapping.
+- `TaskMenuMainMenuTests.swift` - main-menu structure and ordering, first-responder selectors and nil targets, key-equivalent resolution for every shortcut, autoenabling, responder-chain resolution of ⌘N/⌘F from a focused text field, and the unconditional launch install. Never performs a real `copy:` — that would clobber the developer's clipboard.
 - `SettingsLaunchAtLoginTests.swift` - the pure launch-at-login status decision (`requiresApproval` notice) behind the Settings toggle.
 - `SettingsVersionRowTests.swift` - the rendered Settings version row, covering the `Version <version> (<commit>)` text and the `dev` fallback for unstamped builds.
 

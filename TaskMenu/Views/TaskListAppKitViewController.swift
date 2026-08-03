@@ -129,6 +129,25 @@ final class TaskListAppKitViewController: NSViewController {
         ])
     }
 
+    // MARK: - Main Menu Actions
+
+    /// ⌘N (File > New Task). Reached from the main menu through the responder
+    /// chain, so it works from any field on the list page.
+    @objc func focusQuickAdd(_ sender: Any?) {
+        guard isShowingListPage else { return }
+        quickAddView.focusField()
+    }
+
+    /// ⌘F (Edit > Filter Tasks).
+    @objc func focusFilterField(_ sender: Any?) {
+        guard isShowingListPage else { return }
+        searchBarView.focusField()
+    }
+
+    /// The detail page is pushed over the list and stays non-nil for the
+    /// duration of both slide transitions, so this is also false while animating.
+    private var isShowingListPage: Bool { detailController == nil }
+
     // MARK: - Detail Navigation
 
     /// Pushes the edit screen over the list with a navigation slide; the list
@@ -328,6 +347,24 @@ final class TaskListAppKitViewController: NSViewController {
             _ = appState.searchText
         } onChange: { [weak self] in
             self?.renderListScreen()
+        }
+    }
+}
+
+extension TaskListAppKitViewController: NSMenuItemValidation {
+    /// Greys out ⌘N/⌘F whenever the list page is not showing. Note this is the
+    /// *display* half of the scoping only: `performKeyEquivalent` was observed
+    /// to still claim the event for a disabled item, so the guards inside
+    /// `focusQuickAdd`/`focusFilterField` are what actually make them inert.
+    /// Everything else must stay enabled — the clipboard items resolve to a text
+    /// view earlier in the responder chain, but a blanket `false` here would be
+    /// a silent trap for anything that does reach this controller.
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(focusQuickAdd(_:)), #selector(focusFilterField(_:)):
+            return isShowingListPage
+        default:
+            return true
         }
     }
 }

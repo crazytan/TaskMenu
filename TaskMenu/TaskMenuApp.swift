@@ -101,6 +101,11 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     private let metricKitService = MetricKitService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Install before any UI. The main menu is what routes Cut/Copy/Paste/
+        // Select All/Undo to the first responder, and every UI mode needs it:
+        // popover text fields, the Settings window, and --testing-window.
+        TaskMenuMainMenu.install(into: NSApplication.shared)
+
         if TaskMenuApp.currentUIMode == .testingWindow || !TaskMenuApp.isUnitTesting {
             configureUserInterface(for: TaskMenuApp.currentUIMode)
         }
