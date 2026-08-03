@@ -358,6 +358,15 @@ final class TaskSearchBarView: NSView {
         resultCountLabel.stringValue = searchResultCountText(resultCount)
     }
 
+    /// Mirrors `TaskQuickAddView.focusField()`. Making the field first responder
+    /// selects any existing filter text, which is the expected ⌘F behavior.
+    func focusField() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.window?.makeFirstResponder(self.field)
+        }
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         applyBackgroundColors()

@@ -6,6 +6,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 
 - `TaskMenuApp.swift` - `@main`, app delegate wiring, UI mode selection, MetricKit startup, signed-in bootstrap, and settings window ownership.
 - `StatusBarController.swift` - AppKit status item, popover presentation, right-click quit menu, outside-click closing, and menu-open refresh trigger.
+- `TaskMenuMainMenu.swift` - `NSApplication.mainMenu` factory (application/File/Edit menus) and its install helper.
 - `Models/` - `@MainActor` app state and Google Tasks data models.
 - `Services/` - OAuth, API, keychain, notification, metrics, and update-check services.
 - `Views/` - AppKit popover/task UI, AppKit settings UI, and shared task presentation helpers.
@@ -15,6 +16,7 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 ## Lifecycle Notes
 
 - `TaskMenuAppDelegate` owns the shared `AppState`. Pass that same instance into status-bar and settings UI.
+- `applicationDidFinishLaunching` installs the main menu unconditionally, before the UI-mode branch, so every mode (popover, Settings, `--testing-window`) gets it.
 - `applicationDidFinishLaunching` calls `bootstrapSignedInState()` asynchronously. Avoid blocking launch with network work.
 - `StatusBarController` calls `refreshForMenuPresentation()` when the popover opens. Keep this fast and tolerant of cached data.
 - `--testing-window` launches the same task UI in a regular AppKit window with a fully in-memory `AppState`: seeded fake tasks, an in-memory keychain (no real Keychain access), no Google credentials or network, no notifications, no update checks, and throwaway UserDefaults. The fakes live in `TaskMenuApp.swift`. Normal launches remain menu-bar-only.
@@ -22,5 +24,6 @@ This folder is the macOS application target. Launches install an `NSStatusItem`,
 ## AppKit Boundaries
 
 - Keep status item, popover, settings-window ownership, event monitors, and activation-policy work in this folder.
+- The main menu exists only to route key equivalents to the first responder; an accessory app never draws it, so it is not a discovery surface. User-visible affordances belong in the popover, Settings, or the status item's right-click menu. Its items must keep a `nil` target so they dispatch through the responder chain.
 - Views should not directly reach into `NSStatusItem` or own popover lifetime outside `StatusBarController`.
 - Any new normal-launch window is a product decision. The current app is menu-bar-only.
