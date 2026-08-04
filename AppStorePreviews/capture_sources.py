@@ -26,7 +26,10 @@ ROOT = Path(__file__).resolve().parent
 SOURCES = ROOT / "sources"
 
 SCREENS = ["list", "task", "settings"]
-DESCRIPTOR = re.compile(r"CAPTURE window=(\d+) titlebar=(\d+)")
+DESCRIPTOR = re.compile(
+    r"CAPTURE window=(?P<window>\d+) titlebar=(?P<titlebar>\d+)"
+    r" scale=(?P<scale>\d+) width=(?P<width>\d+)"
+)
 
 
 def built_app() -> Path:
@@ -68,7 +71,15 @@ def capture(app: Path, screen: str, destination: Path) -> None:
         if not descriptor:
             raise SystemExit(f"App did not report a capture window for '{screen}'.")
 
-        window_number, titlebar = int(descriptor.group(1)), int(descriptor.group(2))
+        window_number = int(descriptor.group("window"))
+        titlebar = int(descriptor.group("titlebar"))
+        scale = int(descriptor.group("scale"))
+        expected_width = int(descriptor.group("width")) * scale
+        if scale < 2:
+            raise SystemExit(
+                "The app's window is on a 1x display, which would ship upscaled "
+                "screenshots. Move it to the Retina display and re-run."
+            )
         # Let the seeded tasks land and the detail push finish animating.
         time.sleep(3)
 
@@ -81,6 +92,11 @@ def capture(app: Path, screen: str, destination: Path) -> None:
                 check=True,
             )
             image = Image.open(raw).convert("RGB")
+            if image.width != expected_width:
+                raise SystemExit(
+                    f"Captured {image.width}px wide but the window is "
+                    f"{expected_width}px at {scale}x; refusing to ship a rescaled shot."
+                )
             image.crop((0, titlebar, image.width, image.height)).save(destination)
     finally:
         process.terminate()

@@ -57,10 +57,34 @@ enum TaskMenuApp {
     /// Prints the identity `AppStorePreviews/capture_sources.py` needs to grab
     /// exactly this window: `screencapture -l<number>` plus the title-bar
     /// height to crop off, in backing pixels.
+    /// Moves a capture window onto the sharpest attached display. Without
+    /// this the shot follows whichever screen the window happened to open on,
+    /// and a 1x display silently yields half-resolution screenshots.
+    static func centerOnSharpestScreen(_ window: NSWindow) {
+        guard let screen = NSScreen.screens.max(by: { $0.backingScaleFactor < $1.backingScaleFactor })
+        else {
+            return
+        }
+
+        let visible = screen.visibleFrame
+        let frame = window.frame
+        window.setFrameOrigin(
+            NSPoint(
+                x: visible.midX - frame.width / 2,
+                y: visible.midY - frame.height / 2
+            )
+        )
+    }
+
     static func printCaptureWindowDescriptor(for window: NSWindow) {
         let scale = window.backingScaleFactor
         let titleBarPoints = window.frame.height - window.contentLayoutRect.height
-        print("CAPTURE window=\(window.windowNumber) titlebar=\(Int((titleBarPoints * scale).rounded()))")
+        print(
+            "CAPTURE window=\(window.windowNumber)"
+                + " titlebar=\(Int((titleBarPoints * scale).rounded()))"
+                + " scale=\(Int(scale))"
+                + " width=\(Int(window.frame.width))"
+        )
         fflush(stdout)
     }
 
@@ -184,6 +208,7 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
                     ? settingsWindowController?.window
                     : testingWindowController?.window
                 if let captureWindow {
+                    TaskMenuApp.centerOnSharpestScreen(captureWindow)
                     TaskMenuApp.printCaptureWindowDescriptor(for: captureWindow)
                 }
             }
