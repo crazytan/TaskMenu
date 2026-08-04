@@ -379,13 +379,15 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             view.removeFromSuperview()
         }
 
-        var index = 0
+        if addRow.superview == nil {
+            subtaskListStack.insertArrangedSubview(addRow, at: 0)
+        }
+
+        // The add row leads the section, so existing subtasks start below it.
+        var index = 1
         for child in subtasksWithCompletedLast(appState.subtasks(of: task.id)) {
             subtaskListStack.insertArrangedSubview(subtaskRow(for: child), at: index)
             index += 1
-        }
-        if addRow.superview == nil {
-            subtaskListStack.addArrangedSubview(addRow)
         }
         updateSubtaskScrollMetrics()
     }
@@ -434,12 +436,13 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func makeAddSubtaskRow() -> NSView {
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+
         if let addSubtaskField {
-            let stack = NSStackView()
-            stack.orientation = .horizontal
-            stack.alignment = .centerY
-            stack.spacing = 8
-            stack.addArrangedSubview(TaskMenuAppKit.label("+", font: .systemFont(ofSize: 14), color: .tertiaryLabelColor))
+            stack.addArrangedSubview(addSubtaskPlusIcon(onPress: nil))
             stack.addArrangedSubview(addSubtaskField)
             addSubtaskField.onCommit = { [weak self] _ in
                 self?.addSubtask()
@@ -451,13 +454,40 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             return paddedRow(stack)
         }
 
-        let button = TaskMenuActionButton(title: "Add subtask", symbolName: "plus", pointSize: 11, weight: .medium, accessibilityDescription: "Add subtask") { [weak self] in
+        let button = TaskMenuActionButton(title: "Add subtask") { [weak self] in
             self?.openAddSubtaskField()
         }
         button.alignment = .left
-        button.imagePosition = .imageLeading
         button.contentTintColor = .tertiaryLabelColor
-        return paddedRow(button)
+        button.toolTip = "Add subtask"
+        stack.addArrangedSubview(addSubtaskPlusIcon { [weak self] in
+            self?.openAddSubtaskField()
+        })
+        stack.addArrangedSubview(button)
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+        return paddedRow(stack)
+    }
+
+    /// Leading icon column for the add-subtask row. It matches the 22pt toggle
+    /// slot in `TaskDetailSubtaskRow` so the plus lines up with the subtask
+    /// circles and the title lines up with the subtask labels. The icon is
+    /// hidden from accessibility because the row's button already carries the
+    /// "Add subtask" label.
+    private func addSubtaskPlusIcon(onPress: (() -> Void)?) -> NSView {
+        let icon = TaskMenuActionButton(
+            symbolName: "plus",
+            pointSize: 13,
+            weight: .medium,
+            accessibilityDescription: "Add subtask",
+            onPress: onPress
+        )
+        icon.contentTintColor = .tertiaryLabelColor
+        icon.setAccessibilityElement(false)
+        NSLayoutConstraint.activate([
+            icon.widthAnchor.constraint(equalToConstant: 22),
+            icon.heightAnchor.constraint(equalToConstant: 22)
+        ])
+        return icon
     }
 
     func openAddSubtaskField() {

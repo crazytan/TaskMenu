@@ -16,6 +16,7 @@
 - **Settings… in the menu bar icon's right-click menu**, above Quit TaskMenu.
 
 ### Changed
+- The task editor's "Add subtask" row now sits above the subtask list instead of below it, so it stays in place as subtasks are added. Its plus icon and label also line up with the subtask circles and titles below.
 - The popover's "…" overflow menu no longer draws separators between Settings…, Sign out, and Quit.
 
 ### Fixed

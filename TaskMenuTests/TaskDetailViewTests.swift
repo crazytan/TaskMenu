@@ -260,7 +260,7 @@ final class TaskDetailViewTests: XCTestCase {
 
         XCTAssertTrue(controller.addSubtaskField === field)
         XCTAssertTrue(controller.addSubtaskRowView === row)
-        XCTAssertTrue(controller.subtaskListStack.arrangedSubviews.last === row)
+        XCTAssertTrue(controller.subtaskListStack.arrangedSubviews.first === row)
         XCTAssertEqual(controller.subtaskListStack.arrangedSubviews.count, 2)
         XCTAssertEqual(field.stringValue, "half-typed subtask")
     }
@@ -281,7 +281,7 @@ final class TaskDetailViewTests: XCTestCase {
         XCTAssertNil(controller.addSubtaskField)
         XCTAssertNotNil(controller.addSubtaskRowView)
         XCTAssertFalse(controller.addSubtaskRowView === openRow)
-        XCTAssertTrue(controller.subtaskListStack.arrangedSubviews.last === controller.addSubtaskRowView)
+        XCTAssertTrue(controller.subtaskListStack.arrangedSubviews.first === controller.addSubtaskRowView)
     }
 
     @MainActor
