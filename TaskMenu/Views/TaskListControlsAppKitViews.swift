@@ -189,11 +189,9 @@ final class TaskListHeaderView: NSView {
         menu.addItem(ClosureMenuItem(title: "Settings…") { [weak self] in
             self?.onOpenSettings?()
         })
-        menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: "Sign out") { [weak self] in
             self?.onSignOut?()
         })
-        menu.addItem(.separator())
         menu.addItem(ClosureMenuItem(title: "Quit") {
             NSApplication.shared.terminate(nil)
         })

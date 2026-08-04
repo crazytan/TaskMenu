@@ -15,6 +15,9 @@
 - **⌘Q quits** from the popover and Settings, and **⌘,** opens Settings.
 - **Settings… in the menu bar icon's right-click menu**, above Quit TaskMenu.
 
+### Changed
+- The popover's "…" overflow menu no longer draws separators between Settings…, Sign out, and Quit.
+
 ### Fixed
 - **Copy, Cut, Paste, Select All, and Undo now work in every text input** — filter tasks, add task, task title, notes, and add subtask. The app never installed a main menu, and macOS routes those shortcuts to the focused field through the main menu's Edit items, so all of them were silently dropped.
 
