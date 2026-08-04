@@ -20,6 +20,7 @@
 - The popover's "…" overflow menu no longer draws separators between Settings…, Sign out, and Quit.
 
 ### Fixed
+- **Opening a task now actually slides in.** The list-to-edit-screen push/pop was written as an animation but rendered as an instant jump, so tapping a task swapped screens in a single frame. The transition now runs its full slide, with the list parallaxing behind it.
 - **Copy, Cut, Paste, Select All, and Undo now work in every text input** — filter tasks, add task, task title, notes, and add subtask. The app never installed a main menu, and macOS routes those shortcuts to the focused field through the main menu's Edit items, so all of them were silently dropped.
 
 ## v1.3.0 (2026-07-25)

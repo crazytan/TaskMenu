@@ -51,6 +51,9 @@ final class TaskListAppKitViewController: NSViewController {
 
     override func loadView() {
         containerView.translatesAutoresizingMaskIntoConstraints = false
+        // The push/pop slide animates layer-backed frames; without an explicit
+        // layer here the transition snaps instead of sliding.
+        containerView.wantsLayer = true
         view = containerView
     }
 
@@ -196,14 +199,12 @@ final class TaskListAppKitViewController: NSViewController {
 
         containerView.layoutSubtreeIfNeeded()
         isTransitioningDetail = true
-        NSAnimationContext.runAnimationGroup({ [weak self] context in
-            guard let self else { return }
+        let parallaxOffset = -containerView.bounds.width * Self.listParallaxFactor
+        NSAnimationContext.runAnimationGroup({ [listLeadingConstraint] context in
             context.duration = Self.detailTransitionDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            context.allowsImplicitAnimation = true
-            leading.constant = 0
-            listLeadingConstraint?.constant = -containerView.bounds.width * Self.listParallaxFactor
-            containerView.layoutSubtreeIfNeeded()
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            leading.animator().constant = 0
+            listLeadingConstraint?.animator().constant = parallaxOffset
         }, completionHandler: {
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -226,14 +227,12 @@ final class TaskListAppKitViewController: NSViewController {
         }
 
         isTransitioningDetail = true
-        NSAnimationContext.runAnimationGroup({ [weak self] context in
-            guard let self else { return }
+        let offscreenLeading = containerView.bounds.width
+        NSAnimationContext.runAnimationGroup({ [detailLeadingConstraint, listLeadingConstraint] context in
             context.duration = Self.detailTransitionDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            context.allowsImplicitAnimation = true
-            detailLeadingConstraint?.constant = containerView.bounds.width
-            listLeadingConstraint?.constant = 0
-            containerView.layoutSubtreeIfNeeded()
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            detailLeadingConstraint?.animator().constant = offscreenLeading
+            listLeadingConstraint?.animator().constant = 0
         }, completionHandler: {
             Task { @MainActor [weak self] in
                 guard let self else { return }
