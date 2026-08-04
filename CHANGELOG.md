@@ -8,20 +8,21 @@
 
 ## Unreleased
 
+## v1.4.0 (2026-08-03)
+
 ### Added
-- Settings now shows the git commit the build came from next to the version number, e.g. `Version 1.3.0 (a1b2c3d)`. Builds made outside a git checkout show `(dev)`.
-- **Calendar picker for due dates** — the task editor's due-date row now has a calendar button that opens a month view, so a date can be picked instead of only typed or stepped. Picking a day fills the date field and closes the calendar; clicking elsewhere or pressing Escape dismisses it without discarding the edit.
-- **⌘N and ⌘F** jump to the "Add a task" and "Filter tasks" fields from anywhere on the task list. Both do nothing while a task is open for editing.
-- **⌘Q quits** from the popover and Settings, and **⌘,** opens Settings.
+- **Calendar picker for due dates** — the task editor's due-date row now has a calendar button that opens a month view, so you can pick a date instead of only typing or stepping it. Escape or clicking elsewhere dismisses it without discarding your edit.
+- **Keyboard shortcuts** — ⌘N and ⌘F jump to the "Add a task" and "Filter tasks" fields, ⌘, opens Settings, and ⌘Q quits from the popover or Settings.
 - **Settings… in the menu bar icon's right-click menu**, above Quit TaskMenu.
+- Settings now shows the git commit a build came from next to the version number, e.g. `Version 1.4.0 (a1b2c3d)`.
 
 ### Changed
-- The task editor's "Add subtask" row now sits above the subtask list instead of below it, so it stays in place as subtasks are added. Its plus icon and label also line up with the subtask circles and titles below.
-- The popover's "…" overflow menu no longer draws separators between Settings…, Sign out, and Quit.
+- The task editor's "Add subtask" row now sits above the subtask list, so it stays in place as subtasks are added, and its icon and label line up with the subtasks below.
+- The popover's "…" overflow menu no longer draws separators between its items.
 
 ### Fixed
-- **Opening a task now actually slides in.** The list-to-edit-screen push/pop was written as an animation but rendered as an instant jump, so tapping a task swapped screens in a single frame. The transition now runs its full slide, with the list parallaxing behind it.
-- **Copy, Cut, Paste, Select All, and Undo now work in every text input** — filter tasks, add task, task title, notes, and add subtask. The app never installed a main menu, and macOS routes those shortcuts to the focused field through the main menu's Edit items, so all of them were silently dropped.
+- **Copy, Cut, Paste, Select All, and Undo now work in every text field** — filter, quick add, task title, notes, and add subtask. These shortcuts were previously dropped.
+- **Opening a task now actually slides in** instead of jumping in a single frame, with the list parallaxing behind it.
 
 ## v1.3.0 (2026-07-25)
 
