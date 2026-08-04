@@ -22,6 +22,7 @@ final class TaskListAppKitViewController: NSViewController {
     private var listLeadingConstraint: NSLayoutConstraint?
     private var detailLeadingConstraint: NSLayoutConstraint?
     private var isTransitioningDetail = false
+    private var hasPresentedCaptureDetail = false
 
     /// How far the list page parallax-slides behind an incoming detail page.
     private static let listParallaxFactor: CGFloat = 0.3
@@ -80,6 +81,7 @@ final class TaskListAppKitViewController: NSViewController {
                 await appState.refreshTasks()
             }
         }
+        headerView.isDemoMode = appState.isDemoMode
         headerView.onSignOut = { [appState] in
             appState.signOut()
         }
@@ -301,7 +303,23 @@ final class TaskListAppKitViewController: NSViewController {
         }
     }
 
+    /// One-shot `--capture task` hook: the seeded tasks arrive asynchronously,
+    /// so the push waits for the first render that has one to open.
+    private func presentTaskDetailForCaptureIfNeeded() {
+        guard !hasPresentedCaptureDetail,
+              TaskMenuApp.captureScreen == .task,
+              let task = appState.rootTasks.first(where: { !$0.isCompleted && !appState.subtasks(of: $0.id).isEmpty })
+                  ?? appState.rootTasks.first(where: { !$0.isCompleted })
+        else {
+            return
+        }
+
+        hasPresentedCaptureDetail = true
+        presentTaskDetail(for: task)
+    }
+
     private func renderListScreen() {
+        presentTaskDetailForCaptureIfNeeded()
         headerView.render(
             listTitle: appState.selectedList?.title ?? "Tasks",
             taskLists: appState.taskLists,

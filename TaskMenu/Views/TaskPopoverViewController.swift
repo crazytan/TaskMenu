@@ -5,7 +5,8 @@ final class TaskPopoverViewController: NSViewController {
     private enum Mode: Equatable {
         case initialLoading
         case signedOut
-        case signedIn
+        /// `isDemo` is part of the mode so toggling it re-renders the banner.
+        case signedIn(isDemo: Bool)
     }
 
     private let appState: AppState
@@ -71,7 +72,7 @@ final class TaskPopoverViewController: NSViewController {
         } else if !appState.isSignedIn {
             return .signedOut
         } else {
-            return .signedIn
+            return .signedIn(isDemo: appState.isDemoMode)
         }
     }
 
@@ -107,7 +108,11 @@ final class TaskPopoverViewController: NSViewController {
             rootStack.addArrangedSubview(loadingView())
         case .signedOut:
             rootStack.addArrangedSubview(signInView())
-        case .signedIn:
+        case let .signedIn(isDemo):
+            if isDemo {
+                rootStack.addArrangedSubview(demoBanner())
+                rootStack.addArrangedSubview(TaskMenuAppKit.separator())
+            }
             let listController = TaskListAppKitViewController(
                 appState: appState,
                 onOpenSettings: { [weak self] in
@@ -184,10 +189,10 @@ final class TaskPopoverViewController: NSViewController {
         ))
 
         let message = TaskMenuAppKit.label(
-            "Sign in with Google to access your tasks.",
+            "Sign in with Google to access your tasks, or explore the demo with sample data.",
             font: .systemFont(ofSize: NSFont.systemFontSize),
             color: .secondaryLabelColor,
-            lines: 2
+            lines: 3
         )
         message.alignment = .center
         stack.addArrangedSubview(message)
@@ -202,6 +207,15 @@ final class TaskPopoverViewController: NSViewController {
         stack.addArrangedSubview(signInButton)
         signInButton.widthAnchor.constraint(equalToConstant: 250).isActive = true
         self.signInButton = signInButton
+
+        let demoButton = NSButton(
+            title: "Explore the Demo",
+            target: self,
+            action: #selector(enterDemoMode)
+        )
+        demoButton.bezelStyle = .rounded
+        stack.addArrangedSubview(demoButton)
+        demoButton.widthAnchor.constraint(equalToConstant: 250).isActive = true
 
         let quitButton = NSButton(title: "Quit TaskMenu", target: self, action: #selector(quit))
         quitButton.isBordered = false
@@ -221,6 +235,43 @@ final class TaskPopoverViewController: NSViewController {
         return container
     }
 
+    /// Marks the sample data as such, and keeps a way back to sign-in visible.
+    private func demoBanner() -> NSView {
+        let banner = NSView()
+        banner.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            banner.heightAnchor.constraint(equalToConstant: TaskMenuMetrics.demoBannerHeight)
+        ])
+
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 4
+        banner.addSubview(stack)
+        TaskMenuAppKit.pin(
+            stack,
+            to: banner,
+            insets: NSEdgeInsets(top: 0, left: 14, bottom: 0, right: 10)
+        )
+
+        let icon = NSImageView(image: TaskMenuAppKit.symbol("wand.and.stars", pointSize: 11) ?? NSImage())
+        icon.contentTintColor = .secondaryLabelColor
+        stack.addArrangedSubview(icon)
+        stack.addArrangedSubview(TaskMenuAppKit.label(
+            "Demo mode — sample data",
+            font: .systemFont(ofSize: NSFont.smallSystemFontSize),
+            color: .secondaryLabelColor
+        ))
+        stack.addArrangedSubview(TaskMenuAppKit.spacer())
+
+        let exitButton = NSButton(title: "Exit Demo", target: self, action: #selector(exitDemoMode))
+        exitButton.bezelStyle = .rounded
+        exitButton.controlSize = .small
+        stack.addArrangedSubview(exitButton)
+
+        return banner
+    }
+
     /// Refreshes the signed-out controls in place. Sign-in progress and
     /// failures happen while the mode stays `.signedOut`, so a full re-render
     /// never runs; the button and error label must update from state directly.
@@ -238,7 +289,7 @@ final class TaskPopoverViewController: NSViewController {
     }
 
     private func updateErrorStrip() {
-        guard currentMode == .signedIn else { return }
+        guard case .signedIn = currentMode else { return }
 
         signedInContentHeightConstraint?.constant = signedInContentHeight()
 
@@ -297,11 +348,17 @@ final class TaskPopoverViewController: NSViewController {
         self.errorStrip = strip
     }
 
+    /// The popover total is fixed, so each strip around the list takes its
+    /// space out of the list.
     private func signedInContentHeight() -> CGFloat {
-        if appState.errorMessage == nil {
-            return TaskMenuMetrics.signedInPopoverHeight
+        var height = TaskMenuMetrics.signedInPopoverHeight
+        if appState.errorMessage != nil {
+            height -= TaskMenuMetrics.errorStripHeight
         }
-        return TaskMenuMetrics.signedInPopoverHeight - TaskMenuMetrics.errorStripHeight
+        if appState.isDemoMode {
+            height -= TaskMenuMetrics.demoBannerHeight
+        }
+        return height
     }
 
     private func contentSize(for mode: Mode) -> NSSize {
@@ -325,6 +382,7 @@ final class TaskPopoverViewController: NSViewController {
         appStateObserver.observe { [appState] in
             _ = appState.isShowingInitialTaskLoad
             _ = appState.isSignedIn
+            _ = appState.isDemoMode
             _ = appState.isLoading
             _ = appState.errorMessage
         } onChange: { [weak self] in
@@ -334,6 +392,14 @@ final class TaskPopoverViewController: NSViewController {
 
     @objc private func signIn() {
         appState.signIn()
+    }
+
+    @objc private func enterDemoMode() {
+        appState.enterDemoMode()
+    }
+
+    @objc private func exitDemoMode() {
+        appState.exitDemoMode()
     }
 
     @objc private func quit() {

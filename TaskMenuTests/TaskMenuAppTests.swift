@@ -29,6 +29,24 @@ final class TaskMenuAppTests: XCTestCase {
         )
     }
 
+    func testCaptureScreenIsNilWithoutTheFlag() {
+        XCTAssertNil(TaskMenuApp.captureScreen(arguments: ["TaskMenu", "--testing-window"]))
+    }
+
+    func testCaptureScreenParsesEachKnownScreen() {
+        for screen in [TaskMenuApp.CaptureScreen.list, .task, .settings] {
+            XCTAssertEqual(
+                TaskMenuApp.captureScreen(arguments: ["TaskMenu", "--capture", screen.rawValue]),
+                screen
+            )
+        }
+    }
+
+    func testCaptureScreenIsNilForUnknownOrMissingValue() {
+        XCTAssertNil(TaskMenuApp.captureScreen(arguments: ["TaskMenu", "--capture", "nope"]))
+        XCTAssertNil(TaskMenuApp.captureScreen(arguments: ["TaskMenu", "--capture"]))
+    }
+
     func testApplicationMainInstallsDelegate() throws {
         let delegate = try XCTUnwrap(TaskMenuApplication.installedDelegate)
 

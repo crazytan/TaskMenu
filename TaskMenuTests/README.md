@@ -6,6 +6,7 @@ Unit tests cover model behavior, app state, services, pure view helpers, and app
 
 - `AppStateTests.swift` - initial state, preferences, version/build-commit display, selected list helpers, ordering, sign-out/disconnect reset, and basic guarded actions.
 - `AppStateBehaviorTests.swift` - task mutations, caching, stale response protection, selection changes, refresh behavior, errors, and notification sync.
+- `DemoModeTests.swift` - entering/leaving demo mode, sample-list seeding without network access, suppressed notification syncing, credential-preserving sign-out, and restoration of the account-backed API on exit.
 - `SearchFilterTests.swift` - title/notes search, parent context inclusion, and root/subtask filtered accessors.
 - `TaskItemModelTests.swift` and `GoogleTasksAPITests.swift` - model Codable round trips, completion helpers, parent/subtask fields, and due-date accessors.
 - `GoogleTasksAPIBehaviorTests.swift` - REST request methods, query parameters, pagination, auth headers, create/update bodies, and error mapping.

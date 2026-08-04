@@ -6,6 +6,8 @@ final class TaskListHeaderView: NSView {
     var onOpenSettings: (() -> Void)?
     var onRefresh: (() -> Void)?
     var onSignOut: (() -> Void)?
+    /// Retitles the sign-out item, which leaves the demo instead.
+    var isDemoMode = false
 
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let refreshButton = TaskMenuActionButton(
@@ -189,7 +191,7 @@ final class TaskListHeaderView: NSView {
         menu.addItem(ClosureMenuItem(title: "Settings…") { [weak self] in
             self?.onOpenSettings?()
         })
-        menu.addItem(ClosureMenuItem(title: "Sign out") { [weak self] in
+        menu.addItem(ClosureMenuItem(title: isDemoMode ? "Exit demo" : "Sign out") { [weak self] in
             self?.onSignOut?()
         })
         menu.addItem(ClosureMenuItem(title: "Quit") {

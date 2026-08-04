@@ -82,6 +82,10 @@ final class AppState {
     var isLoading = false
     var errorMessage: String?
     var googleAccountProfile: GoogleAccountProfile?
+    /// Whether the app is running on sample data instead of a Google account.
+    /// `authService` is untouched in demo mode, so `isSignedIn` is true here
+    /// without any token existing.
+    private(set) var isDemoMode = false
 
     var taskLists: [TaskList] = []
     var selectedListId: String?
@@ -220,7 +224,9 @@ final class AppState {
     }
 
     private let authService: GoogleAuthService
-    private let api: any TasksAPIProtocol
+    /// Held separately so demo mode can swap `api` out and restore it on exit.
+    private let liveAPI: any TasksAPIProtocol
+    private var api: any TasksAPIProtocol
     private let userDefaults: UserDefaults
     private let dueDateNotificationService: any DueDateNotificationServicing
     private let updateChecker: any UpdateChecking
@@ -248,7 +254,9 @@ final class AppState {
         currentBuildCommit: String? = Bundle.main.infoDictionary?["GITCommitHash"] as? String
     ) {
         self.authService = authService
-        self.api = api ?? GoogleTasksAPI(authService: authService)
+        let liveAPI = api ?? GoogleTasksAPI(authService: authService)
+        self.liveAPI = liveAPI
+        self.api = liveAPI
         self.userDefaults = userDefaults
         self.dueDateNotificationService = dueDateNotificationService
         self.updateChecker = updateChecker
@@ -271,7 +279,7 @@ final class AppState {
     private var signInTask: Task<Void, Never>?
 
     func signIn() {
-        guard signInTask == nil else { return }
+        guard signInTask == nil, !isDemoMode else { return }
 
         errorMessage = nil
         isLoading = true
@@ -292,12 +300,46 @@ final class AppState {
         }
     }
 
+    /// Swaps in sample data and marks the session signed in so the task UI
+    /// renders. A sign-in already in flight wins, so the two cannot both land.
+    func enterDemoMode() {
+        guard !isDemoMode, !isSignedIn, signInTask == nil else { return }
+
+        errorMessage = nil
+        isDemoMode = true
+        api = DemoTasksAPI()
+        isSignedIn = true
+        googleAccountProfile = nil
+        Task { await loadTaskLists() }
+    }
+
+    /// Discards the sample data and returns to the signed-out screen, so a
+    /// real sign-in afterwards talks to Google again.
+    func exitDemoMode() {
+        guard isDemoMode else { return }
+
+        isDemoMode = false
+        api = liveAPI
+        clearSignedInState()
+    }
+
     func signOut() {
+        // Demo mode has no token to discard; "sign out" means "leave the demo".
+        guard !isDemoMode else {
+            exitDemoMode()
+            return
+        }
+
         authService.signOut()
         clearSignedInState()
     }
 
     func disconnectGoogleAccount() async {
+        guard !isDemoMode else {
+            exitDemoMode()
+            return
+        }
+
         let revocationSucceeded = await authService.disconnect()
         clearSignedInState()
         if !revocationSucceeded {
@@ -307,7 +349,7 @@ final class AppState {
     }
 
     func refreshGoogleAccountProfileIfNeeded() async {
-        guard isSignedIn, googleAccountProfile == nil else { return }
+        guard isSignedIn, !isDemoMode, googleAccountProfile == nil else { return }
         await authService.refreshAccountProfile()
         googleAccountProfile = authService.accountProfile
     }
@@ -712,7 +754,8 @@ final class AppState {
     /// notification work chain so it cannot interleave with a sign-out's
     /// removeAll or a preference flip's removal.
     private func performDueDateNotificationSync() async {
-        guard isSignedIn, dueDateNotificationsEnabled, let selectedList else { return }
+        // Demo tasks are sample data, so they never schedule real reminders.
+        guard isSignedIn, !isDemoMode, dueDateNotificationsEnabled, let selectedList else { return }
         await dueDateNotificationService.syncNotifications(for: tasks, in: selectedList)
     }
 

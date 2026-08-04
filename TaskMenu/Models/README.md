@@ -4,7 +4,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 ## Files
 
-- `AppState.swift` - `@MainActor @Observable` source of truth for auth state, signed-in Google account profile, task lists, selected list, visible tasks, caches, row disclosure, search, due-date notification preference, update-check state, build version identity, and task mutations.
+- `AppState.swift` - `@MainActor @Observable` source of truth for auth state, demo mode, signed-in Google account profile, task lists, selected list, visible tasks, caches, row disclosure, search, due-date notification preference, update-check state, build version identity, and task mutations.
 - `TaskItem.swift` - Google Task model, completion helpers, parent/subtask fields, Google due-date conversion, and paged task-list response model.
 - `TaskList.swift` - Google Task List model and collection response model.
 
@@ -16,6 +16,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 - Keep the per-list cache in sync when adding, adding subtasks, completing, updating, deleting, or selecting lists.
 - Use `taskLoadRequestID` guards when introducing async task-loading work so stale responses cannot overwrite the active list. Fetches also capture `taskStateGeneration`, which every committed mutation bumps, so a fetch snapshot taken before a local change is discarded rather than applied.
 - Keep update checks comparing `currentAppVersion` (marketing version only). `currentBuildCommit` and `currentAppVersionDisplay` are display-only; the latter renders `1.3.0 (a1b2c3d)`, or `(dev)` when the build carries no commit stamp.
+- `enterDemoMode()`/`exitDemoMode()` swap the injected `api` between the account-backed client and `DemoTasksAPI`, leaving `authService` untouched. `signOut()` and `disconnectGoogleAccount()` route to `exitDemoMode()` while demo mode is active, so neither discards real credentials. Guard any new account-facing work with `!isDemoMode`.
 - Route post-await mutation writes through `commitTaskChange(to:_:)`: it re-checks the captured list against the current selection and writes to the live array or `taskCacheByListID` accordingly. Re-check `isSignedIn` after every await before touching state.
 
 ## Task Ordering And Search

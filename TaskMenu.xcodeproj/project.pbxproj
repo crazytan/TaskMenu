@@ -49,6 +49,8 @@
 		CE62B34C489FAB410B59EF62 /* TaskMenuActionButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */; };
 		D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */; };
 		D75722B06B77536D032C2FCD /* DueDateNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */; };
+		D97593DA719D2F2D6FDEEDE5 /* DemoTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */; };
+		DA25E72399919D98DA85845D /* DemoModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31219315F608ED2061A3365 /* DemoModeTests.swift */; };
 		DE51E84794E46D07C1401DE6 /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633899C51990EF71D24F5C89 /* TaskList.swift */; };
 		DFD21FE92BBBBD402B0B05A1 /* AppStateBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */; };
 		E54169E513191306010635A7 /* AppIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */; };
@@ -113,6 +115,7 @@
 		9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationServiceTests.swift; sourceTree = "<group>"; };
 		A2191A69341B04C760925B55 /* TaskListViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListViewTests.swift; sourceTree = "<group>"; };
 		ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDueDateNotificationService.swift; sourceTree = "<group>"; };
+		AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoTasksAPI.swift; sourceTree = "<group>"; };
 		B39705E088F29F844C149617 /* DueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationService.swift; sourceTree = "<group>"; };
 		B6BE8A6C21B3086FFB9D3D86 /* TaskDetailAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailAppKitViewController.swift; sourceTree = "<group>"; };
 		BB4F099FA85A0476A96ED002 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
@@ -124,6 +127,7 @@
 		C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPITests.swift; sourceTree = "<group>"; };
 		D898FA58565B1CBB9ED2695E /* MenuBarIcon.svg */ = {isa = PBXFileReference; path = MenuBarIcon.svg; sourceTree = "<group>"; };
 		D9592A4B7C25B7B328D1CAE3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E31219315F608ED2061A3365 /* DemoModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoModeTests.swift; sourceTree = "<group>"; };
 		E62AEDAB2E61D986C97C60D1 /* TaskPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPresentation.swift; sourceTree = "<group>"; };
 		EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		F4BD10764723731B64E9E183 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -163,6 +167,7 @@
 		2A93E24654445FC8029C75F7 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */,
 				B39705E088F29F844C149617 /* DueDateNotificationService.swift */,
 				3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */,
 				63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */,
@@ -231,6 +236,7 @@
 				1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */,
 				8F3614C7335BB0200D28F074 /* AppStateTests.swift */,
 				500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */,
+				E31219315F608ED2061A3365 /* DemoModeTests.swift */,
 				9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */,
 				1C007468F67DCAC110FDF650 /* GitHubUpdateCheckerTests.swift */,
 				C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */,
@@ -360,6 +366,7 @@
 				423DB4F7DE968CBD6A6E805D /* AppState.swift in Sources */,
 				9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */,
 				4C4A40DBCD2948E2FC0F1F3A /* DateFormatting.swift in Sources */,
+				D97593DA719D2F2D6FDEEDE5 /* DemoTasksAPI.swift in Sources */,
 				B8593A4B6220752FE803BAF3 /* DueDateNotificationService.swift in Sources */,
 				C4D74AEE4D4E0555EA0336A2 /* GitHubUpdateChecker.swift in Sources */,
 				0A9AE96BCBF5513327268CAD /* GoogleAuthService.swift in Sources */,
@@ -391,6 +398,7 @@
 				DFD21FE92BBBBD402B0B05A1 /* AppStateBehaviorTests.swift in Sources */,
 				FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */,
 				11E28771324DA02B74C9983F /* DateFormattingTests.swift in Sources */,
+				DA25E72399919D98DA85845D /* DemoModeTests.swift in Sources */,
 				D75722B06B77536D032C2FCD /* DueDateNotificationServiceTests.swift in Sources */,
 				B4227F8E90C484F324C235C1 /* GitHubUpdateCheckerTests.swift in Sources */,
 				986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */,
@@ -481,7 +489,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -503,7 +511,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.4;
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -569,7 +577,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -585,7 +593,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.4;
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

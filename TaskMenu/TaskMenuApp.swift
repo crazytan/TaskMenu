@@ -41,6 +41,39 @@ enum TaskMenuApp {
         uiMode(arguments: CommandLine.arguments)
     }
 
+    /// Screen a `--testing-window --demo` launch opens on its own, so App
+    /// Store preview sources can be recaptured identically each release
+    /// instead of being clicked through by hand.
+    enum CaptureScreen: String {
+        case list
+        case task
+        case settings
+    }
+
+    static var captureScreen: CaptureScreen? {
+        captureScreen(arguments: CommandLine.arguments)
+    }
+
+    /// Prints the identity `AppStorePreviews/capture_sources.py` needs to grab
+    /// exactly this window: `screencapture -l<number>` plus the title-bar
+    /// height to crop off, in backing pixels.
+    static func printCaptureWindowDescriptor(for window: NSWindow) {
+        let scale = window.backingScaleFactor
+        let titleBarPoints = window.frame.height - window.contentLayoutRect.height
+        print("CAPTURE window=\(window.windowNumber) titlebar=\(Int((titleBarPoints * scale).rounded()))")
+        fflush(stdout)
+    }
+
+    static func captureScreen(arguments: [String]) -> CaptureScreen? {
+        guard let flagIndex = arguments.firstIndex(of: "--capture"),
+              arguments.indices.contains(flagIndex + 1)
+        else {
+            return nil
+        }
+
+        return CaptureScreen(rawValue: arguments[flagIndex + 1])
+    }
+
     static func uiMode(arguments: [String]) -> TaskMenuUIMode {
         if arguments.contains("--testing-window") {
             return .testingWindow
@@ -77,20 +110,37 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     /// Builds a fully in-memory `AppState` for `--testing-window` launches:
     /// fake seeded tasks, no Keychain access, no Google credentials, no
     /// notifications, no update checks, and throwaway UserDefaults.
+    ///
+    /// Adding `--signed-out` starts on the sign-in screen instead, which is
+    /// how the demo-mode entry point gets exercised without credentials.
+    /// Adding `--demo` skips straight into demo mode.
+    /// Adding `--capture` renders the App Store preview states: the same
+    /// realistic sample data, but signed in, so no demo banner or demo account
+    /// row appears in the marketing screenshots.
     private static func makeTestingWindowAppState() -> AppState {
         let suiteName = "TaskMenu.TestingWindow"
         let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
         userDefaults.removePersistentDomain(forName: suiteName)
 
+        let isCapture = TaskMenuApp.captureScreen != nil
         let state = AppState(
             authService: GoogleAuthService(keychain: InMemoryKeychainService()),
-            api: TestingWindowTasksAPI(),
+            api: isCapture ? DemoTasksAPI() : TestingWindowTasksAPI(),
             userDefaults: userDefaults,
             dueDateNotificationService: NoOpDueDateNotificationService(),
             updateChecker: DisabledUpdateChecker()
         )
+        guard !CommandLine.arguments.contains("--signed-out") else { return state }
+
+        if !isCapture, CommandLine.arguments.contains("--demo") {
+            state.enterDemoMode()
+            return state
+        }
+
         state.isSignedIn = true
-        state.googleAccountProfile = GoogleAccountProfile(email: "testing-window@example.com")
+        state.googleAccountProfile = GoogleAccountProfile(
+            email: isCapture ? "you@example.com" : "testing-window@example.com"
+        )
         return state
     }
 
@@ -126,6 +176,17 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
             testingWindowController = TestingWindowController(appState: appState)
             testingWindowController?.showWindow(nil)
             NSApp.activate(ignoringOtherApps: true)
+            if TaskMenuApp.captureScreen == .settings {
+                showSettingsWindow(nil)
+            }
+            if TaskMenuApp.captureScreen != nil {
+                let captureWindow = TaskMenuApp.captureScreen == .settings
+                    ? settingsWindowController?.window
+                    : testingWindowController?.window
+                if let captureWindow {
+                    TaskMenuApp.printCaptureWindowDescriptor(for: captureWindow)
+                }
+            }
         }
     }
 

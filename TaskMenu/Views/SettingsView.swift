@@ -94,6 +94,7 @@ private final class SettingsViewController: NSViewController {
     private func observeAppState() {
         observer.observe { [appState] in
             _ = appState.isSignedIn
+            _ = appState.isDemoMode
             _ = appState.googleAccountProfile?.displayEmail
             _ = appState.dueDateNotificationsEnabled
             _ = appState.automaticUpdateChecksEnabled
@@ -258,11 +259,18 @@ private final class SettingsViewController: NSViewController {
     }
 
     private func accountSection() -> NSView {
+        // Demo mode holds no credentials, so there is nothing to revoke.
+        let isDemoMode = appState.isDemoMode
         let disconnectButton = actionButton(
-            title: "Disconnect…",
-            role: .destructive,
+            title: isDemoMode ? "Exit Demo" : "Disconnect…",
+            role: isDemoMode ? .standard : .destructive,
             onPress: { [weak self] _ in
-                self?.confirmDisconnect()
+                guard let self else { return }
+                if isDemoMode {
+                    self.appState.exitDemoMode()
+                } else {
+                    self.confirmDisconnect()
+                }
             }
         )
         disconnectButton.controlSize = .small
@@ -320,6 +328,7 @@ private final class SettingsViewController: NSViewController {
     }
 
     private var accountTitle: String {
+        if appState.isDemoMode { return "Demo mode — sample data" }
         guard appState.isSignedIn else { return "Not signed in" }
         return appState.googleAccountProfile?.displayEmail ?? "Google Account"
     }

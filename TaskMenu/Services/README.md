@@ -7,6 +7,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - `GoogleAuthService.swift` - `@MainActor` OAuth 2.0 PKCE flow, web-auth callback parsing, token exchange/refresh/revocation, Keychain-backed token loading, and signed-in account email loading.
 - `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, subtask creation, updates, deletes, and pagination.
 - `TasksAPIProtocol.swift` - async API contract used by `AppState`, production API code, and unit-test doubles.
+- `DemoTasksAPI.swift` - `actor` in-memory sample data (Today/Work/Personal) backing demo mode; no network, no credentials, and mutations are discarded when the demo ends.
 - `GitHubUpdateChecker.swift` - GitHub Releases latest-version lookup, semantic-version comparison, and update-check protocol used by Settings and launch alerts.
 - `KeychainService.swift` - Sendable wrapper around Security framework item CRUD; stores items in the data-protection keychain (device-only accessibility) with transparent migration from the legacy login-keychain location and a fallback for unsigned builds.
 - `DueDateNotificationService.swift` - UserNotifications abstraction and due-date reminder syncing.
@@ -42,6 +43,12 @@ Services isolate external systems and side effects from views. Keep protocols na
 - `GitHubUpdateChecker` checks the public latest GitHub release endpoint and returns an update only when the release tag is valid `x.y.z` semver and newer than the bundle short version. An unparseable release tag throws (surfaced as a failed check); an unparseable current version returns nil so dev builds do not show a permanent failure. The app re-checks on a 24-hour loop while running.
 - `AppState` owns the automatic-check preference, 24-hour throttle, last-check timestamp, and last-alerted version.
 - Keep update checks read-only and unauthenticated. Opening the GitHub release page is user-initiated from settings or the launch alert.
+
+## Demo Mode
+
+- `AppState.enterDemoMode()` swaps `api` from the account-backed client to `DemoTasksAPI` and marks the session signed in; `exitDemoMode()` restores the live client. `authService` is never touched, so stored credentials survive a demo session.
+- Demo mode is entered only from the signed-out screen. Stored tokens make `authService.isSignedIn` true, which blocks entry by design.
+- Notification syncing is suppressed while in demo mode, so sample due dates never schedule real reminders.
 
 ## Testing Hooks
 

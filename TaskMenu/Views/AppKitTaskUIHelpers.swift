@@ -5,9 +5,10 @@ import Observation
 enum TaskMenuMetrics {
     static let popoverWidth: CGFloat = 320
     static let signedInPopoverHeight: CGFloat = 480
-    static let signedOutPopoverHeight: CGFloat = 300
+    static let signedOutPopoverHeight: CGFloat = 324
     static let loadingPopoverHeight: CGFloat = 180
     static let errorStripHeight: CGFloat = 34
+    static let demoBannerHeight: CGFloat = 34
     static let taskIndentWidth: CGFloat = 20
 }
 
