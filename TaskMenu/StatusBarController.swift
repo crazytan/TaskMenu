@@ -48,6 +48,16 @@ final class StatusBarController: NSObject {
     private func configureContextMenu() {
         contextMenu.autoenablesItems = false
 
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        contextMenu.addItem(settingsItem)
+
+        contextMenu.addItem(.separator())
+
         let quitItem = NSMenuItem(
             title: "Quit TaskMenu",
             action: #selector(quit),
@@ -147,6 +157,12 @@ final class StatusBarController: NSObject {
 
     private func setStatusItemHighlighted(_ isHighlighted: Bool) {
         StatusItemHighlighting.apply(isHighlighted, to: statusItem.button)
+    }
+
+    @objc private func openSettings() {
+        closePopover()
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(#selector(TaskMenuAppDelegate.showSettingsWindow(_:)), to: NSApp.delegate, from: nil)
     }
 
     @objc private func quit() {

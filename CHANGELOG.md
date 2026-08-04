@@ -13,6 +13,7 @@
 - **Calendar picker for due dates** — the task editor's due-date row now has a calendar button that opens a month view, so a date can be picked instead of only typed or stepped. Picking a day fills the date field and closes the calendar; clicking elsewhere or pressing Escape dismisses it without discarding the edit.
 - **⌘N and ⌘F** jump to the "Add a task" and "Filter tasks" fields from anywhere on the task list. Both do nothing while a task is open for editing.
 - **⌘Q quits** from the popover and Settings, and **⌘,** opens Settings.
+- **Settings… in the menu bar icon's right-click menu**, above Quit TaskMenu.
 
 ### Fixed
 - **Copy, Cut, Paste, Select All, and Undo now work in every text input** — filter tasks, add task, task title, notes, and add subtask. The app never installed a main menu, and macOS routes those shortcuts to the focused field through the main menu's Edit items, so all of them were silently dropped.
