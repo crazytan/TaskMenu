@@ -66,4 +66,11 @@ Config.xcconfig
 
 # Generated build metadata (git commit stamp)
 BuildMetadata.xcconfig
+
+# Generated App Store preview assets (rebuild with AppStorePreviews/*.py)
+AppStorePreviews/sources/
+AppStorePreviews/*.png
+AppStorePreviews/2560x1600/
+AppStorePreviews/1440x900/
+AppStorePreviews/1280x800/
 .wrangler/

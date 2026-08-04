@@ -1,26 +1,64 @@
+"""Composite the App Store preview images for the TaskMenu macOS listing.
+
+Reads the window captures in ``sources/`` (produced by ``capture_sources.py``)
+and frames each one on a marketing canvas: menu bar above, popover attached
+beneath it, headline and supporting copy alongside.
+
+The captures are used as-is. Nothing is redrawn or painted over them, so the
+previews always show the shipping UI. Copy avoids other companies' product
+names, which App Review flags under guideline 4.1(c).
+
+    python3 AppStorePreviews/generate_previews.py
+"""
+
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-
 ROOT = Path(__file__).resolve().parent
-DOCS = Path("/Users/tan/Documents")
-OUT = ROOT
+SOURCES = ROOT / "sources"
 SIZE = (2880, 1800)
+EXPORT_SIZES = [(2560, 1600), (1440, 900), (1280, 800)]
 
-SCREENSHOTS = [
-    DOCS / "Screenshot 2026-04-27 at 15.07.43.png",
-    DOCS / "Screenshot 2026-04-27 at 15.07.58.png",
-    DOCS / "Screenshot 2026-04-27 at 15.08.12.png",
+FONT_PATH = "/System/Library/Fonts/HelveticaNeue.ttc"
+REGULAR, BOLD = 0, 1
+
+INK = "#10233a"
+INK_SOFT = "#456379"
+MENU_BAR_HEIGHT = 64
+
+# Headline copy per screen. Deliberately free of other companies' brand names.
+# `tethered` draws the popover hanging off the status item; Settings is a real
+# window rather than a popover, so it is framed without the tether.
+SPECS = [
+    (
+        "01-list.png",
+        "taskmenu-preview-01-tasks.png",
+        "Your day, one click away",
+        "Every list lives in the menu bar. Add, filter, and tick things off without leaving what you're doing.",
+        True,
+    ),
+    (
+        "02-task.png",
+        "taskmenu-preview-02-edit.png",
+        "Details without a detour",
+        "Due dates, notes, and subtasks in one compact panel that opens and closes right where you are.",
+        True,
+    ),
+    (
+        "03-settings.png",
+        "taskmenu-preview-03-settings.png",
+        "Quiet by design",
+        "No Dock icon and no window to manage. Launch at login, switch on due-date reminders, and forget it's there.",
+        False,
+    ),
 ]
 
 
-def font(size: int, weight: str = "regular") -> ImageFont.FreeTypeFont:
-    path = "/System/Library/Fonts/HelveticaNeue.ttc"
-    return ImageFont.truetype(path, size=size)
+def font(size: int, weight: int = REGULAR) -> ImageFont.FreeTypeFont:
+    return ImageFont.truetype(FONT_PATH, size=size, index=weight)
 
 
 def rgba(hex_color: str, alpha: int = 255) -> tuple[int, int, int, int]:
@@ -28,204 +66,176 @@ def rgba(hex_color: str, alpha: int = 255) -> tuple[int, int, int, int]:
     return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4)) + (alpha,)
 
 
-def text(
-    draw: ImageDraw.ImageDraw,
-    xy: tuple[int, int],
-    value: str,
-    size: int,
-    fill: tuple[int, int, int, int],
-    anchor: str = "la",
-    weight: str = "regular",
-) -> None:
-    draw.text(xy, value, font=font(size, weight), fill=fill, anchor=anchor)
-
-
-def desktop_background() -> Image.Image:
-    width, height = SIZE
-    img = Image.new("RGB", SIZE, "#dff4ff")
-    px = img.load()
+def background() -> Image.Image:
+    """Soft vertical wash with a few blurred colour pools for depth."""
+    height = SIZE[1]
+    base = Image.new("RGB", (1, height))
+    top, bottom = (238, 244, 251), (214, 227, 242)
     for y in range(height):
-        for x in range(width):
-            nx = x / width
-            ny = y / height
-            wave = math.sin((nx * 2.8 + ny * 1.3) * math.pi) * 10
-            r = int(218 - 34 * ny + 18 * nx + wave)
-            g = int(244 - 18 * ny + 10 * math.sin(nx * math.pi))
-            b = int(255 - 4 * nx - 18 * ny)
-            px[x, y] = (max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b)))
+        t = y / (height - 1)
+        base.putpixel(
+            (0, y),
+            tuple(int(a + (b - a) * t) for a, b in zip(top, bottom)),
+        )
+    img = base.resize(SIZE, Image.Resampling.BILINEAR).convert("RGBA")
 
-    overlay = Image.new("RGBA", SIZE, (0, 0, 0, 0))
-    d = ImageDraw.Draw(overlay)
-    for cx, cy, rad, color in [
-        (350, 260, 520, rgba("#7ad6d1", 54)),
-        (2290, 1200, 760, rgba("#81a7ff", 58)),
-        (1450, 410, 620, rgba("#fff5b7", 42)),
+    pools = Image.new("RGBA", SIZE, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(pools)
+    for cx, cy, radius, colour in [
+        (420, 1500, 720, rgba("#8fb6ff", 58)),
+        (2500, 250, 640, rgba("#a9d8f5", 66)),
+        (1500, 1750, 900, rgba("#c9d4ff", 44)),
     ]:
-        d.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=color)
-    overlay = overlay.filter(ImageFilter.GaussianBlur(90))
-    img = Image.alpha_composite(img.convert("RGBA"), overlay)
-
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((96, 96, 2784, 1704), radius=54, outline=rgba("#ffffff", 82), width=2)
-    d.rectangle((0, 0, width, 56), fill=rgba("#f9fbfd", 176))
-    text(d, (40, 33), "TaskMenu", 25, rgba("#1e3e56", 210), anchor="lm")
-    text(d, (220, 33), "File   Edit   View   Window   Help", 22, rgba("#1e3e56", 150), anchor="lm")
-    text(d, (2548, 33), "Mon Apr 27  3:12 PM", 22, rgba("#1e3e56", 150), anchor="lm")
-    d.rounded_rectangle((2454, 9, 2505, 47), radius=18, fill=rgba("#cfe6f8", 220))
-    d.ellipse((2471, 19, 2488, 36), fill=rgba("#1d6fe8", 255))
-    return img.convert("RGBA")
+        draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=colour)
+    pools = pools.filter(ImageFilter.GaussianBlur(150))
+    return Image.alpha_composite(img, pools)
 
 
-def scrub_list(src: Image.Image) -> Image.Image:
-    img = src.convert("RGBA")
-    d = ImageDraw.Draw(img)
-    bg = rgba("#c7e9ff", 255)
-    d.rectangle((0, 226, img.width, 895), fill=bg)
-    d.line((0, 226, img.width, 226), fill=rgba("#a8cfe6", 160), width=1)
-    d.line((0, 895, img.width, 895), fill=rgba("#93bbd6", 145), width=1)
+def menu_bar(canvas: Image.Image, icon_x: int, active: bool) -> None:
+    """Translucent menu bar; `active` highlights the status item as macOS does
+    while its popover is open."""
+    draw = ImageDraw.Draw(canvas)
+    bar = Image.new("RGBA", (SIZE[0], MENU_BAR_HEIGHT), rgba("#ffffff", 150))
+    canvas.alpha_composite(bar, (0, 0))
+    draw.line((0, MENU_BAR_HEIGHT, SIZE[0], MENU_BAR_HEIGHT), fill=rgba("#ffffff", 120), width=2)
 
-    for cy in (278, 363):
-        d.ellipse((57, cy - 16, 91, cy + 18), outline=rgba("#4f7188"), width=2)
+    centre_y = MENU_BAR_HEIGHT // 2
+    draw.text((44, centre_y), "TaskMenu", font=font(26, BOLD), fill=rgba(INK, 205), anchor="lm")
+    for offset, label in ((190, "File"), (268, "Edit"), (346, "View"), (434, "Window"), (556, "Help")):
+        draw.text((offset, centre_y), label, font=font(25), fill=rgba(INK, 150), anchor="lm")
 
-    def calendar_icon(x: int, y: int, color: tuple[int, int, int, int]) -> None:
-        d.rounded_rectangle((x, y, x + 19, y + 18), radius=3, outline=color, width=2)
-        d.rectangle((x + 2, y + 5, x + 17, y + 7), fill=color)
-        for dx in (5, 10, 15):
-            d.rectangle((x + dx, y + 10, x + dx + 2, y + 12), fill=color)
+    draw.text((SIZE[0] - 60, centre_y), "Mon 9:41 AM", font=font(25), fill=rgba(INK, 165), anchor="rm")
 
-    text(d, (112, 252), "Review project brief", 26, rgba("#06131f"), anchor="la")
-    calendar_icon(114, 287, rgba("#45687d"))
-    text(d, (153, 292), "Apr 29, 2026", 21, rgba("#45687d"), anchor="la")
-    text(d, (112, 339), "Book team lunch", 26, rgba("#06131f"), anchor="la")
-    calendar_icon(114, 374, rgba("#ff2d55"))
-    text(d, (153, 379), "Apr 17, 2026", 21, rgba("#ff2d55"), anchor="la")
-
-    d.line((40, 461, 47, 468), fill=rgba("#4d7084"), width=3)
-    d.line((47, 468, 40, 475), fill=rgba("#4d7084"), width=3)
-    text(d, (57, 460), "Completed (24)", 22, rgba("#4d7084"), anchor="la")
-    return img
-
-
-def scrub_detail(src: Image.Image) -> Image.Image:
-    img = src.convert("RGBA")
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((66, 253, 560, 289), radius=8, fill=rgba("#b9d9ee", 255))
-    text(d, (71, 258), "Review project brief", 25, rgba("#06131f"), anchor="la")
-    d.rounded_rectangle((427, 454, 560, 499), radius=12, fill=rgba("#c7e1f4", 255))
-    text(d, (446, 467), "4/29/2026", 24, rgba("#06131f"), anchor="la")
-    return img
+    if active:
+        draw.rounded_rectangle(
+            (icon_x - 34, 8, icon_x + 34, MENU_BAR_HEIGHT - 8),
+            radius=14,
+            fill=rgba("#2a6df4", 220),
+        )
+    glyph = rgba("#ffffff") if active else rgba(INK, 200)
+    for row, filled in ((-11, True), (7, False)):
+        cy = centre_y + row
+        if filled:
+            draw.ellipse((icon_x - 22, cy - 8, icon_x - 6, cy + 8), fill=glyph)
+            draw.line(
+                (icon_x - 19, cy, icon_x - 15, cy + 4, icon_x - 9, cy - 4),
+                fill=rgba("#2a6df4") if active else rgba("#ffffff"),
+                width=3,
+                joint="curve",
+            )
+        else:
+            draw.ellipse((icon_x - 22, cy - 8, icon_x - 6, cy + 8), outline=glyph, width=3)
+        draw.line((icon_x - 1, cy, icon_x + 22, cy), fill=glyph, width=3)
 
 
-def add_shadow(base: Image.Image, image: Image.Image, xy: tuple[int, int], blur: int = 36) -> None:
-    x, y = xy
-    shadow = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    mask = image.getchannel("A")
-    shadow.paste((32, 68, 96, 112), mask=mask)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(blur))
-    base.alpha_composite(shadow, (x + 0, y + 18))
-    base.alpha_composite(image, xy)
+def rounded(image: Image.Image, radius: int) -> Image.Image:
+    """Mask the capture's square corners back to the popover's rounded ones."""
+    mask = Image.new("L", image.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, image.width - 1, image.height - 1), radius=radius, fill=255)
+    out = image.convert("RGBA")
+    out.putalpha(mask)
+    return out
 
 
-def popover_cutout(image: Image.Image) -> Image.Image:
-    raw = image.convert("RGBA")
-    crop = raw.crop((8, 4, raw.width - 6, raw.height - 6))
-    width, height = crop.size
-    radius = int(min(width, height) * 0.065)
+def drop_shadow(canvas: Image.Image, panel: Image.Image, xy: tuple[int, int]) -> None:
+    shadow = Image.new("RGBA", (panel.width + 260, panel.height + 260), (0, 0, 0, 0))
+    shadow.paste(rgba("#0d2b46", 92), (130, 130), panel.getchannel("A"))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(46))
+    canvas.alpha_composite(shadow, (xy[0] - 130, xy[1] - 108))
+    canvas.alpha_composite(panel, xy)
 
-    panel = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    d = ImageDraw.Draw(panel)
-    d.rounded_rectangle(
-        (0, 0, width - 1, height - 1),
-        radius=radius,
-        fill=rgba("#c4e8ff"),
-        outline=rgba("#50728a", 210),
-        width=2,
+
+def wrap_lines(draw: ImageDraw.ImageDraw, text: str, typeface: ImageFont.FreeTypeFont, limit: int) -> list[str]:
+    lines: list[str] = []
+    for paragraph in text.split("\n"):
+        line = ""
+        for word in paragraph.split():
+            candidate = f"{line} {word}".strip()
+            if draw.textlength(candidate, font=typeface) <= limit or not line:
+                line = candidate
+            else:
+                lines.append(line)
+                line = word
+        lines.append(line)
+    return lines
+
+
+def compose(source: Path, headline: str, subhead: str, filename: str, tethered: bool) -> None:
+    canvas = background()
+    capture = Image.open(source).convert("RGB")
+
+    # Scale each capture to a consistent on-canvas height so the three
+    # previews read as a set, whatever the window's own size is.
+    target_height = 1180
+    scale = target_height / capture.height
+    panel = rounded(
+        capture.resize(
+            (round(capture.width * scale), target_height),
+            Image.Resampling.LANCZOS,
+        ),
+        radius=round(20 * scale),
     )
 
-    mask = Image.new("L", (width, height), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (2, 2, width - 3, height - 3),
-        radius=radius - 2,
-        fill=255,
-    )
-    panel.alpha_composite(crop)
-    panel.putalpha(mask.filter(ImageFilter.GaussianBlur(0.2)))
+    panel_x = SIZE[0] - panel.width - 300
+    panel_y = 300
+    icon_x = panel_x + panel.width // 2
 
-    outline = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    ImageDraw.Draw(outline).rounded_rectangle(
-        (1, 1, width - 2, height - 2),
-        radius=radius,
-        outline=rgba("#4d6f86", 180),
-        width=2,
-    )
-    panel.alpha_composite(outline)
-    return panel
+    menu_bar(canvas, icon_x, active=tethered)
 
+    if tethered:
+        # Leader connecting the status item to the popover below it.
+        ImageDraw.Draw(canvas).polygon(
+            [(icon_x, panel_y - 46), (icon_x - 34, panel_y + 6), (icon_x + 34, panel_y + 6)],
+            fill=rgba("#f4f8fd", 240),
+        )
 
-def compose(idx: int, screenshot: Image.Image, headline: str, subhead: str, filename: str) -> None:
-    canvas = desktop_background()
-    d = ImageDraw.Draw(canvas)
+    drop_shadow(canvas, panel, (panel_x, panel_y))
 
-    text(d, (180, 430), headline, 92, rgba("#12344b"), anchor="la")
-    lines = subhead.split("\n")
-    for line_idx, line in enumerate(lines):
-        text(d, (184, 585 + line_idx * 62), line, 42, rgba("#365b71", 225), anchor="la")
+    draw = ImageDraw.Draw(canvas)
+    text_left = 210
+    text_width = panel_x - text_left - 190
 
-    scale = 1.34 if idx != 2 else 1.55
-    pop = popover_cutout(screenshot).resize(
-        (int(screenshot.width * scale), int(screenshot.height * scale)),
-        Image.Resampling.LANCZOS,
-    )
-    pop_x = 1710 if idx != 2 else 1750
-    pop_y = 205 if idx != 2 else 320
-    canvas.alpha_composite(pop, (pop_x, pop_y))
+    headline_font = font(104, BOLD)
+    headline_lines = wrap_lines(draw, headline, headline_font, text_width)
+    body_font = font(42)
+    body_lines = wrap_lines(draw, subhead, body_font, text_width)
 
-    # Tiny pointer to make the window feel attached to the real menu bar.
-    d.polygon([(2477, 55), (2445, 112), (2509, 112)], fill=rgba("#b9def5", 235))
+    headline_leading, body_leading = 122, 64
+    block_height = len(headline_lines) * headline_leading + 54 + len(body_lines) * body_leading
+    y = (SIZE[1] - block_height) // 2
 
-    canvas = canvas.convert("RGB")
-    canvas.save(OUT / filename, "PNG", optimize=True)
+    for line in headline_lines:
+        draw.text((text_left, y), line, font=headline_font, fill=rgba(INK), anchor="la")
+        y += headline_leading
+    y += 54
+    for line in body_lines:
+        draw.text((text_left, y), line, font=body_font, fill=rgba(INK_SOFT, 235), anchor="la")
+        y += body_leading
+
+    canvas.convert("RGB").save(ROOT / filename, "PNG", optimize=True)
 
 
 def main() -> None:
-    raw = [Image.open(path) for path in SCREENSHOTS]
-    images = [scrub_list(raw[0]), scrub_detail(raw[1]), raw[2].convert("RGBA")]
-    specs = [
-        (
-            0,
-            images[0],
-            "Tasks, one click away",
-            "Open your task lists from the menu bar.\nAdd, filter, and complete work without breaking flow.",
-            "taskmenu-preview-01-tasks.png",
-        ),
-        (
-            1,
-            images[1],
-            "Edit details in seconds",
-            "Set due dates, notes, and subtasks in a compact native panel.",
-            "taskmenu-preview-02-edit.png",
-        ),
-        (
-            2,
-            images[2],
-            "Quiet by design",
-            "Launch at login, enable due-date alerts, and keep TaskMenu out of the Dock.",
-            "taskmenu-preview-03-settings.png",
-        ),
-    ]
-    for spec in specs:
-        compose(*spec)
+    missing = [name for name, *_ in SPECS if not (SOURCES / name).exists()]
+    if missing:
+        raise SystemExit(
+            "Missing source captures: "
+            + ", ".join(missing)
+            + "\nRun: python3 AppStorePreviews/capture_sources.py"
+        )
 
-    for export_size in [(2560, 1600), (1440, 900), (1280, 800)]:
-        export_dir = OUT / f"{export_size[0]}x{export_size[1]}"
+    for source_name, filename, headline, subhead, tethered in SPECS:
+        compose(SOURCES / source_name, headline, subhead, filename, tethered)
+        print(f"wrote {filename}")
+
+    for export_size in EXPORT_SIZES:
+        export_dir = ROOT / f"{export_size[0]}x{export_size[1]}"
         export_dir.mkdir(exist_ok=True)
-        for _, _, _, _, filename in specs:
-            large = Image.open(OUT / filename).convert("RGB")
-            large.resize(export_size, Image.Resampling.LANCZOS).save(
-                export_dir / filename,
-                "PNG",
-                optimize=True,
-            )
+        for _, filename, *_ in SPECS:
+            Image.open(ROOT / filename).convert("RGB").resize(
+                export_size, Image.Resampling.LANCZOS
+            ).save(export_dir / filename, "PNG", optimize=True)
+        print(f"wrote {export_dir.name}/")
 
 
 if __name__ == "__main__":
