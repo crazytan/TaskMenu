@@ -21,7 +21,7 @@ Resources define bundle metadata, security settings, and visual assets. Keep gen
 ## Entitlements
 
 - Keep sandboxing and hardened runtime enabled through `project.yml`.
-- The app needs outbound network access for Google OAuth, Google Tasks, token revocation, and GitHub release update checks.
+- The app needs outbound network access for Google OAuth, Google Tasks, token revocation, and GitHub release update checks. Mac App Store builds make no GitHub request; the update checker is not compiled into them.
 - Add entitlements only when a feature requires them and include a short rationale in the change.
 
 ## Assets

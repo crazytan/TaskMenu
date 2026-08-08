@@ -171,7 +171,9 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     private var testingWindowController: TestingWindowController?
     private var settingsWindowController: SettingsWindowController?
+    #if !APP_STORE_BUILD
     private var automaticUpdateCheckTask: Task<Void, Never>?
+    #endif
     private let metricKitService = MetricKitService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -194,7 +196,9 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         case .menuBar:
             metricKitService.start()
             statusBarController = StatusBarController(appState: appState)
+            #if !APP_STORE_BUILD
             startAutomaticUpdateCheck()
+            #endif
         case .testingWindow:
             _ = NSApp.setActivationPolicy(.regular)
             testingWindowController = TestingWindowController(appState: appState)
@@ -215,6 +219,10 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // The Mac App Store updates its own apps, and guideline 2.4.5(vii) forbids
+    // a second update path, so the whole check-and-alert loop is compiled out
+    // of that configuration.
+    #if !APP_STORE_BUILD
     private func startAutomaticUpdateCheck() {
         let interval = appState.updateCheckInterval
         automaticUpdateCheckTask = Task { [weak self] in
@@ -278,6 +286,7 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.open(release.releaseURL)
         }
     }
+    #endif
 
     @objc func showSettingsWindow(_ sender: Any?) {
         if settingsWindowController == nil {
@@ -331,12 +340,6 @@ private struct NoOpDueDateNotificationService: DueDateNotificationServicing {
     func syncNotifications(for tasks: [TaskItem], in list: TaskList) async {}
     func removeNotifications(forTaskIDs taskIDs: [String], inListID listID: String) async {}
     func removeAllNotifications() async {}
-}
-
-private struct DisabledUpdateChecker: UpdateChecking {
-    func latestUpdate(currentVersion: String) async throws -> AppUpdateRelease? {
-        nil
-    }
 }
 
 private actor TestingWindowTasksAPI: TasksAPIProtocol {

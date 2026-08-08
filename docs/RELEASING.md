@@ -160,3 +160,28 @@ APP_STORE_CONNECT_KEY_PATH="$HOME/private_keys/AuthKey_XXXXXXXXXX.p8" \
 ```
 
 When the `APP_STORE_CONNECT_*` variables are set, the script notarizes the DMG, staples it, and runs a Gatekeeper assessment (`spctl --assess`) that must pass. Without them it skips notarization and prints `skipping Gatekeeper assessment (no notarization credentials)`; such a DMG is fine for local testing but is not distributable.
+
+## Mac App Store builds
+
+The Mac App Store gets a different binary from the DMG. Two App Review guidelines require it:
+
+- **2.4.5(vii)** - the Mac App Store delivers its own updates, so the app must not ship a second update path. The `AppStore` configuration compiles out `GitHubUpdateChecker`, `Constants.githubLatestReleaseURL`, the automatic check loop, and the update UI in Settings.
+- **3.1.1** - donations must go through In-App Purchase, so the "Buy Me a Coffee" link is compiled out too.
+
+Both are gated on the `APP_STORE_BUILD` compilation condition, which only the `AppStore` configuration defines. `Debug` and `Release` are unchanged, so the DMG and Homebrew builds keep the update checker and the tip link.
+
+Archive with the dedicated scheme:
+
+```bash
+xcodebuild archive -project TaskMenu.xcodeproj -scheme "TaskMenu (App Store)" -configuration AppStore -destination "platform=macOS" -archivePath build/TaskMenu-AppStore.xcarchive
+```
+
+Then upload the archive through Xcode's Organizer (Distribute App -> App Store Connect), which applies the Mac App Distribution signing and the App Store provisioning profile.
+
+To confirm the gating held before uploading, check the built binary for the strings that should be absent:
+
+```bash
+strings -a build/TaskMenu-AppStore.xcarchive/Products/Applications/TaskMenu.app/Contents/MacOS/TaskMenu | grep -E "api\.github\.com|buymeacoffee|Automatically check for updates"
+```
+
+That command must print nothing. Running the same check against a `Release` build prints matches, which is the expected difference between the two configurations.

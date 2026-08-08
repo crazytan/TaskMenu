@@ -8,6 +8,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 - Swift 6, AppKit UI, macOS 14.4+, `@Observable`, strict concurrency.
 - XcodeGen build graph targeting Xcode 26.4 project settings: edit `project.yml`, then regenerate `TaskMenu.xcodeproj`.
 - Targets: `TaskMenu` and `TaskMenuTests`.
+- Configurations: `Debug`, `Release` (direct-download DMG), and `AppStore`. Only `AppStore` defines `APP_STORE_BUILD`, which compiles out the GitHub update checker and the donation link for App Review guidelines 2.4.5(vii) and 3.1.1. Changes near either feature must keep both variants building; see `docs/RELEASING.md`.
 - App shape: no Dock icon and no main app window; UI is presented from an AppKit status item popover.
 - External surface area: Google OAuth 2.0 with PKCE, Google Tasks REST API, Keychain token storage, UserNotifications for due-date reminders, GitHub release update checks, MetricKit payload persistence.
 
@@ -60,6 +61,10 @@ xcodebuild test -project TaskMenu.xcodeproj -scheme TaskMenu \
   -configuration Debug \
   -destination "platform=macOS" \
   -only-testing:TaskMenuTests/AppStateTests
+
+xcodebuild build -project TaskMenu.xcodeproj -scheme "TaskMenu (App Store)" \
+  -configuration AppStore \
+  -destination "platform=macOS"
 ```
 
 - When verifying a fix or new feature, run only the minimal relevant `-only-testing:` slice.

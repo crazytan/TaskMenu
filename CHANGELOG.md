@@ -8,6 +8,10 @@
 
 ## Unreleased
 
+### Changed
+- **Discord moved into the About links** in Settings, next to GitHub, Support, and Privacy, instead of being a button in the "Support TaskMenu" section.
+- **Mac App Store builds** now come from a separate `AppStore` build configuration and a "TaskMenu (App Store)" scheme. That build compiles out the GitHub update checker (App Review guideline 2.4.5(vii) — the Mac App Store delivers its own updates) and the "Buy Me a Coffee" link (guideline 3.1.1 — donations must use In-App Purchase). Settings there shows a read-only version row instead of the Updates section, and drops the "Automatically check for updates" switch. Direct-download DMG builds are unchanged and keep both features.
+
 ### Added
 - **Demo mode** — an "Explore the Demo" button on the sign-in screen opens the app on sample task lists, so you can try everything without connecting a Google account. Nothing leaves your Mac: no sign-in, no network, no reminders, and the sample edits are discarded when you leave. A banner above the list marks the session and exits back to sign-in, as do "Exit demo" in the "…" menu and Settings.
 

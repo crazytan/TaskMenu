@@ -56,7 +56,9 @@ private final class SettingsViewController: NSViewController {
     private let appState: AppState
     private let observer = TaskMenuAppStateObserver()
 
+    #if !APP_STORE_BUILD
     private let coffeeURL = URL(string: "https://buymeacoffee.com/crazytan")!
+    #endif
     private let discordURL = URL(string: "https://discord.gg/2QaR8xVJJm")!
     private let githubURL = URL(string: "https://github.com/crazytan/TaskMenu")!
     private let supportURL = URL(string: "https://taskmenu.crazytan.dev/support")!
@@ -97,11 +99,13 @@ private final class SettingsViewController: NSViewController {
             _ = appState.isDemoMode
             _ = appState.googleAccountProfile?.displayEmail
             _ = appState.dueDateNotificationsEnabled
+            #if !APP_STORE_BUILD
             _ = appState.automaticUpdateChecksEnabled
             _ = appState.isCheckingForUpdates
             _ = appState.updateCheckErrorMessage
             _ = appState.latestAvailableUpdate
             _ = appState.lastUpdateCheckDate
+            #endif
             _ = appState.currentAppVersionDisplay
         } onChange: { [weak self] in
             self?.render()
@@ -176,7 +180,9 @@ private final class SettingsViewController: NSViewController {
         stack.addArrangedSubview(preferencesSection())
         stack.addArrangedSubview(updatesSection())
         stack.addArrangedSubview(accountSection())
+        #if !APP_STORE_BUILD
         stack.addArrangedSubview(communitySection())
+        #endif
         stack.addArrangedSubview(aboutSection())
         stack.addArrangedSubview(centered(
             actionButton(
@@ -191,33 +197,55 @@ private final class SettingsViewController: NSViewController {
     }
 
     private func preferencesSection() -> NSView {
-        section("General", views: [
+        var rows = [
+            switchRow(
+                title: "Launch at login",
+                isOn: SMAppService.mainApp.status == .enabled,
+                onChange: { [weak self] isOn in
+                    self?.setLaunchAtLogin(isOn)
+                }
+            ),
+            switchRow(
+                title: "Due date notifications",
+                isOn: appState.dueDateNotificationsEnabled,
+                onChange: { [appState] isOn in
+                    appState.dueDateNotificationsEnabled = isOn
+                }
+            )
+        ]
+
+        // Mac App Store builds check for nothing to update, so the preference
+        // would toggle a loop that is not compiled in.
+        #if !APP_STORE_BUILD
+        rows.append(
+            switchRow(
+                title: "Automatically check for updates",
+                isOn: appState.automaticUpdateChecksEnabled,
+                onChange: { [appState] isOn in
+                    appState.automaticUpdateChecksEnabled = isOn
+                }
+            )
+        )
+        #endif
+
+        return section("General", views: [groupBox(rows: rows)])
+    }
+
+    #if APP_STORE_BUILD
+    /// The Mac App Store handles updates, so this reports the running version
+    /// and nothing else.
+    private func updatesSection() -> NSView {
+        section("Version", views: [
             groupBox(rows: [
-                switchRow(
-                    title: "Launch at login",
-                    isOn: SMAppService.mainApp.status == .enabled,
-                    onChange: { [weak self] isOn in
-                        self?.setLaunchAtLogin(isOn)
-                    }
-                ),
-                switchRow(
-                    title: "Due date notifications",
-                    isOn: appState.dueDateNotificationsEnabled,
-                    onChange: { [appState] isOn in
-                        appState.dueDateNotificationsEnabled = isOn
-                    }
-                ),
-                switchRow(
-                    title: "Automatically check for updates",
-                    isOn: appState.automaticUpdateChecksEnabled,
-                    onChange: { [appState] isOn in
-                        appState.automaticUpdateChecksEnabled = isOn
-                    }
+                settingRow(
+                    title: "Version \(appState.currentAppVersionDisplay)",
+                    subtitle: "Updates are delivered through the Mac App Store.",
+                    control: TaskMenuAppKit.spacer()
                 )
             ])
         ])
     }
-
+    #else
     private func updatesSection() -> NSView {
         let checkButton = actionButton(
             title: appState.isCheckingForUpdates ? "Checking…" : "Check Now",
@@ -257,6 +285,7 @@ private final class SettingsViewController: NSViewController {
 
         return section("Updates", views: [groupBox(rows: rows)])
     }
+    #endif
 
     private func accountSection() -> NSView {
         // Demo mode holds no credentials, so there is nothing to revoke.
@@ -286,6 +315,10 @@ private final class SettingsViewController: NSViewController {
         ])
     }
 
+    // Guideline 3.1.1 requires donations to go through In-App Purchase, so the
+    // Mac App Store build drops this section entirely rather than showing a
+    // one-button remainder.
+    #if !APP_STORE_BUILD
     private func communitySection() -> NSView {
         let coffeeButton = actionButton(
             title: "Buy Me a Coffee",
@@ -296,32 +329,22 @@ private final class SettingsViewController: NSViewController {
             }
         )
 
-        let discordButton = actionButton(
-            title: "Join Discord",
-            image: NSImage(named: "DiscordIcon"),
-            onPress: { [discordURL] _ in
-                NSWorkspace.shared.open(discordURL)
-            }
-        )
-
-        let buttons = horizontalStack(spacing: 8)
-        buttons.addArrangedSubview(coffeeButton)
-        buttons.addArrangedSubview(discordButton)
-
         return section("Support TaskMenu", views: [
             label(
-                "TaskMenu is free and developed by one person. Tips keep it going, and the Discord is the place for bugs and feature requests.",
+                "TaskMenu is free and developed by one person. Tips keep it going.",
                 font: .callout,
                 color: .secondaryLabelColor,
                 lines: 0
             ),
-            centered(buttons)
+            centered(coffeeButton)
         ])
     }
+    #endif
 
     private func aboutSection() -> NSView {
         let links = horizontalStack(spacing: 16)
         links.addArrangedSubview(linkButton(title: "GitHub", url: githubURL))
+        links.addArrangedSubview(linkButton(title: "Discord", url: discordURL))
         links.addArrangedSubview(linkButton(title: "Support", url: supportURL))
         links.addArrangedSubview(linkButton(title: "Privacy", url: privacyURL))
         return section("About", views: [links])
@@ -333,6 +356,7 @@ private final class SettingsViewController: NSViewController {
         return appState.googleAccountProfile?.displayEmail ?? "Google Account"
     }
 
+    #if !APP_STORE_BUILD
     private var updateStatusText: String {
         if appState.isCheckingForUpdates {
             return "Checking for updates…"
@@ -352,6 +376,7 @@ private final class SettingsViewController: NSViewController {
 
         return "Not checked yet"
     }
+    #endif
 
     private func confirmDisconnect() {
         let alert = NSAlert()
@@ -378,10 +403,12 @@ private final class SettingsViewController: NSViewController {
         }
     }
 
+    #if !APP_STORE_BUILD
     private func openUpdateRelease(_ release: AppUpdateRelease) {
         appState.markUpdateAlertShown(for: release)
         NSWorkspace.shared.open(release.releaseURL)
     }
+    #endif
 
     private func setLaunchAtLogin(_ enabled: Bool) {
         do {

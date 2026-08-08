@@ -6,13 +6,19 @@ options:
   xcodeVersion: "26.4"
   generateEmptyDirectories: true
 
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
+
 configFiles:
   Debug: BuildConfig.xcconfig
   Release: BuildConfig.xcconfig
+  AppStore: BuildConfig.xcconfig
 
 settings:
   base:
-    CURRENT_PROJECT_VERSION: "2"
+    CURRENT_PROJECT_VERSION: "3"
     DEAD_CODE_STRIPPING: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
@@ -24,6 +30,12 @@ settings:
   configs:
     Release:
       SWIFT_OPTIMIZATION_LEVEL: "-Osize"
+    # Mac App Store builds compile out the GitHub update checker (guideline
+    # 2.4.5(vii)) and the external donation link (guideline 3.1.1). Both stay
+    # in Debug and Release, which feed the direct-download DMG.
+    AppStore:
+      SWIFT_OPTIMIZATION_LEVEL: "-Osize"
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APP_STORE_BUILD"
 
 targets:
   TaskMenu:
@@ -86,3 +98,26 @@ schemes:
       config: Debug
     archive:
       config: Release
+  # Archive with this scheme for Mac App Store uploads; the TaskMenu scheme
+  # archives the Developer ID build that the DMG release pipeline signs.
+  TaskMenu (App Store):
+    build:
+      preActions:
+        - script: |
+            "${SRCROOT}/scripts/stamp_build_metadata.sh" "${SRCROOT}"
+          name: Stamp build metadata
+          settingsTarget: TaskMenu
+      targets:
+        TaskMenu: all
+    run:
+      config: AppStore
+    test:
+      config: Debug
+      targets:
+        - name: TaskMenuTests
+    profile:
+      config: AppStore
+    analyze:
+      config: AppStore
+    archive:
+      config: AppStore

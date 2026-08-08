@@ -244,12 +244,22 @@ final class AppState {
     /// Tail of the FIFO chain that serializes notification-service work.
     private var notificationWorkTask: Task<Void, Never>?
 
+    /// Mac App Store builds do not compile `GitHubUpdateChecker`, so they fall
+    /// back to a checker that always reports "no update".
+    private static func defaultUpdateChecker() -> any UpdateChecking {
+        #if APP_STORE_BUILD
+        DisabledUpdateChecker()
+        #else
+        GitHubUpdateChecker()
+        #endif
+    }
+
     init(
         authService: GoogleAuthService = GoogleAuthService(),
         api: (any TasksAPIProtocol)? = nil,
         userDefaults: UserDefaults = .standard,
         dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService(),
-        updateChecker: any UpdateChecking = GitHubUpdateChecker(),
+        updateChecker: any UpdateChecking = defaultUpdateChecker(),
         currentAppVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
         currentBuildCommit: String? = Bundle.main.infoDictionary?["GITCommitHash"] as? String
     ) {
