@@ -287,33 +287,47 @@ final class AppState {
     }
 
     private var signInTask: Task<Void, Never>?
+    /// Retired when the app moves on, so a stale attempt cannot write back.
+    private var signInGeneration = 0
 
     func signIn() {
         guard signInTask == nil, !isDemoMode else { return }
 
         errorMessage = nil
         isLoading = true
+        signInGeneration += 1
+        let generation = signInGeneration
         signInTask = Task { [weak self] in
             guard let self else { return }
             defer {
-                self.isLoading = false
-                self.signInTask = nil
+                if self.signInGeneration == generation {
+                    self.isLoading = false
+                    self.signInTask = nil
+                }
             }
             do {
                 try await authService.signIn()
+                guard self.signInGeneration == generation else { return }
                 self.isSignedIn = true
                 self.googleAccountProfile = authService.accountProfile
                 await self.loadTaskLists()
             } catch {
+                guard self.signInGeneration == generation else { return }
                 self.errorMessage = "Sign in failed: \(error.localizedDescription)"
             }
         }
     }
 
     /// Swaps in sample data and marks the session signed in so the task UI
-    /// renders. A sign-in already in flight wins, so the two cannot both land.
+    /// renders. Takes over from a sign-in still in flight: an abandoned web
+    /// authentication never resumes, so waiting for it would wait forever.
     func enterDemoMode() {
-        guard !isDemoMode, !isSignedIn, signInTask == nil else { return }
+        guard !isDemoMode, !isSignedIn else { return }
+
+        signInGeneration += 1
+        signInTask?.cancel()
+        signInTask = nil
+        isLoading = false
 
         errorMessage = nil
         isDemoMode = true

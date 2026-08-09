@@ -69,18 +69,15 @@ struct SemanticVersion: Comparable, Equatable, Sendable, CustomStringConvertible
     }
 }
 
-/// Reports "no update" without touching the network. Mac App Store builds use
-/// it in place of `GitHubUpdateChecker`, which they do not compile, and the
-/// `--testing-window` fakes use it to keep launches offline.
+/// Reports "no update" without touching the network. Used by Mac App Store
+/// builds and the `--testing-window` fakes.
 struct DisabledUpdateChecker: UpdateChecking {
     func latestUpdate(currentVersion: String) async throws -> AppUpdateRelease? {
         nil
     }
 }
 
-// The Mac App Store delivers its own updates, and guideline 2.4.5(vii) forbids
-// shipping a second update path alongside it, so the GitHub checker is compiled
-// out of that configuration entirely rather than just hidden in the UI.
+// Guideline 2.4.5(vii): no second update path alongside the Mac App Store.
 #if !APP_STORE_BUILD
 actor GitHubUpdateChecker: UpdateChecking {
     private let session: URLSession

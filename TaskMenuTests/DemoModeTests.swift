@@ -1,4 +1,5 @@
 import XCTest
+import AuthenticationServices
 @testable import TaskMenu
 
 /// Demo mode lets App Review (and anyone else) exercise the app without a
@@ -32,9 +33,13 @@ final class DemoModeTests: XCTestCase {
         dueDateNotificationService = nil
     }
 
-    private func makeState() -> AppState {
+    private func makeState(webAuthenticator: (any WebAuthenticating)? = nil) -> AppState {
         let session = MockURLProtocol.mockSession()
-        let authService = GoogleAuthService(keychain: keychain, session: session)
+        let authService = GoogleAuthService(
+            keychain: keychain,
+            session: session,
+            webAuthenticator: webAuthenticator
+        )
         return AppState(
             authService: authService,
             api: GoogleTasksAPI(authService: authService, session: session),
@@ -70,6 +75,45 @@ final class DemoModeTests: XCTestCase {
         XCTAssertNil(state.googleAccountProfile)
         XCTAssertEqual(state.taskLists.map(\.title), ["Today", "Work", "Personal"])
         XCTAssertFalse(state.tasks.isEmpty)
+    }
+
+    /// An abandoned sign-in stays in flight forever, so the demo must take
+    /// over rather than wait. App Review hit this as a dead demo button.
+    func testEnterDemoModeTakesOverFromAnAbandonedSignIn() async {
+        let webAuthenticator = HangingWebAuthenticator()
+        let state = makeState(webAuthenticator: webAuthenticator)
+
+        state.signIn()
+        await waitUntil { state.isLoading }
+        XCTAssertTrue(state.isLoading, "sign-in should be in flight")
+
+        state.enterDemoMode()
+        await waitUntil { !state.taskLists.isEmpty }
+
+        XCTAssertTrue(state.isDemoMode)
+        XCTAssertTrue(state.isSignedIn)
+        XCTAssertFalse(state.isLoading)
+        XCTAssertNil(state.errorMessage)
+        XCTAssertEqual(state.taskLists.map(\.title), ["Today", "Work", "Personal"])
+    }
+
+    /// A late failure must not tear down the demo session already on screen.
+    func testAbandonedSignInFailingAfterDemoStartsDoesNotDisturbDemoMode() async {
+        let webAuthenticator = HangingWebAuthenticator()
+        let state = makeState(webAuthenticator: webAuthenticator)
+
+        state.signIn()
+        await waitUntil { state.isLoading }
+        state.enterDemoMode()
+        await waitUntil { !state.taskLists.isEmpty }
+
+        webAuthenticator.fail(with: GoogleAuthError.invalidCallback)
+        await waitUntil { false }
+
+        XCTAssertTrue(state.isDemoMode)
+        XCTAssertTrue(state.isSignedIn)
+        XCTAssertNil(state.errorMessage)
+        XCTAssertEqual(state.taskLists.map(\.title), ["Today", "Work", "Personal"])
     }
 
     func testEnterDemoModeIsIgnoredWhenAlreadySignedIn() async {
@@ -164,5 +208,34 @@ final class DemoModeTests: XCTestCase {
         await state.loadTaskLists()
 
         XCTAssertEqual(state.taskLists.map(\.title), ["From Google"])
+    }
+}
+
+/// An ASWebAuthenticationSession that never resumes until told to fail.
+private final class HangingWebAuthenticator: WebAuthenticating, @unchecked Sendable {
+    private var continuation: CheckedContinuation<URL, Error>?
+    private var pendingError: Error?
+
+    func authenticate(
+        url: URL,
+        callbackScheme: String,
+        presentationContextProvider: any ASWebAuthenticationPresentationContextProviding
+    ) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            if let pendingError {
+                continuation.resume(throwing: pendingError)
+            } else {
+                self.continuation = continuation
+            }
+        }
+    }
+
+    func fail(with error: Error) {
+        if let continuation {
+            self.continuation = nil
+            continuation.resume(throwing: error)
+        } else {
+            pendingError = error
+        }
     }
 }

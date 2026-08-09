@@ -25,8 +25,7 @@ enum Constants {
     static let googleRevocationURL = "https://oauth2.googleapis.com/revoke"
     static let googleUserInfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
     static let googleTasksBaseURL = "https://tasks.googleapis.com/tasks/v1"
-    // Mac App Store builds ship no update checker (guideline 2.4.5(vii)), so
-    // the release endpoint is not compiled into them.
+    // Guideline 2.4.5(vii): not compiled into Mac App Store builds.
     #if !APP_STORE_BUILD
     static let githubLatestReleaseURL = "https://api.github.com/repos/crazytan/TaskMenu/releases/latest"
     #endif

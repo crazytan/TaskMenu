@@ -13,8 +13,8 @@ Views render the AppKit menu-bar popover and settings UI. Keep business behavior
 - `TaskPresentation.swift` - pure task-list, notes preview, and completed-subtask ordering helper logic.
 - `TestingWindowController.swift` - opt-in testing-mode window that hosts the popover UI outside the status item.
 - `SettingsView.swift` - AppKit settings window/controller with native grouped section boxes (switch rows, update status row showing the version and build commit, account row), notification preference, launch-at-login, update checks, signed-in account email display, tips/support/about links, account disconnect confirmation, and quit controls.
-- Under `APP_STORE_BUILD` the settings window drops the "Automatically check for updates" switch and the whole "Support TaskMenu" section, and the Updates section becomes a read-only "Version" section. Keep both variants building when you touch these sections.
-- Discord is an About-row link (`GitHub / Discord / Support / Privacy`) in both variants; "Support TaskMenu" holds only the tip button and exists in non-App Store builds.
+- Under `APP_STORE_BUILD` the settings window drops the "Automatically check for updates" switch and the "Support TaskMenu" section, and Updates becomes a read-only "Version" section. Keep both variants building.
+- Discord is an About-row link in both variants; "Support TaskMenu" holds only the tip button.
 - `MenuBarWindowGlassSupport.swift` - macOS 26 Liquid Glass window-background support.
 
 ## UI Ownership

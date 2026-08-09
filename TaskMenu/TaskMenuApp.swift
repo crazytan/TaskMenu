@@ -219,9 +219,7 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // The Mac App Store updates its own apps, and guideline 2.4.5(vii) forbids
-    // a second update path, so the whole check-and-alert loop is compiled out
-    // of that configuration.
+    // Guideline 2.4.5(vii): no update loop in Mac App Store builds.
     #if !APP_STORE_BUILD
     private func startAutomaticUpdateCheck() {
         let interval = appState.updateCheckInterval

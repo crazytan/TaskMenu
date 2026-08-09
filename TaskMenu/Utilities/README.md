@@ -12,7 +12,7 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 - `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` come from `Info.plist`, which gets values from `Config.xcconfig`.
 - `googleRedirectScheme` can derive the custom scheme from an iOS OAuth client ID ending in `.apps.googleusercontent.com`.
 - `googleAuthScopes` includes OpenID Connect email scope plus Google Tasks access so settings can show the signed-in Google account email.
-- `githubLatestReleaseURL` is the unauthenticated GitHub Releases endpoint used by the lightweight update checker. It is compiled out under `APP_STORE_BUILD`, so guard any new reference with `#if !APP_STORE_BUILD`.
+- `githubLatestReleaseURL` is the unauthenticated GitHub Releases endpoint used by the lightweight update checker. It is compiled out under `APP_STORE_BUILD`, so guard new references with `#if !APP_STORE_BUILD`.
 - Keep Keychain service/key names stable unless you are intentionally migrating stored credentials or signed-in account display metadata.
 - Add new UserDefaults keys under `Constants.UserDefaults` and cover default behavior in `AppStateTests` or the nearest behavior suite.
 - Update-check defaults use `automaticUpdateChecksEnabledKey`, `lastUpdateCheckDateKey`, and `lastAlertedUpdateVersionKey`; keep Settings and launch-alert behavior in sync with any changes.

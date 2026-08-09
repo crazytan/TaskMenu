@@ -8,7 +8,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, subtask creation, updates, deletes, and pagination.
 - `TasksAPIProtocol.swift` - async API contract used by `AppState`, production API code, and unit-test doubles.
 - `DemoTasksAPI.swift` - `actor` in-memory sample data (Today/Work/Personal) backing demo mode; no network, no credentials, and mutations are discarded when the demo ends.
-- `GitHubUpdateChecker.swift` - GitHub Releases latest-version lookup, semantic-version comparison, and the update-check protocol used by Settings and launch alerts. Also holds `DisabledUpdateChecker`, the always-"no update" implementation used by Mac App Store builds and the `--testing-window` fakes. `GitHubUpdateChecker` itself is wrapped in `#if !APP_STORE_BUILD`.
+- `GitHubUpdateChecker.swift` - GitHub Releases latest-version lookup, semantic-version comparison, and the update-check protocol used by Settings and launch alerts. Also holds `DisabledUpdateChecker` for Mac App Store builds and the `--testing-window` fakes. `GitHubUpdateChecker` is wrapped in `#if !APP_STORE_BUILD`.
 - `KeychainService.swift` - Sendable wrapper around Security framework item CRUD; stores items in the data-protection keychain (device-only accessibility) with transparent migration from the legacy login-keychain location and a fallback for unsigned builds.
 - `DueDateNotificationService.swift` - UserNotifications abstraction and due-date reminder syncing.
 - `MetricKitService.swift` - local persistence of delivered and past MetricKit payloads.
@@ -43,7 +43,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - `GitHubUpdateChecker` checks the public latest GitHub release endpoint and returns an update only when the release tag is valid `x.y.z` semver and newer than the bundle short version. An unparseable release tag throws (surfaced as a failed check); an unparseable current version returns nil so dev builds do not show a permanent failure. The app re-checks on a 24-hour loop while running.
 - `AppState` owns the automatic-check preference, 24-hour throttle, last-check timestamp, and last-alerted version.
 - Keep update checks read-only and unauthenticated. Opening the GitHub release page is user-initiated from settings or the launch alert.
-- The `AppStore` build configuration defines `APP_STORE_BUILD`, which compiles out `GitHubUpdateChecker` and `Constants.githubLatestReleaseURL` entirely; guideline 2.4.5(vii) forbids a second update path alongside the Mac App Store. `AppState` falls back to `DisabledUpdateChecker` there.
+- The `AppStore` configuration defines `APP_STORE_BUILD`, which compiles out `GitHubUpdateChecker` and `Constants.githubLatestReleaseURL`; `AppState` falls back to `DisabledUpdateChecker` there.
 
 ## Demo Mode
 

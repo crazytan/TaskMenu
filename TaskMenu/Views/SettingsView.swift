@@ -214,8 +214,7 @@ private final class SettingsViewController: NSViewController {
             )
         ]
 
-        // Mac App Store builds check for nothing to update, so the preference
-        // would toggle a loop that is not compiled in.
+        // No update loop to toggle in Mac App Store builds.
         #if !APP_STORE_BUILD
         rows.append(
             switchRow(
@@ -232,8 +231,7 @@ private final class SettingsViewController: NSViewController {
     }
 
     #if APP_STORE_BUILD
-    /// The Mac App Store handles updates, so this reports the running version
-    /// and nothing else.
+    /// Version only; the Mac App Store handles updates.
     private func updatesSection() -> NSView {
         section("Version", views: [
             groupBox(rows: [
@@ -315,9 +313,8 @@ private final class SettingsViewController: NSViewController {
         ])
     }
 
-    // Guideline 3.1.1 requires donations to go through In-App Purchase, so the
-    // Mac App Store build drops this section entirely rather than showing a
-    // one-button remainder.
+    // Guideline 3.1.1: donations must use In-App Purchase, so Mac App Store
+    // builds drop this section.
     #if !APP_STORE_BUILD
     private func communitySection() -> NSView {
         let coffeeButton = actionButton(

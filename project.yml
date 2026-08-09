@@ -30,9 +30,8 @@ settings:
   configs:
     Release:
       SWIFT_OPTIMIZATION_LEVEL: "-Osize"
-    # Mac App Store builds compile out the GitHub update checker (guideline
-    # 2.4.5(vii)) and the external donation link (guideline 3.1.1). Both stay
-    # in Debug and Release, which feed the direct-download DMG.
+    # Compiles out the update checker (guideline 2.4.5(vii)) and the donation
+    # link (guideline 3.1.1); both stay in Debug and Release for the DMG.
     AppStore:
       SWIFT_OPTIMIZATION_LEVEL: "-Osize"
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APP_STORE_BUILD"
@@ -98,8 +97,7 @@ schemes:
       config: Debug
     archive:
       config: Release
-  # Archive with this scheme for Mac App Store uploads; the TaskMenu scheme
-  # archives the Developer ID build that the DMG release pipeline signs.
+  # Archive with this scheme for Mac App Store uploads.
   TaskMenu (App Store):
     build:
       preActions:
