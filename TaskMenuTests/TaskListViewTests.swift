@@ -372,6 +372,32 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(titles(3), ["Delete"], "completed task row")
     }
 
+    /// The field belongs directly under the parent row, because that is where
+    /// the Tasks API drops a new subtask: `tasks.insert` with a `parent` and no
+    /// `previous` makes it the first child.
+    @MainActor
+    func testAddSubtaskFieldOpensAboveExistingSubtasks() throws {
+        let state = AppState()
+        state.tasks = [
+            makeTask(id: "parent", title: "Parent", position: "0001"),
+            makeTask(id: "child", title: "Child", parent: "parent", position: "0001")
+        ]
+
+        let content = TaskListContentView()
+        content.render(
+            appState: state,
+            showCompleted: false,
+            expandedCompletedSubtaskParentIDs: [],
+            addingSubtaskParentID: "parent"
+        )
+
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+        XCTAssertEqual(outline.numberOfRows, 3)
+        _ = try addSubtaskField(inRow: 1, of: outline)
+        let subtaskRow = try XCTUnwrap(outline.view(atColumn: 0, row: 2, makeIfNecessary: true))
+        XCTAssertTrue(textFields(in: subtaskRow).isEmpty, "the existing subtask follows the field")
+    }
+
     /// The inline field has to show up even under a parent that had no
     /// subtasks, which is the case where the outline still thinks the row is a
     /// leaf. The second render puts the view on the animated diff path, the one

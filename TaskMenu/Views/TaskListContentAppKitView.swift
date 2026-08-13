@@ -440,13 +440,16 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         var children = TaskListPresentation.displaySubtasks(of: task.id, from: appState)
             .filter { isSearching || !$0.isCompleted }
             .map { makeActiveNode(for: $0, appState: appState, level: level + 1, builder: builder, parentKey: nodeKey) }
-        // The inline composer sits with the open subtasks, where the new
-        // subtask itself lands once it is created.
+        // The composer sits directly under the parent row, which is where a
+        // newly created subtask lands: the Tasks API makes it the first child.
         if addingSubtaskParentID == task.id {
-            children.append(builder.node(
-                kind: .subtaskComposer(parentID: task.id, indentLevel: level + 1),
-                parentKey: nodeKey
-            ))
+            children.insert(
+                builder.node(
+                    kind: .subtaskComposer(parentID: task.id, indentLevel: level + 1),
+                    parentKey: nodeKey
+                ),
+                at: 0
+            )
         }
         let completedSubtasks = isSearching
             ? []
@@ -652,7 +655,11 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     // MARK: - Drag And Drop
 
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+        // The composer row sits among a parent's children without being one of
+        // its task siblings, so drop indices would be off by one under it.
+        // Reordering during a half-typed subtask is not worth that math.
         guard !isSearching,
+              addingSubtaskParentID == nil,
               let node = item as? TaskOutlineNode,
               let entry = node.taskEntry,
               entry.section == .active
