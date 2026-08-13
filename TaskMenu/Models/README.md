@@ -10,7 +10,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 ## AppState Rules
 
-- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `addSubtask(title:parentId:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, `moveTask(_:toParent:after:)`, and update-check helpers.
+- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `addSubtask(title:parentId:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, `moveTask(_:toParent:after:)`, `expandTask(_:)`, and update-check helpers. `addTask(title:)` and `addSubtask(title:parentId:)` return the created task so a view can flash the new row.
 - Keep `AppState` `@MainActor`. Inject services through the initializer for tests instead of reaching for globals.
 - Preserve `toggleTask(_:)` optimistic-update rollback behavior. If an optimistic API call fails, restore the prior local task state and set `errorMessage`.
 - Keep the per-list cache in sync when adding, adding subtasks, completing, updating, deleting, or selecting lists.

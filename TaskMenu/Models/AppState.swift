@@ -214,6 +214,12 @@ final class AppState {
         return false
     }
 
+    /// Expands a parent task so its subtasks are visible. Used when a new
+    /// subtask row has to be shown under a collapsed parent.
+    func expandTask(_ taskID: String) {
+        collapsedTaskIDs.remove(taskID)
+    }
+
     /// Toggle collapse state for a parent task.
     func toggleCollapsed(_ taskID: String) {
         if collapsedTaskIDs.contains(taskID) {
@@ -486,11 +492,12 @@ final class AppState {
         }
     }
 
-    func addSubtask(title: String, parentId: String) async {
-        guard let listId = selectedListId else { return }
+    @discardableResult
+    func addSubtask(title: String, parentId: String) async -> TaskItem? {
+        guard let listId = selectedListId else { return nil }
         do {
             let task = try await api.createTask(listId: listId, title: title, parentId: parentId)
-            guard isSignedIn else { return }
+            guard isSignedIn else { return nil }
             commitTaskChange(to: listId) { tasks in
                 // Insert after parent and its existing subtasks
                 if let parentIndex = tasks.firstIndex(where: { $0.id == parentId }) {
@@ -503,9 +510,11 @@ final class AppState {
                 }
             }
             await syncDueDateNotificationsIfNeeded()
+            return task
         } catch {
-            guard isSignedIn else { return }
+            guard isSignedIn else { return nil }
             handleError(error)
+            return nil
         }
     }
 

@@ -9,6 +9,8 @@ final class TaskListAppKitViewController: NSViewController {
 
     private var showCompleted = false
     private var expandedCompletedSubtaskParentIDs: Set<String> = []
+    /// Task whose inline "add subtask" field is open, from the row context menu.
+    private var addingSubtaskParentID: String?
 
     private let containerView = NSView()
     private let listPageView = NSStackView()
@@ -99,6 +101,9 @@ final class TaskListAppKitViewController: NSViewController {
         }
 
         searchBarView.onSearchTextChange = { [weak self] text in
+            // Filtering rebuilds every row, which would discard the inline
+            // subtask field along with anything typed into it.
+            self?.closeAddSubtaskField()
             self?.appState.searchText = text
         }
         searchBarView.onEscapeWithEmptyField = { [weak self] in
@@ -160,6 +165,13 @@ final class TaskListAppKitViewController: NSViewController {
     /// reduced motion.
     private func presentTaskDetail(for task: TaskItem) {
         guard detailController == nil, !isTransitioningDetail else { return }
+
+        // The detail screen has its own add-subtask field; leaving the list's
+        // inline one open would put a stale field behind the pushed page.
+        if addingSubtaskParentID != nil {
+            closeAddSubtaskField()
+            renderListContent()
+        }
 
         let detail = TaskDetailAppKitViewController(appState: appState, task: task) { [weak self] in
             self?.dismissTaskDetail()
@@ -278,6 +290,19 @@ final class TaskListAppKitViewController: NSViewController {
                 await appState.moveTask(task, toParent: newParentID, after: previousTaskID)
             }
         }
+        contentView.onBeginAddSubtask = { [weak self] task in
+            self?.openAddSubtaskField(for: task)
+        }
+        contentView.onAddSubtask = { [weak self] title, parentID in
+            Task { [weak self] in
+                guard let subtask = await self?.appState.addSubtask(title: title, parentId: parentID) else { return }
+                self?.contentView.flashTask(taskID: subtask.id)
+            }
+        }
+        contentView.onCancelAddSubtask = { [weak self] in
+            self?.closeAddSubtaskField()
+            self?.renderListContent()
+        }
         contentView.onToggleCollapsed = { [weak self] taskID in
             Task { @MainActor [weak self] in
                 self?.appState.toggleCollapsed(taskID)
@@ -301,6 +326,20 @@ final class TaskListAppKitViewController: NSViewController {
                 renderListContent()
             }
         }
+    }
+
+    /// Opens the inline subtask field under `task`. Any active filter is
+    /// cleared so the parent (and the subtask about to be created) is visible,
+    /// and a collapsed parent is expanded so the field itself is on screen.
+    private func openAddSubtaskField(for task: TaskItem) {
+        appState.searchText = ""
+        appState.expandTask(task.id)
+        addingSubtaskParentID = task.id
+        renderListContent()
+    }
+
+    private func closeAddSubtaskField() {
+        addingSubtaskParentID = nil
     }
 
     /// One-shot `--capture task` hook: the seeded tasks arrive asynchronously,
@@ -339,7 +378,8 @@ final class TaskListAppKitViewController: NSViewController {
         contentView.render(
             appState: appState,
             showCompleted: showCompleted,
-            expandedCompletedSubtaskParentIDs: expandedCompletedSubtaskParentIDs
+            expandedCompletedSubtaskParentIDs: expandedCompletedSubtaskParentIDs,
+            addingSubtaskParentID: addingSubtaskParentID
         )
     }
 
@@ -347,6 +387,7 @@ final class TaskListAppKitViewController: NSViewController {
         guard listID != appState.selectedListId else { return }
         showCompleted = false
         expandedCompletedSubtaskParentIDs = []
+        closeAddSubtaskField()
         appState.searchText = ""
         Task { [appState] in
             await appState.selectList(listID)

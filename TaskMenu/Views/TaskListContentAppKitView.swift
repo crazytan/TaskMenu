@@ -8,6 +8,7 @@ private enum TaskListRowLayout {
     static let completedSubtasksDisclosureLeadingOffset: CGFloat = 6
     static let completedGroupRowHeight: CGFloat = 32
     static let completedSubtasksGroupRowHeight: CGFloat = 26
+    static let subtaskComposerRowHeight: CGFloat = 32
 }
 
 @MainActor
@@ -20,6 +21,11 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     var onToggleCompletedSubtasks: ((String) -> Void)?
     /// (moved task, new parent task ID or nil for top level, previous sibling task ID or nil for first).
     var onMoveTask: ((TaskItem, String?, String?) -> Void)?
+    /// Right-click "Add Subtask": asks for the inline subtask field under this task.
+    var onBeginAddSubtask: ((TaskItem) -> Void)?
+    /// (subtask title, parent task ID) committed from the inline subtask field.
+    var onAddSubtask: ((String, String) -> Void)?
+    var onCancelAddSubtask: (() -> Void)?
 
     private static let taskDragType = NSPasteboard.PasteboardType("dev.crazytan.TaskMenu.task-drag")
 
@@ -32,6 +38,8 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     private var completedGroupNode: TaskOutlineNode?
     private var collapsedTaskIDs: Set<String> = []
     private var expandedCompletedSubtaskParentIDs: Set<String> = []
+    /// Task currently showing the inline "add subtask" field, if any.
+    private var addingSubtaskParentID: String?
     private var isSearching = false
     private var pendingFlashTaskIDs: Set<String> = []
     private var flashingTaskIDs: Set<String> = []
@@ -71,12 +79,14 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     func render(
         appState: AppState,
         showCompleted: Bool,
-        expandedCompletedSubtaskParentIDs: Set<String>
+        expandedCompletedSubtaskParentIDs: Set<String>,
+        addingSubtaskParentID: String? = nil
     ) {
         isSearching = appState.isSearching
         // Collapse state is ignored while searching so matching subtasks stay visible.
         let newCollapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
+        self.addingSubtaskParentID = addingSubtaskParentID
 
         let contextKey = "\(appState.selectedListId ?? "")|\(appState.searchText)"
         let animated = hasRenderedOnce
@@ -165,7 +175,17 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             guard let task = node.task, !node.children.isEmpty else { continue }
             let wasCollapsed = previousCollapsedTaskIDs.contains(task.id)
             let isCollapsed = collapsedTaskIDs.contains(task.id)
-            guard wasCollapsed != isCollapsed else { continue }
+            guard wasCollapsed != isCollapsed else {
+                // A parent that just gained its first child — a first subtask,
+                // or the inline subtask composer — is still closed as far as
+                // the outline knows, so its new row would stay hidden.
+                if !isCollapsed, !outlineView.isItemExpanded(node) {
+                    suppressExpansionCallbacks = true
+                    outlineView.expandItem(node)
+                    suppressExpansionCallbacks = false
+                }
+                continue
+            }
             suppressExpansionCallbacks = true
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = reduceMotion ? 0 : 0.22
@@ -323,14 +343,24 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         onOpenTask?(task)
     }
 
-    private func contextMenu(forRow row: Int) -> NSMenu? {
+    /// Row context menu. "Add Subtask" is offered only where a subtask can
+    /// actually go: an open top-level task, matching Google Tasks' single level
+    /// of subtasks and the drag-and-drop nesting rule.
+    func contextMenu(forRow row: Int) -> NSMenu? {
         guard let node = outlineView.item(atRow: row) as? TaskOutlineNode,
-              let task = node.task
+              let entry = node.taskEntry
         else {
             return nil
         }
+        let task = entry.task
         let menu = NSMenu()
         menu.autoenablesItems = false
+        if entry.section == .active, entry.indentLevel == 0 {
+            menu.addItem(ClosureMenuItem(title: "Add Subtask", symbolName: "plus") { [weak self] in
+                self?.onBeginAddSubtask?(task)
+            })
+            menu.addItem(.separator())
+        }
         menu.addItem(ClosureMenuItem(title: "Delete", symbolName: "trash") { [weak self] in
             self?.onDeleteTask?(task)
         })
@@ -410,6 +440,14 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         var children = TaskListPresentation.displaySubtasks(of: task.id, from: appState)
             .filter { isSearching || !$0.isCompleted }
             .map { makeActiveNode(for: $0, appState: appState, level: level + 1, builder: builder, parentKey: nodeKey) }
+        // The inline composer sits with the open subtasks, where the new
+        // subtask itself lands once it is created.
+        if addingSubtaskParentID == task.id {
+            children.append(builder.node(
+                kind: .subtaskComposer(parentID: task.id, indentLevel: level + 1),
+                parentKey: nodeKey
+            ))
+        }
         let completedSubtasks = isSearching
             ? []
             : completedSubtasksForOpenParent(task.id, tasks: appState.tasks)
@@ -573,6 +611,8 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             return TaskListRowLayout.completedGroupRowHeight
         case .completedSubtasksGroup:
             return TaskListRowLayout.completedSubtasksGroupRowHeight
+        case .subtaskComposer:
+            return TaskListRowLayout.subtaskComposerRowHeight
         case .task:
             return 34
         }
@@ -802,6 +842,16 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
                 self?.onToggleCompletedSubtasks?(parentID)
             }
             return row
+        case .subtaskComposer(let parentID, let indentLevel):
+            let row = SubtaskComposerCellView(indentLevel: indentLevel)
+            row.onCommit = { [weak self] title in
+                self?.onAddSubtask?(title, parentID)
+            }
+            row.onCancel = { [weak self] in
+                self?.onCancelAddSubtask?()
+            }
+            row.focusField()
+            return row
         case .task(let entry):
             let row = TaskOutlineTaskCellView(
                 entry: entry,
@@ -851,6 +901,7 @@ private final class TaskOutlineNode: NSObject {
     enum Kind {
         case completedGroup(count: Int, isExpanded: Bool)
         case completedSubtasksGroup(parentID: String, count: Int, isExpanded: Bool, indentLevel: Int)
+        case subtaskComposer(parentID: String, indentLevel: Int)
         case task(TaskListTaskEntry)
     }
 
@@ -875,6 +926,8 @@ private final class TaskOutlineNode: NSObject {
             return "completed-group"
         case .completedSubtasksGroup(let parentID, _, _, _):
             return "completed-subtasks:\(parentID)"
+        case .subtaskComposer(let parentID, _):
+            return "subtask-composer:\(parentID)"
         case .task(let entry):
             return key(forTaskID: entry.task.id)
         }
@@ -892,6 +945,10 @@ private final class TaskOutlineNode: NSObject {
             return "group|\(count)|\(isExpanded)"
         case .completedSubtasksGroup(let parentID, let count, let isExpanded, let indentLevel):
             return "subgroup|\(parentID)|\(count)|\(isExpanded)|\(indentLevel)"
+        case .subtaskComposer(let parentID, let indentLevel):
+            // Deliberately free of task state: reloading this row would rebuild
+            // the field and drop whatever the user has typed.
+            return "composer|\(parentID)|\(indentLevel)"
         case .task(let entry):
             let due = entry.task.due ?? ""
             return "task|\(entry.task.title)|\(entry.task.isCompleted)|\(due)|\(entry.indentLevel)|\(entry.section)|\(children.isEmpty)|\(isCollapsed)"
@@ -1016,6 +1073,97 @@ private final class CompletedGroupCellView: NSTableCellView {
         }
 
         NSLayoutConstraint.activate(constraints)
+    }
+}
+
+/// Inline "add subtask" row shown under a parent task. Enter creates the
+/// subtask and keeps the field open for the next one; an empty Enter or Escape
+/// closes it.
+@MainActor
+private final class SubtaskComposerCellView: NSTableCellView {
+    var onCommit: ((String) -> Void)?
+    var onCancel: (() -> Void)?
+
+    private let field = TaskMenuTextField(placeholder: "Add subtask")
+
+    init(indentLevel: Int) {
+        super.init(frame: .zero)
+        setup(indentLevel: indentLevel)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    /// Deferred so the row is in the window before it claims first responder.
+    /// Re-entering an active editing session would select the existing text.
+    func focusField() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window = self.window else { return }
+            if let editor = self.field.currentEditor(), window.firstResponder === editor {
+                return
+            }
+            window.makeFirstResponder(self.field)
+        }
+    }
+
+    /// Mirrors `TaskOutlineTaskCellView`'s leading columns so the plus lines up
+    /// with the subtask circles and the field with the subtask titles.
+    private func setup(indentLevel: Int) {
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 9
+        addSubview(stack)
+        TaskMenuAppKit.pin(
+            stack,
+            to: self,
+            insets: NSEdgeInsets(
+                top: 4,
+                left: TaskListRowLayout.leadingInset + CGFloat(indentLevel) * TaskMenuMetrics.taskIndentWidth,
+                bottom: 4,
+                right: 14
+            )
+        )
+
+        let disclosureSlot = NSView()
+        disclosureSlot.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            disclosureSlot.widthAnchor.constraint(equalToConstant: TaskListRowLayout.disclosureSlotSize)
+        ])
+        stack.addArrangedSubview(disclosureSlot)
+        stack.setCustomSpacing(TaskListRowLayout.disclosureSpacing, after: disclosureSlot)
+
+        let plus = NSImageView(image: TaskMenuAppKit.symbol("plus", pointSize: 12, weight: .medium) ?? NSImage())
+        plus.contentTintColor = .tertiaryLabelColor
+        plus.setAccessibilityElement(false)
+        plus.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([plus.widthAnchor.constraint(equalToConstant: 26)])
+        stack.addArrangedSubview(plus)
+
+        field.font = .systemFont(ofSize: 12.5)
+        field.setAccessibilityLabel("Add subtask")
+        field.onCommit = { [weak self] _ in
+            self?.commit()
+        }
+        field.onEscape = { [weak self] in
+            self?.onCancel?()
+        }
+        stack.addArrangedSubview(field)
+    }
+
+    private func commit() {
+        let title = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            onCancel?()
+            return
+        }
+        field.stringValue = ""
+        onCommit?(title)
+        // Return ends the field's editing session, so first responder has to be
+        // taken back or the next Return reaches the outline view and opens a row.
+        focusField()
     }
 }
 

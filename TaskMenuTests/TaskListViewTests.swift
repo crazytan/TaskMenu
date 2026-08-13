@@ -348,6 +348,107 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(outline.numberOfRows, 2)
     }
 
+    /// Google Tasks only nests one level deep, so only open top-level rows can
+    /// take a subtask.
+    @MainActor
+    func testAddSubtaskContextItemOnlyOnOpenTopLevelRows() throws {
+        let state = AppState()
+        state.tasks = [
+            makeTask(id: "parent", title: "Parent", position: "0001"),
+            makeTask(id: "child", title: "Child", parent: "parent", position: "0001"),
+            makeTask(id: "done", title: "Done", status: .completed, position: "0002")
+        ]
+
+        let content = TaskListContentView()
+        content.render(appState: state, showCompleted: true, expandedCompletedSubtaskParentIDs: [])
+
+        let titles = { (row: Int) in
+            (content.contextMenu(forRow: row)?.items ?? []).map(\.title)
+        }
+        XCTAssertEqual(titles(0), ["Add Subtask", "", "Delete"], "top-level open task")
+        XCTAssertEqual(titles(1), ["Delete"], "subtask row")
+        // Row 2 is the completed-section header; row 3 is the completed task.
+        XCTAssertNil(content.contextMenu(forRow: 2))
+        XCTAssertEqual(titles(3), ["Delete"], "completed task row")
+    }
+
+    /// The inline field has to show up even under a parent that had no
+    /// subtasks, which is the case where the outline still thinks the row is a
+    /// leaf. The second render puts the view on the animated diff path, the one
+    /// a context-menu tap goes through in the running app.
+    @MainActor
+    func testAddSubtaskFieldOpensUnderParentWithoutSubtasksAndCommitsOnEnter() throws {
+        let state = AppState()
+        state.tasks = [makeTask(id: "solo", title: "Solo", position: "0001")]
+
+        let content = TaskListContentView()
+        let host = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 400),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        host.contentView?.addSubview(content)
+        content.frame = NSRect(x: 0, y: 0, width: 360, height: 400)
+
+        var addedSubtasks: [(title: String, parentID: String)] = []
+        var cancelCount = 0
+        content.onAddSubtask = { addedSubtasks.append((title: $0, parentID: $1)) }
+        content.onCancelAddSubtask = { cancelCount += 1 }
+
+        content.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        content.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+        XCTAssertEqual(outline.numberOfRows, 1)
+
+        content.render(
+            appState: state,
+            showCompleted: false,
+            expandedCompletedSubtaskParentIDs: [],
+            addingSubtaskParentID: "solo"
+        )
+        XCTAssertEqual(outline.numberOfRows, 2, "the inline field opens under the parent")
+
+        let field = try XCTUnwrap(addSubtaskField(inRow: 1, of: outline))
+        field.stringValue = "Pack the charger"
+        _ = field.sendAction(field.action, to: field.target)
+        XCTAssertEqual(addedSubtasks.map(\.title), ["Pack the charger"])
+        XCTAssertEqual(addedSubtasks.map(\.parentID), ["solo"])
+        XCTAssertEqual(field.stringValue, "", "the field clears for the next subtask")
+        XCTAssertEqual(cancelCount, 0, "a committed subtask leaves the field open")
+
+        // An empty Enter and Escape both close the field.
+        _ = field.sendAction(field.action, to: field.target)
+        XCTAssertEqual(cancelCount, 1)
+        _ = field.control(
+            field,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.cancelOperation(_:))
+        )
+        XCTAssertEqual(cancelCount, 2)
+    }
+
+    @MainActor
+    private func addSubtaskField(inRow row: Int, of outline: NSOutlineView) throws -> TaskMenuTextField {
+        let cell = try XCTUnwrap(outline.view(atColumn: 0, row: row, makeIfNecessary: true))
+        return try XCTUnwrap(
+            textFields(in: cell).first { $0.accessibilityLabel() == "Add subtask" },
+            "row \(row) should host the inline add-subtask field"
+        )
+    }
+
+    @MainActor
+    private func textFields(in view: NSView) -> [TaskMenuTextField] {
+        var found: [TaskMenuTextField] = []
+        if let field = view as? TaskMenuTextField {
+            found.append(field)
+        }
+        for subview in view.subviews {
+            found.append(contentsOf: textFields(in: subview))
+        }
+        return found
+    }
+
     @MainActor
     private func clickSubtaskChevron(inRowZeroOf outline: NSOutlineView) throws {
         let cell = try XCTUnwrap(outline.view(atColumn: 0, row: 0, makeIfNecessary: true))
