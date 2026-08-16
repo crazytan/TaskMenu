@@ -85,47 +85,56 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
     }
 
+    /// Renders `pane`'s tasks (the primary pane when nil) with the app-wide
+    /// sort and list set from `appState`.
     func render(
         appState: AppState,
+        pane: TaskListPane? = nil,
         showCompleted: Bool,
         expandedCompletedSubtaskParentIDs: Set<String>,
         addingSubtaskParentID: String? = nil
     ) {
-        isSearching = appState.isSearching
+        let pane = pane ?? appState.primaryPane
+        isSearching = pane.isSearching
         canReorder = appState.canReorderTasks
         // Collapse state is ignored while searching so matching subtasks stay visible.
-        let newCollapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
+        let newCollapsedTaskIDs = isSearching ? [] : pane.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
         self.addingSubtaskParentID = addingSubtaskParentID
-        moveDestinationLists = appState.taskLists.filter { $0.id != appState.selectedListId }
+        moveDestinationLists = appState.taskLists.filter { $0.id != pane.selectedListId }
 
-        let contextKey = "\(appState.selectedListId ?? "")|\(appState.searchText)|\(appState.taskSortOrder.rawValue)"
+        let contextKey = "\(pane.selectedListId ?? "")|\(pane.searchText)|\(appState.taskSortOrder.rawValue)"
         let animated = hasRenderedOnce
             && contextKey == lastRenderContextKey
             && window != nil
-            && !emptyStateWillChangeVisibility(appState: appState)
+            && !emptyStateWillChangeVisibility(appState: appState, pane: pane)
         lastRenderContextKey = contextKey
 
         if animated {
-            applyAnimatedRender(appState: appState, showCompleted: showCompleted, newCollapsedTaskIDs: newCollapsedTaskIDs)
+            applyAnimatedRender(
+                appState: appState,
+                pane: pane,
+                showCompleted: showCompleted,
+                newCollapsedTaskIDs: newCollapsedTaskIDs
+            )
         } else {
             collapsedTaskIDs = newCollapsedTaskIDs
-            rebuildNodes(appState: appState, showCompleted: showCompleted)
+            rebuildNodes(appState: appState, pane: pane, showCompleted: showCompleted)
             outlineView.reloadData()
             restoreExpansionState()
         }
-        updateEmptyState(appState: appState)
+        updateEmptyState(appState: appState, pane: pane)
         applyPendingFlashes()
         hasRenderedOnce = true
     }
 
     /// Row animations look wrong when the whole list swaps with the empty
     /// state, so those renders fall back to a plain reload.
-    private func emptyStateWillChangeVisibility(appState: AppState) -> Bool {
-        let showsNoResults = !appState.tasks.isEmpty
-            && appState.isSearching
-            && appState.searchFilteredTasks.isEmpty
-        let willShowEmpty = appState.tasks.isEmpty || showsNoResults
+    private func emptyStateWillChangeVisibility(appState: AppState, pane: TaskListPane) -> Bool {
+        let showsNoResults = !pane.tasks.isEmpty
+            && pane.isSearching
+            && appState.searchFilteredTasks(in: pane).isEmpty
+        let willShowEmpty = pane.tasks.isEmpty || showsNoResults
         return willShowEmpty != scrollView.isHidden
     }
 
@@ -137,6 +146,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     /// content changed. Falls back to fades when Reduce Motion is on.
     private func applyAnimatedRender(
         appState: AppState,
+        pane: TaskListPane,
         showCompleted: Bool,
         newCollapsedTaskIDs: Set<String>
     ) {
@@ -148,7 +158,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         let previousSignatures = previousNodeByKey.mapValues { $0.signature }
         let previousChildren = previousNodeByKey.mapValues { $0.children }
 
-        rebuildNodes(appState: appState, showCompleted: showCompleted, reusingNodesFrom: previousNodeByKey)
+        rebuildNodes(appState: appState, pane: pane, showCompleted: showCompleted, reusingNodesFrom: previousNodeByKey)
 
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let removeAnimation: NSTableView.AnimationOptions = reduceMotion ? .effectFade : [.slideUp, .effectFade]
@@ -399,6 +409,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
 
     private func rebuildNodes(
         appState: AppState,
+        pane: TaskListPane,
         showCompleted: Bool,
         reusingNodesFrom previousNodeByKey: [String: TaskOutlineNode] = [:]
     ) {
@@ -408,11 +419,13 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
 
         let builder = NodeBuilder(previousNodeByKey: previousNodeByKey)
 
-        let activeRoots = TaskListPresentation.incompleteRootTasks(from: appState)
-        let activeNodes = activeRoots.map { makeActiveNode(for: $0, appState: appState, level: 0, builder: builder, parentKey: nil) }
+        let activeRoots = TaskListPresentation.incompleteRootTasks(from: appState, pane: pane)
+        let activeNodes = activeRoots.map {
+            makeActiveNode(for: $0, appState: appState, pane: pane, level: 0, builder: builder, parentKey: nil)
+        }
 
         let completedTasks = completedTasksForFinalSection(
-            TaskListPresentation.completedSectionSourceTasks(from: appState)
+            TaskListPresentation.completedSectionSourceTasks(from: appState, pane: pane)
         )
         if completedTasks.isEmpty {
             nodes = activeNodes
@@ -455,6 +468,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     private func makeActiveNode(
         for task: TaskItem,
         appState: AppState,
+        pane: TaskListPane,
         level: Int,
         builder: NodeBuilder,
         parentKey: String?
@@ -467,9 +481,11 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         let nodeKey = TaskOutlineNode.key(forTaskID: task.id)
         // While searching, matching completed subtasks render inline instead of
         // behind the completed-subtasks disclosure.
-        var children = TaskListPresentation.displaySubtasks(of: task.id, from: appState)
+        var children = TaskListPresentation.displaySubtasks(of: task.id, from: appState, pane: pane)
             .filter { isSearching || !$0.isCompleted }
-            .map { makeActiveNode(for: $0, appState: appState, level: level + 1, builder: builder, parentKey: nodeKey) }
+            .map {
+                makeActiveNode(for: $0, appState: appState, pane: pane, level: level + 1, builder: builder, parentKey: nodeKey)
+            }
         // The composer sits directly under the parent row, which is where a
         // newly created subtask lands: the Tasks API makes it the first child.
         if addingSubtaskParentID == task.id {
@@ -483,7 +499,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         }
         let completedSubtasks = isSearching
             ? []
-            : completedSubtasksForOpenParent(task.id, tasks: appState.tasks)
+            : completedSubtasksForOpenParent(task.id, tasks: pane.tasks)
         if !completedSubtasks.isEmpty {
             let isExpanded = expandedCompletedSubtaskParentIDs.contains(task.id)
             children.append(builder.node(
@@ -514,13 +530,13 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         return node
     }
 
-    private func updateEmptyState(appState: AppState) {
+    private func updateEmptyState(appState: AppState, pane: TaskListPane) {
         emptyStateContainer.subviews.forEach { $0.removeFromSuperview() }
 
-        let showsNoResults = !appState.tasks.isEmpty
-            && appState.isSearching
-            && appState.searchFilteredTasks.isEmpty
-        let shouldShowEmpty = appState.tasks.isEmpty || showsNoResults
+        let showsNoResults = !pane.tasks.isEmpty
+            && pane.isSearching
+            && appState.searchFilteredTasks(in: pane).isEmpty
+        let shouldShowEmpty = pane.tasks.isEmpty || showsNoResults
         let wasShowingEmpty = !emptyStateContainer.isHidden
         emptyStateContainer.isHidden = !shouldShowEmpty
         scrollView.isHidden = shouldShowEmpty
@@ -556,7 +572,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
                 font: .systemFont(ofSize: 13),
                 color: .secondaryLabelColor
             ))
-        } else if appState.isLoading {
+        } else if pane.isLoading {
             let spinner = NSProgressIndicator()
             spinner.style = .spinning
             spinner.controlSize = .small

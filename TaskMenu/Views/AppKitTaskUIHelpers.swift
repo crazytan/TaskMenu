@@ -3,7 +3,12 @@ import Observation
 
 @MainActor
 enum TaskMenuMetrics {
+    /// Width of one task-list pane, and of the popover in every single-pane state.
     static let popoverWidth: CGFloat = 320
+    /// Hairline between the two panes of the side-by-side layout.
+    static let paneDividerWidth: CGFloat = 1
+    /// Popover width while two panes are shown: two panes plus the divider.
+    static var sideBySidePopoverWidth: CGFloat { popoverWidth * 2 + paneDividerWidth }
     static let signedInPopoverHeight: CGFloat = 480
     static let signedOutPopoverHeight: CGFloat = 324
     static let loadingPopoverHeight: CGFloat = 180

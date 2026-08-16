@@ -53,6 +53,7 @@ enum Constants {
         static let lastAlertedUpdateVersionKey = "lastAlertedUpdateVersion"
         static let taskSortOrderKey = "taskSortOrder"
         static let menuBarCounterModeKey = "menuBarCounterMode"
+        static let sideBySideListsEnabledKey = "sideBySideListsEnabled"
     }
 
     enum Notifications {

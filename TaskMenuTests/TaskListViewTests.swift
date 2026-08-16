@@ -274,6 +274,54 @@ final class TaskListViewTests: XCTestCase {
         )
     }
 
+    // MARK: - Side-by-side panes
+
+    /// The content view renders whichever pane it is handed, never the primary
+    /// by accident; that is what keeps the second pane from mirroring the first.
+    @MainActor
+    func testContentViewRendersTheGivenPaneNotThePrimary() throws {
+        let state = makeIsolatedAppState()
+        state.primaryPane.tasks = [makeTask(id: "a", title: "A")]
+        state.secondaryPane.tasks = [makeTask(id: "b", title: "B")]
+        let content = makeHostedContentView()
+
+        content.render(appState: state, pane: state.secondaryPane, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+        XCTAssertEqual(rowTitles(in: outline), ["B"])
+
+        // The default pane is still the primary for single-pane call sites.
+        let primaryContent = makeHostedContentView()
+        primaryContent.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        let primaryOutline = try XCTUnwrap(findOutlineView(in: primaryContent))
+        XCTAssertEqual(rowTitles(in: primaryOutline), ["A"])
+    }
+
+    @MainActor
+    func testDisplayHelpersHonourTheGivenPanesFilter() {
+        let state = makeIsolatedAppState()
+        let tasks = [
+            makeTask(id: "milk", title: "Buy milk"),
+            makeTask(id: "dog", title: "Walk dog")
+        ]
+        state.primaryPane.tasks = tasks
+        state.secondaryPane.tasks = tasks
+        state.secondaryPane.searchText = "buy"
+
+        XCTAssertEqual(
+            TaskListPresentation.displayRootTasks(from: state, pane: state.secondaryPane).map(\.id),
+            ["milk"]
+        )
+        XCTAssertEqual(
+            TaskListPresentation.displayRootTasks(from: state).map(\.id),
+            ["milk", "dog"],
+            "the primary pane has no filter"
+        )
+        XCTAssertEqual(
+            TaskListPresentation.completedSectionSourceTasks(from: state, pane: state.secondaryPane).map(\.id),
+            ["milk"]
+        )
+    }
+
     @MainActor
     func testDisplaySubtasksShowsOnlyMatchingChildrenWhileSearching() {
         let state = AppState()
@@ -604,15 +652,35 @@ final class TaskListViewTests: XCTestCase {
         header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .dueDate, isLoading: false)
 
         let menu = header.overflowMenu()
-        XCTAssertEqual(menu.items.map(\.title), ["Sort by", "", "Settings…", "Sign out", "Quit"])
-        XCTAssertTrue(menu.items[1].isSeparatorItem)
+        XCTAssertEqual(
+            menu.items.map(\.title),
+            ["Sort by", "Show two lists side by side", "", "Settings…", "Sign out", "Quit"]
+        )
+        XCTAssertTrue(menu.items[2].isSeparatorItem)
 
         let sortMenu = try XCTUnwrap(menu.items[0].submenu)
         XCTAssertEqual(sortMenu.items.map(\.title), ["My order", "Due date"])
         XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on])
 
         header.isDemoMode = true
-        XCTAssertEqual(header.overflowMenu().items[3].title, "Exit demo")
+        XCTAssertEqual(header.overflowMenu().items[4].title, "Exit demo")
+    }
+
+    @MainActor
+    func testOverflowMenuSideBySideItemShowsStateAndToggles() throws {
+        let header = TaskListHeaderView()
+        header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .myOrder, isLoading: false)
+        var toggleCount = 0
+        header.onToggleSideBySide = { toggleCount += 1 }
+
+        XCTAssertEqual(header.overflowMenu().items[1].state, .off)
+        header.isSideBySideEnabled = true
+        let item = header.overflowMenu().items[1]
+        XCTAssertEqual(item.state, .on)
+
+        let action = try XCTUnwrap(item.action)
+        _ = item.target?.perform(action, with: item)
+        XCTAssertEqual(toggleCount, 1)
     }
 
     @MainActor

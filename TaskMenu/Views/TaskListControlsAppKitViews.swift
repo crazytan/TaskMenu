@@ -15,6 +15,10 @@ final class TaskListHeaderView: NSView {
     var onCancelNewList: (() -> Void)?
     /// Retitles the sign-out item, which leaves the demo instead.
     var isDemoMode = false
+    /// Checkmark state of the "Show two lists side by side" overflow item.
+    var isSideBySideEnabled = false
+    /// The "Show two lists side by side" overflow item was chosen.
+    var onToggleSideBySide: (() -> Void)?
     /// Current sort, reflected as the checkmark in the "Sort by" submenu.
     private var sortOrder: TaskSortOrder = .myOrder
 
@@ -331,6 +335,12 @@ final class TaskListHeaderView: NSView {
         }
         sortItem.submenu = sortMenu
         menu.addItem(sortItem)
+
+        let sideBySideItem = ClosureMenuItem(title: "Show two lists side by side") { [weak self] in
+            self?.onToggleSideBySide?()
+        }
+        sideBySideItem.state = isSideBySideEnabled ? .on : .off
+        menu.addItem(sideBySideItem)
         menu.addItem(.separator())
 
         menu.addItem(ClosureMenuItem(title: "Settings…") { [weak self] in

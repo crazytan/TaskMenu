@@ -95,24 +95,31 @@ struct TaskListTaskEntry {
     let section: TaskRowSection
 }
 
+/// Pure read helpers over one pane's tasks and filter (the primary pane when
+/// `pane` is nil).
 @MainActor
 enum TaskListPresentation {
-    static func displayRootTasks(from appState: AppState) -> [TaskItem] {
-        appState.isSearching ? appState.searchFilteredRootTasks : appState.rootTasks
+    static func displayRootTasks(from appState: AppState, pane: TaskListPane? = nil) -> [TaskItem] {
+        let pane = pane ?? appState.primaryPane
+        return pane.isSearching ? appState.searchFilteredRootTasks(in: pane) : appState.rootTasks(in: pane)
     }
 
-    static func incompleteRootTasks(from appState: AppState) -> [TaskItem] {
-        displayRootTasks(from: appState).filter { !$0.isCompleted }
+    static func incompleteRootTasks(from appState: AppState, pane: TaskListPane? = nil) -> [TaskItem] {
+        displayRootTasks(from: appState, pane: pane).filter { !$0.isCompleted }
     }
 
     /// Task set used to build the final completed section; search-filtered while searching.
-    static func completedSectionSourceTasks(from appState: AppState) -> [TaskItem] {
-        appState.isSearching ? appState.searchFilteredTasks : appState.tasks
+    static func completedSectionSourceTasks(from appState: AppState, pane: TaskListPane? = nil) -> [TaskItem] {
+        let pane = pane ?? appState.primaryPane
+        return pane.isSearching ? appState.searchFilteredTasks(in: pane) : pane.tasks
     }
 
     /// Children shown under an open parent. While searching, matching subtasks
     /// (complete and incomplete) appear inline for context.
-    static func displaySubtasks(of taskID: String, from appState: AppState) -> [TaskItem] {
-        appState.isSearching ? appState.searchFilteredSubtasks(of: taskID) : appState.subtasks(of: taskID)
+    static func displaySubtasks(of taskID: String, from appState: AppState, pane: TaskListPane? = nil) -> [TaskItem] {
+        let pane = pane ?? appState.primaryPane
+        return pane.isSearching
+            ? appState.searchFilteredSubtasks(of: taskID, in: pane)
+            : appState.subtasks(of: taskID, in: pane)
     }
 }

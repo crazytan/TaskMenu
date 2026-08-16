@@ -1,8 +1,13 @@
 import AppKit
 
+/// One task-list pane: list picker, filter, quick add, task list, and the
+/// pushed task editor. The popover instantiates one per visible pane, each
+/// rendering its own `TaskListPane` and passing that pane to every `AppState`
+/// mutation, so two panes never touch each other's list.
 @MainActor
 final class TaskListAppKitViewController: NSViewController {
     private let appState: AppState
+    private let pane: TaskListPane
     private let onOpenSettings: () -> Void
     private let onRequestClose: () -> Void
     private let appStateObserver = TaskMenuAppStateObserver()
@@ -34,10 +39,12 @@ final class TaskListAppKitViewController: NSViewController {
 
     init(
         appState: AppState,
+        pane: TaskListPane,
         onOpenSettings: @escaping () -> Void,
         onRequestClose: @escaping () -> Void
     ) {
         self.appState = appState
+        self.pane = pane
         self.onOpenSettings = onOpenSettings
         self.onRequestClose = onRequestClose
         super.init(nibName: nil, bundle: nil)
@@ -70,9 +77,13 @@ final class TaskListAppKitViewController: NSViewController {
         observeAppState()
     }
 
+    /// Only the primary pane takes focus; otherwise the last pane to appear
+    /// would steal it.
     override func viewDidAppear() {
         super.viewDidAppear()
-        quickAddView.focusField()
+        if pane.id == .primary {
+            quickAddView.focusField()
+        }
     }
 
     /// A closed-and-reopened popover shows the picker again, and the
@@ -87,14 +98,17 @@ final class TaskListAppKitViewController: NSViewController {
             self?.selectList(listID)
         }
         headerView.onOpenSettings = onOpenSettings
-        headerView.onRefresh = { [appState] in
+        headerView.onRefresh = { [appState, pane] in
             Task {
-                await appState.refreshTasks()
+                await appState.refreshTasks(in: pane)
             }
         }
         headerView.isDemoMode = appState.isDemoMode
         headerView.onSignOut = { [appState] in
             appState.signOut()
+        }
+        headerView.onToggleSideBySide = { [appState] in
+            appState.sideBySideListsEnabled.toggle()
         }
         headerView.onBeginNewList = { [weak self] in
             self?.openNewListComposer()
@@ -116,11 +130,12 @@ final class TaskListAppKitViewController: NSViewController {
         }
 
         quickAddView.onCommit = { [weak self] title in
+            guard let self else { return }
             // Clear any active filter so the new task is visible and can flash.
-            self?.appState.searchText = ""
+            pane.searchText = ""
             Task { [weak self] in
-                guard let task = await self?.appState.addTask(title: title) else { return }
-                self?.contentView.flashTask(taskID: task.id)
+                guard let self, let task = await appState.addTask(title: title, in: pane) else { return }
+                contentView.flashTask(taskID: task.id)
             }
         }
         quickAddView.onEscapeWithEmptyField = { [weak self] in
@@ -131,7 +146,7 @@ final class TaskListAppKitViewController: NSViewController {
             // Filtering rebuilds every row, which would discard the inline
             // subtask field along with anything typed into it.
             self?.closeAddSubtaskField()
-            self?.appState.searchText = text
+            self?.pane.searchText = text
         }
         searchBarView.onEscapeWithEmptyField = { [weak self] in
             self?.onRequestClose()
@@ -202,7 +217,7 @@ final class TaskListAppKitViewController: NSViewController {
         // Same for the header's new-list field.
         closeNewListComposer()
 
-        let detail = TaskDetailAppKitViewController(appState: appState, task: task) { [weak self] in
+        let detail = TaskDetailAppKitViewController(appState: appState, pane: pane, task: task) { [weak self] in
             self?.dismissTaskDetail()
         }
         addChild(detail)
@@ -304,14 +319,14 @@ final class TaskListAppKitViewController: NSViewController {
         contentView.onOpenTask = { [weak self] task in
             self?.presentTaskDetail(for: task)
         }
-        contentView.onToggleTask = { [appState] task in
+        contentView.onToggleTask = { [appState, pane] task in
             Task {
-                await appState.toggleTask(task)
+                await appState.toggleTask(task, in: pane)
             }
         }
-        contentView.onDeleteTask = { [appState] task in
+        contentView.onDeleteTask = { [appState, pane] task in
             Task {
-                await appState.deleteTask(task)
+                await appState.deleteTask(task, in: pane)
             }
         }
         contentView.onMoveTaskToList = { [weak self] task, listID in
@@ -320,13 +335,13 @@ final class TaskListAppKitViewController: NSViewController {
             if addingSubtaskParentID == task.id {
                 closeAddSubtaskField()
             }
-            Task { [appState] in
-                await appState.moveTask(task, toList: listID)
+            Task { [appState, pane] in
+                await appState.moveTask(task, toList: listID, from: pane)
             }
         }
-        contentView.onMoveTask = { [appState] task, newParentID, previousTaskID in
+        contentView.onMoveTask = { [appState, pane] task, newParentID, previousTaskID in
             Task {
-                await appState.moveTask(task, toParent: newParentID, after: previousTaskID)
+                await appState.moveTask(task, toParent: newParentID, after: previousTaskID, in: pane)
             }
         }
         contentView.onBeginAddSubtask = { [weak self] task in
@@ -334,8 +349,10 @@ final class TaskListAppKitViewController: NSViewController {
         }
         contentView.onAddSubtask = { [weak self] title, parentID in
             Task { [weak self] in
-                guard let subtask = await self?.appState.addSubtask(title: title, parentId: parentID) else { return }
-                self?.contentView.flashTask(taskID: subtask.id)
+                guard let self,
+                      let subtask = await appState.addSubtask(title: title, parentId: parentID, in: pane)
+                else { return }
+                contentView.flashTask(taskID: subtask.id)
             }
         }
         contentView.onCancelAddSubtask = { [weak self] in
@@ -344,7 +361,7 @@ final class TaskListAppKitViewController: NSViewController {
         }
         contentView.onToggleCollapsed = { [weak self] taskID in
             Task { @MainActor [weak self] in
-                self?.appState.toggleCollapsed(taskID)
+                self?.pane.toggleCollapsed(taskID)
                 self?.renderListContent()
             }
         }
@@ -371,8 +388,8 @@ final class TaskListAppKitViewController: NSViewController {
     /// cleared so the parent (and the subtask about to be created) is visible,
     /// and a collapsed parent is expanded so the field itself is on screen.
     private func openAddSubtaskField(for task: TaskItem) {
-        appState.searchText = ""
-        appState.expandTask(task.id)
+        pane.searchText = ""
+        pane.expandTask(task.id)
         addingSubtaskParentID = task.id
         renderListContent()
     }
@@ -406,8 +423,8 @@ final class TaskListAppKitViewController: NSViewController {
         closeNewListComposer()
         resetPerListUIState()
         quickAddView.focusField()
-        Task { [appState] in
-            await appState.createTaskList(title: title)
+        Task { [appState, pane] in
+            await appState.createTaskList(title: title, in: pane)
         }
     }
 
@@ -416,16 +433,19 @@ final class TaskListAppKitViewController: NSViewController {
         showCompleted = false
         expandedCompletedSubtaskParentIDs = []
         closeAddSubtaskField()
-        appState.searchText = ""
+        pane.searchText = ""
     }
 
     /// One-shot `--capture task` hook: the seeded tasks arrive asynchronously,
-    /// so the push waits for the first render that has one to open.
+    /// so the push waits for the first render that has one to open. Only the
+    /// primary pane opens it.
     private func presentTaskDetailForCaptureIfNeeded() {
         guard !hasPresentedCaptureDetail,
+              pane.id == .primary,
               TaskMenuApp.captureScreen == .task,
-              let task = appState.rootTasks.first(where: { !$0.isCompleted && !appState.subtasks(of: $0.id).isEmpty })
-                  ?? appState.rootTasks.first(where: { !$0.isCompleted })
+              let task = appState.rootTasks(in: pane).first(where: {
+                  !$0.isCompleted && !appState.subtasks(of: $0.id, in: pane).isEmpty
+              }) ?? appState.rootTasks(in: pane).first(where: { !$0.isCompleted })
         else {
             return
         }
@@ -436,19 +456,21 @@ final class TaskListAppKitViewController: NSViewController {
 
     private func renderListScreen() {
         presentTaskDetailForCaptureIfNeeded()
+        let listTitle = appState.selectedList(in: pane)?.title ?? "Tasks"
+        headerView.isSideBySideEnabled = appState.sideBySideListsEnabled
         headerView.render(
-            listTitle: appState.selectedList?.title ?? "Tasks",
+            listTitle: listTitle,
             taskLists: appState.taskLists,
-            selectedListID: appState.selectedListId,
+            selectedListID: pane.selectedListId,
             sortOrder: appState.taskSortOrder,
-            isLoading: appState.isLoading,
+            isLoading: pane.isLoading,
             isComposingNewList: isComposingNewList
         )
-        quickAddView.render(listTitle: appState.selectedList?.title ?? "Tasks")
+        quickAddView.render(listTitle: listTitle)
         searchBarView.render(
-            searchText: appState.searchText,
-            isSearching: appState.isSearching,
-            resultCount: appState.searchMatchCount
+            searchText: pane.searchText,
+            isSearching: pane.isSearching,
+            resultCount: appState.searchMatchCount(in: pane)
         )
         renderListContent()
     }
@@ -456,6 +478,7 @@ final class TaskListAppKitViewController: NSViewController {
     private func renderListContent() {
         contentView.render(
             appState: appState,
+            pane: pane,
             showCompleted: showCompleted,
             expandedCompletedSubtaskParentIDs: expandedCompletedSubtaskParentIDs,
             addingSubtaskParentID: addingSubtaskParentID
@@ -463,24 +486,26 @@ final class TaskListAppKitViewController: NSViewController {
     }
 
     private func selectList(_ listID: String) {
-        guard listID != appState.selectedListId else { return }
+        guard listID != pane.selectedListId else { return }
         closeNewListComposer()
         resetPerListUIState()
-        Task { [appState] in
-            await appState.selectList(listID)
+        Task { [appState, pane] in
+            await appState.selectList(listID, in: pane)
         }
     }
 
+    /// Tracks the pane's own state, never the primary-pane forwarders on
+    /// `AppState`, so the secondary pane re-renders on its own changes.
     private func observeAppState() {
-        appStateObserver.observe { [appState] in
-            _ = appState.isLoading
+        appStateObserver.observe { [appState, pane] in
+            _ = pane.isLoading
             _ = appState.taskLists
-            _ = appState.selectedListId
-            _ = appState.selectedList
-            _ = appState.tasks
-            _ = appState.collapsedTaskIDs
-            _ = appState.searchText
+            _ = pane.selectedListId
+            _ = pane.tasks
+            _ = pane.collapsedTaskIDs
+            _ = pane.searchText
             _ = appState.taskSortOrder
+            _ = appState.sideBySideListsEnabled
         } onChange: { [weak self] in
             self?.renderListScreen()
         }

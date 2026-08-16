@@ -80,6 +80,7 @@ any issues early (e.g., macOS permission issues).
 - Seeded data covers four lists: "Seeded Tasks" (subtasks, completed section, delete target), "Due Dates" (overdue/today/tomorrow/future due dates on parents and subtasks, plus standalone due-today and undated roots so "Sort by" → "Due date" visibly reorders it), "Long Subtasks" (a parent with 12 subtasks for scroll behavior), and "Empty List" (empty state). Switch lists with the picker at the top.
 - Adding `--signed-out` starts on the sign-in screen instead of a seeded signed-in state, which is how to reach the "Explore the Demo" button and exercise demo mode.
 - Adding `--demo` opens directly in demo mode on the realistic sample lists (Today/Work/Personal). This is the state the App Store preview sources are captured from.
+- Adding `--side-by-side` starts with the two-pane layout on; `--secondary-list <id>` picks the right pane's seeded list.
 - Adding `--list <id>` (e.g. `--list seeded-due-dates`) switches to that seeded list after the first load, and `--sort-due-date` starts with the list sorted by due date, so sort screenshots need no clicking.
 - Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no update checks, no persisted defaults. Task mutations (add, add subtask, edit, complete, delete) and creating a list from the picker's "New List…" item work against the fake API and reset on relaunch.
 - Take screenshots with `screencapture` to inspect rendering, then kill the process when done.

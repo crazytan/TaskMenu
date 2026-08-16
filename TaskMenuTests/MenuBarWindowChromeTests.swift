@@ -136,6 +136,84 @@ final class MenuBarWindowChromeTests: XCTestCase {
         XCTAssertTrue(errorLabel.isHidden)
     }
 
+    /// The signed-in popover renders one pane controller per visible pane and
+    /// widens to two panes plus the divider while the setting is on.
+    func testSignedInPopoverRendersTwoPanesAndWidensWhenEnabled() async throws {
+        let suiteName = "dev.crazytan.TaskMenu.tests.popover.\(UUID().uuidString)"
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        userDefaults.removePersistentDomain(forName: suiteName)
+        defer { userDefaults.removePersistentDomain(forName: suiteName) }
+        let state = AppState(
+            authService: GoogleAuthService(keychain: InMemoryKeychainService()),
+            api: DemoTasksAPI(),
+            userDefaults: userDefaults
+        )
+        state.isSignedIn = true
+        state.hasCompletedInitialTaskLoad = true
+        state.taskLists = [
+            TaskList(id: "one", title: "One", selfLink: nil, updated: nil),
+            TaskList(id: "two", title: "Two", selfLink: nil, updated: nil)
+        ]
+        state.selectedListId = "one"
+
+        var reportedSizes: [NSSize] = []
+        let controller = TaskPopoverViewController(
+            appState: state,
+            onRequestClose: {},
+            onContentSizeChanged: { reportedSizes.append($0) }
+        )
+        _ = controller.view
+
+        XCTAssertEqual(paneControllers(of: controller).count, 1)
+        XCTAssertEqual(controller.preferredContentSize.width, TaskMenuMetrics.popoverWidth)
+        XCTAssertNil(paneDivider(in: controller.view))
+
+        state.sideBySideListsEnabled = true
+        await drainMainActorTasks()
+
+        let paneViews = paneControllers(of: controller).map(\.view)
+        XCTAssertEqual(paneViews.count, 2)
+        XCTAssertEqual(controller.preferredContentSize.width, TaskMenuMetrics.sideBySidePopoverWidth)
+        XCTAssertEqual(controller.preferredContentSize.height, TaskMenuMetrics.signedInPopoverHeight)
+        XCTAssertEqual(reportedSizes.last?.width, TaskMenuMetrics.sideBySidePopoverWidth)
+        let divider = try XCTUnwrap(paneDivider(in: controller.view))
+        // Both panes and the divider share one row container.
+        XCTAssertTrue(paneViews.allSatisfy { $0.superview === divider.superview })
+        controller.view.layoutSubtreeIfNeeded()
+        XCTAssertEqual(paneViews[0].frame.width, TaskMenuMetrics.popoverWidth)
+        XCTAssertEqual(paneViews[1].frame.width, TaskMenuMetrics.popoverWidth)
+        // The box's frame carries AppKit's alignment insets; the laid-out
+        // hairline (and the gap between the panes) is the divider width.
+        XCTAssertEqual(divider.alignmentRect(forFrame: divider.frame).width, TaskMenuMetrics.paneDividerWidth)
+        XCTAssertEqual(paneViews[1].frame.minX - paneViews[0].frame.maxX, TaskMenuMetrics.paneDividerWidth)
+
+        state.sideBySideListsEnabled = false
+        await drainMainActorTasks()
+
+        XCTAssertEqual(paneControllers(of: controller).count, 1)
+        XCTAssertEqual(controller.preferredContentSize.width, TaskMenuMetrics.popoverWidth)
+        XCTAssertNil(paneDivider(in: controller.view))
+    }
+
+    private func paneControllers(of controller: NSViewController) -> [TaskListAppKitViewController] {
+        controller.children.compactMap { $0 as? TaskListAppKitViewController }
+    }
+
+    /// The hairline between the panes: a separator `NSBox` that is a direct
+    /// sibling of the pane controllers' views (every other separator in the
+    /// popover is an arranged subview of some `NSStackView`).
+    private func paneDivider(in view: NSView) -> NSBox? {
+        if let box = view as? NSBox, box.boxType == .separator, !(box.superview is NSStackView) {
+            return box
+        }
+        for subview in view.subviews {
+            if let found = paneDivider(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
     private func drainMainActorTasks() async {
         for _ in 0..<20 {
             await Task.yield()

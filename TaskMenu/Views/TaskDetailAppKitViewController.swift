@@ -16,6 +16,9 @@ private enum TaskDetailViewMetrics {
 @MainActor
 final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate {
     private let appState: AppState
+    /// The pane this editor was pushed from; every read and mutation goes
+    /// through it, so the second pane's editor never touches the first's list.
+    private let pane: TaskListPane
     private var task: TaskItem
     private var dueDateState: TaskDetailDueDateState
     private let onDismiss: () -> Void
@@ -48,8 +51,9 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
     var isDueDateCalendarOpen: Bool { dueDateCalendarOverlay != nil }
 
-    init(appState: AppState, task: TaskItem, onDismiss: @escaping () -> Void) {
+    init(appState: AppState, pane: TaskListPane? = nil, task: TaskItem, onDismiss: @escaping () -> Void) {
         self.appState = appState
+        self.pane = pane ?? appState.primaryPane
         self.task = task
         self.dueDateState = TaskDetailDueDateState(task: task)
         self.onDismiss = onDismiss
@@ -109,7 +113,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             insets: NSEdgeInsets(top: 9, left: 10, bottom: 8, right: 10)
         )
 
-        let backButton = TaskMenuActionButton(title: appState.selectedList?.title ?? "Tasks", symbolName: "chevron.left", pointSize: 12, weight: .medium, accessibilityDescription: "Back") { [weak self] in
+        let backButton = TaskMenuActionButton(title: appState.selectedList(in: pane)?.title ?? "Tasks", symbolName: "chevron.left", pointSize: 12, weight: .medium, accessibilityDescription: "Back") { [weak self] in
             self?.onDismiss()
         }
         backButton.imagePosition = .imageLeading
@@ -285,7 +289,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
             menu.addItem(item)
         }
         listPopup.menu = menu
-        if let index = appState.taskLists.firstIndex(where: { $0.id == appState.selectedListId }) {
+        if let index = appState.taskLists.firstIndex(where: { $0.id == pane.selectedListId }) {
             listPopup.selectItem(at: index)
         }
         listPopup.controlSize = .small
@@ -300,7 +304,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
     @objc private func listPopupChanged(_ sender: NSPopUpButton) {
         guard let listID = sender.selectedItem?.representedObject as? String,
-              listID != appState.selectedListId
+              listID != pane.selectedListId
         else { return }
         moveTask(toList: listID)
     }
@@ -312,15 +316,15 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let edited = editedTaskFromFields()
         // Judge "unsaved" against what AppState holds, not the initial copy,
         // since background refreshes update `task` while the editor is open.
-        let current = appState.tasks.first { $0.id == task.id } ?? task
+        let current = pane.tasks.first { $0.id == task.id } ?? task
         let hasUnsavedEdits = edited.title != current.title
             || edited.notes != current.notes
             || edited.due != current.due
-        Task { [appState, onDismiss] in
+        Task { [appState, pane, onDismiss] in
             if hasUnsavedEdits {
-                await appState.updateTask(edited)
+                await appState.updateTask(edited, in: pane)
             }
-            await appState.moveTask(edited, toList: destinationListID)
+            await appState.moveTask(edited, toList: destinationListID, from: pane)
             onDismiss()
         }
     }
@@ -428,7 +432,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
         // The add row leads the section, so existing subtasks start below it.
         var index = 1
-        for child in subtasksWithCompletedLast(appState.subtasks(of: task.id)) {
+        for child in subtasksWithCompletedLast(appState.subtasks(of: task.id, in: pane)) {
             subtaskListStack.insertArrangedSubview(subtaskRow(for: child), at: index)
             index += 1
         }
@@ -463,7 +467,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private func subtaskRow(for child: TaskItem) -> NSView {
         let row = TaskDetailSubtaskRow(task: child) { [weak self] in
             Task {
-                await self?.appState.toggleTask(child)
+                guard let self else { return }
+                await self.appState.toggleTask(child, in: self.pane)
             }
         }
         return row
@@ -613,9 +618,9 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func observeAppState() {
-        appStateObserver.observe { [appState, task] in
-            _ = appState.tasks
-            _ = appState.subtasks(of: task.id)
+        appStateObserver.observe { [appState, pane, task] in
+            _ = pane.tasks
+            _ = appState.subtasks(of: task.id, in: pane)
         } onChange: { [weak self] in
             self?.syncTaskFromAppState()
             self?.renderSubtasks()
@@ -623,7 +628,7 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     }
 
     private func syncTaskFromAppState() {
-        guard let updated = appState.tasks.first(where: { $0.id == task.id }) else { return }
+        guard let updated = pane.tasks.first(where: { $0.id == task.id }) else { return }
         task = updated
     }
 
@@ -749,16 +754,16 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
 
     @objc private func saveTask() {
         let updatedTask = editedTaskFromFields()
-        Task { [appState, onDismiss] in
-            await appState.updateTask(updatedTask)
+        Task { [appState, pane, onDismiss] in
+            await appState.updateTask(updatedTask, in: pane)
             onDismiss()
         }
     }
 
     @objc private func deleteTask() {
         let task = task
-        Task { [appState, onDismiss] in
-            await appState.deleteTask(task)
+        Task { [appState, pane, onDismiss] in
+            await appState.deleteTask(task, in: pane)
             onDismiss()
         }
     }
@@ -768,8 +773,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         let title = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
         field.stringValue = ""
-        Task { [appState, task] in
-            await appState.addSubtask(title: title, parentId: task.id)
+        Task { [appState, pane, task] in
+            await appState.addSubtask(title: title, parentId: task.id, in: pane)
         }
     }
 }

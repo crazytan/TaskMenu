@@ -140,6 +140,10 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     /// Adding `--demo` skips straight into demo mode.
     /// Adding `--sort-due-date` starts with the list sorted by due date, and
     /// `--list <id>` opens on that seeded list instead of the first one.
+    /// Adding `--side-by-side` starts with the two-pane layout on (the second
+    /// pane picks the list after the first pane's once the lists load), and
+    /// `--secondary-list <id>` puts that seeded list in the second pane
+    /// instead, so both panes on one list needs no clicking either.
     /// Adding `--capture` renders the App Store preview states: the same
     /// realistic sample data, but signed in, so no demo banner or demo account
     /// row appears in the marketing screenshots.
@@ -159,13 +163,25 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--sort-due-date") {
             state.taskSortOrder = .dueDate
         }
+        // Not signed in yet, so this only records the preference; the signed-in
+        // bootstrap (or demo entry) below picks the second pane's list.
+        if CommandLine.arguments.contains("--side-by-side") {
+            state.sideBySideListsEnabled = true
+        }
         // `--list <id>` switches to that seeded list (e.g. `seeded-due-dates`)
-        // once the first load lands, so screenshots need no clicking. The
+        // once the first load lands, so screenshots need no clicking, and
+        // `--secondary-list <id>` does the same for the second pane. The
         // bootstrap only runs while nothing is selected, so this cannot preset
         // the selection up front. The wait is bounded so a `--signed-out`
         // launch, which never loads, does not poll forever.
-        if let flagIndex = CommandLine.arguments.firstIndex(of: "--list"),
-           CommandLine.arguments.indices.contains(flagIndex + 1) {
+        let paneListFlags: [(flag: String, pane: TaskListPane)] = [
+            ("--list", state.primaryPane),
+            ("--secondary-list", state.secondaryPane)
+        ]
+        for (flag, pane) in paneListFlags {
+            guard let flagIndex = CommandLine.arguments.firstIndex(of: flag),
+                  CommandLine.arguments.indices.contains(flagIndex + 1)
+            else { continue }
             let listID = CommandLine.arguments[flagIndex + 1]
             Task { @MainActor in
                 var remainingPolls = 200
@@ -175,7 +191,7 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
                 }
                 guard state.hasCompletedInitialTaskLoad else { return }
                 guard state.taskLists.contains(where: { $0.id == listID }) else { return }
-                await state.selectList(listID)
+                await state.selectList(listID, in: pane)
             }
         }
         guard !CommandLine.arguments.contains("--signed-out") else { return state }

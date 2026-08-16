@@ -5,8 +5,9 @@ final class TaskPopoverViewController: NSViewController {
     private enum Mode: Equatable {
         case initialLoading
         case signedOut
-        /// `isDemo` is part of the mode so toggling it re-renders the banner.
-        case signedIn(isDemo: Bool)
+        /// `isDemo` and `isSideBySide` are part of the mode so toggling either
+        /// re-renders (the banner, or the number of panes and the width).
+        case signedIn(isDemo: Bool, isSideBySide: Bool)
     }
 
     private let appState: AppState
@@ -14,6 +15,7 @@ final class TaskPopoverViewController: NSViewController {
     private let onContentSizeChanged: (NSSize) -> Void
     private let backgroundView = NSVisualEffectView()
     private let rootStack = NSStackView()
+    private var widthConstraint: NSLayoutConstraint?
     private var currentMode: Mode?
     private var signedInContentHeightConstraint: NSLayoutConstraint?
     private var errorSeparator: NSView?
@@ -50,9 +52,9 @@ final class TaskPopoverViewController: NSViewController {
         rootStack.spacing = 0
         backgroundView.addSubview(rootStack)
         TaskMenuAppKit.pin(rootStack, to: backgroundView)
-        NSLayoutConstraint.activate([
-            backgroundView.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth)
-        ])
+        let widthConstraint = backgroundView.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth)
+        widthConstraint.isActive = true
+        self.widthConstraint = widthConstraint
     }
 
     override func viewDidLoad() {
@@ -72,7 +74,7 @@ final class TaskPopoverViewController: NSViewController {
         } else if !appState.isSignedIn {
             return .signedOut
         } else {
-            return .signedIn(isDemo: appState.isDemoMode)
+            return .signedIn(isDemo: appState.isDemoMode, isSideBySide: appState.sideBySideListsEnabled)
         }
     }
 
@@ -85,6 +87,9 @@ final class TaskPopoverViewController: NSViewController {
             updateErrorStrip()
         }
         let contentSize = contentSize(for: mode)
+        // The popover animates to the new preferred size; the testing window
+        // follows through `onContentSizeChanged`.
+        widthConstraint?.constant = contentSize.width
         preferredContentSize = contentSize
         onContentSizeChanged(contentSize)
     }
@@ -108,27 +113,70 @@ final class TaskPopoverViewController: NSViewController {
             rootStack.addArrangedSubview(loadingView())
         case .signedOut:
             rootStack.addArrangedSubview(signInView())
-        case let .signedIn(isDemo):
+        case let .signedIn(isDemo, isSideBySide):
+            // The banner and the error strip live in the root stack, so they
+            // span the full width above and below the pane row.
             if isDemo {
                 rootStack.addArrangedSubview(demoBanner())
                 rootStack.addArrangedSubview(TaskMenuAppKit.separator())
             }
-            let listController = TaskListAppKitViewController(
-                appState: appState,
-                onOpenSettings: { [weak self] in
-                    self?.openSettings()
-                },
-                onRequestClose: { [weak self] in
-                    self?.onRequestClose()
-                }
-            )
-            addChild(listController)
-            rootStack.addArrangedSubview(listController.view)
-            let heightConstraint = listController.view.heightAnchor.constraint(equalToConstant: signedInContentHeight())
+            let panes = isSideBySide ? [appState.primaryPane, appState.secondaryPane] : [appState.primaryPane]
+            let controllers = panes.map { pane in
+                TaskListAppKitViewController(
+                    appState: appState,
+                    pane: pane,
+                    onOpenSettings: { [weak self] in
+                        self?.openSettings()
+                    },
+                    onRequestClose: { [weak self] in
+                        self?.onRequestClose()
+                    }
+                )
+            }
+            controllers.forEach(addChild)
+            let paneRow = makePaneRow(controllers.map(\.view))
+            rootStack.addArrangedSubview(paneRow)
+            let heightConstraint = paneRow.heightAnchor.constraint(equalToConstant: signedInContentHeight())
             heightConstraint.isActive = true
             signedInContentHeightConstraint = heightConstraint
             updateErrorStrip()
         }
+    }
+
+    /// One pane is used as is. Two panes sit side by side, each at the
+    /// single-pane width, with a full-height hairline between them. Explicit
+    /// constraints (not a stack view) keep the row's height constraint and the
+    /// divider's stretch unambiguous.
+    private func makePaneRow(_ paneViews: [NSView]) -> NSView {
+        guard paneViews.count == 2, let leading = paneViews.first, let trailing = paneViews.last else {
+            return paneViews.first ?? NSView()
+        }
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        // `NSBox.separator` follows appearance changes on its own.
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.translatesAutoresizingMaskIntoConstraints = false
+
+        for view in [leading, divider, trailing] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(view)
+            NSLayoutConstraint.activate([
+                view.topAnchor.constraint(equalTo: container.topAnchor),
+                view.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            ])
+        }
+        NSLayoutConstraint.activate([
+            leading.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            leading.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth),
+            divider.leadingAnchor.constraint(equalTo: leading.trailingAnchor),
+            divider.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.paneDividerWidth),
+            trailing.leadingAnchor.constraint(equalTo: divider.trailingAnchor),
+            trailing.widthAnchor.constraint(equalToConstant: TaskMenuMetrics.popoverWidth),
+            trailing.trailingAnchor.constraint(equalTo: container.trailingAnchor)
+        ])
+        return container
     }
 
     private func loadingView() -> NSView {
@@ -367,8 +415,11 @@ final class TaskPopoverViewController: NSViewController {
             return NSSize(width: TaskMenuMetrics.popoverWidth, height: TaskMenuMetrics.loadingPopoverHeight)
         case .signedOut:
             return NSSize(width: TaskMenuMetrics.popoverWidth, height: TaskMenuMetrics.signedOutPopoverHeight)
-        case .signedIn:
-            return NSSize(width: TaskMenuMetrics.popoverWidth, height: TaskMenuMetrics.signedInPopoverHeight)
+        case let .signedIn(_, isSideBySide):
+            return NSSize(
+                width: isSideBySide ? TaskMenuMetrics.sideBySidePopoverWidth : TaskMenuMetrics.popoverWidth,
+                height: TaskMenuMetrics.signedInPopoverHeight
+            )
         }
     }
 
@@ -383,6 +434,7 @@ final class TaskPopoverViewController: NSViewController {
             _ = appState.isShowingInitialTaskLoad
             _ = appState.isSignedIn
             _ = appState.isDemoMode
+            _ = appState.sideBySideListsEnabled
             _ = appState.isLoading
             _ = appState.errorMessage
         } onChange: { [weak self] in

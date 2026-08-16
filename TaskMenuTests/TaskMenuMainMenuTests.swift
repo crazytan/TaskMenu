@@ -186,8 +186,10 @@ final class TaskMenuMainMenuTests: XCTestCase {
     /// from a focused text field actually reaches the task list controller. That
     /// link is the non-obvious part of the design, so assert it directly.
     func testFocusShortcutsResolveToTheTaskListControllerFromAFocusedTextField() throws {
+        let state = AppState()
         let controller = TaskListAppKitViewController(
-            appState: AppState(),
+            appState: state,
+            pane: state.primaryPane,
             onOpenSettings: {},
             onRequestClose: {}
         )
@@ -216,8 +218,10 @@ final class TaskMenuMainMenuTests: XCTestCase {
     }
 
     func testFocusShortcutsAreEnabledWhileTheTaskListPageIsShowing() {
+        let state = AppState()
         let controller = TaskListAppKitViewController(
-            appState: AppState(),
+            appState: state,
+            pane: state.primaryPane,
             onOpenSettings: {},
             onRequestClose: {}
         )
