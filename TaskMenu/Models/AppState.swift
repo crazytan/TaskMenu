@@ -75,6 +75,40 @@ func tasksReorderedAfterMove(
     return tasks.map { updatedTasksByID[$0.id] ?? $0 }
 }
 
+/// Adds a task the Tasks API just created to the local list where the API
+/// stores a task inserted without `previous`: first among its siblings, at
+/// the top level or under `task.parent`. The sibling group's positions are
+/// rewritten the way `tasksReorderedAfterMove(_:movedTaskID:newParentID:previousTaskID:)`
+/// does after a move, so the order does not hinge on comparing the created
+/// task's server position against stale sibling positions the server may
+/// have renumbered since. A task whose parent is missing from the list is
+/// appended as is.
+func tasksWithCreatedTask(_ task: TaskItem, in tasks: [TaskItem]) -> [TaskItem] {
+    var updatedTasks = tasks.filter { $0.id != task.id }
+
+    if let parentID = task.parent {
+        guard let parentIndex = updatedTasks.firstIndex(where: { $0.id == parentID }) else {
+            updatedTasks.append(task)
+            return updatedTasks
+        }
+        // Keep the array grouped as the server lists it: parent, then its
+        // subtasks. Sorting is by position, so this only decides tie-breaks.
+        let insertIndex = updatedTasks.indices
+            .suffix(from: parentIndex + 1)
+            .first(where: { updatedTasks[$0].parent != parentID }) ?? updatedTasks.endIndex
+        updatedTasks.insert(task, at: insertIndex)
+    } else {
+        updatedTasks.insert(task, at: 0)
+    }
+
+    return tasksReorderedAfterMove(
+        updatedTasks,
+        movedTaskID: task.id,
+        newParentID: task.parent,
+        previousTaskID: nil
+    ) ?? updatedTasks
+}
+
 @MainActor
 @Observable
 final class AppState {
@@ -492,6 +526,15 @@ final class AppState {
         }
     }
 
+    /// Creates a subtask under `parentId`. The Tasks API inserts a task that
+    /// carries a parent and no `previous` as the parent's first child, and
+    /// the existing siblings' positions can change server-side to make room,
+    /// so the created task's returned position is not comparable with the
+    /// stale sibling positions held locally: it can tie with, or sort after,
+    /// the sibling it actually precedes on the server. The commit therefore
+    /// places the task first among its siblings the way a move would,
+    /// rewriting the sibling group's positions; the exact server positions
+    /// reconcile on the next refresh.
     @discardableResult
     func addSubtask(title: String, parentId: String) async -> TaskItem? {
         guard let listId = selectedListId else { return nil }
@@ -499,15 +542,11 @@ final class AppState {
             let task = try await api.createTask(listId: listId, title: title, parentId: parentId)
             guard isSignedIn else { return nil }
             commitTaskChange(to: listId) { tasks in
-                // Insert after parent and its existing subtasks
-                if let parentIndex = tasks.firstIndex(where: { $0.id == parentId }) {
-                    let insertIndex = tasks.indices
-                        .suffix(from: parentIndex + 1)
-                        .first(where: { tasks[$0].parent != parentId }) ?? tasks.endIndex
-                    tasks.insert(task, at: insertIndex)
-                } else {
-                    tasks.append(task)
-                }
+                // File it under the parent that was asked for; the reorder
+                // reads the parent off the task.
+                var subtask = task
+                subtask.parent = parentId
+                tasks = tasksWithCreatedTask(subtask, in: tasks)
             }
             await syncDueDateNotificationsIfNeeded()
             return task

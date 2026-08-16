@@ -396,6 +396,77 @@ final class AppStateTests: XCTestCase {
         ))
     }
 
+    // MARK: - Created Task Placement
+
+    /// The Tasks API inserts a task that names a parent and no `previous`
+    /// as the first child and renumbers the siblings, so the position it
+    /// hands back for the new task ties with the stale one still held for
+    /// the former first child. Position order alone would put the new task
+    /// second; the placement helper must not.
+    func testCreatedSubtaskLandsFirstEvenWhenItsPositionTiesWithAStaleSibling() {
+        let tasks = [
+            makeTask(id: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-a", parent: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-b", parent: "parent", position: "00000000000000000001"),
+            makeTask(id: "other", position: "00000000000000000001"),
+        ]
+        let created = makeTask(id: "new", parent: "parent", position: "00000000000000000000")
+
+        let updated = tasksWithCreatedTask(created, in: tasks)
+
+        XCTAssertEqual(subtaskOrder(updated, of: "parent"), ["new", "child-a", "child-b"])
+        XCTAssertEqual(rootOrder(updated), ["parent", "other"])
+        // The array stays grouped by parent; only positions carry the order.
+        XCTAssertEqual(updated.map(\.id), ["parent", "child-a", "child-b", "new", "other"])
+    }
+
+    func testCreatedSubtaskLandsFirstEvenWhenItsPositionSortsAfterStaleSiblings() {
+        let tasks = [
+            makeTask(id: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-a", parent: "parent", position: "00000000000000000000"),
+        ]
+        let created = makeTask(id: "new", parent: "parent", position: "00000000000000000009")
+
+        XCTAssertEqual(subtaskOrder(tasksWithCreatedTask(created, in: tasks), of: "parent"), ["new", "child-a"])
+    }
+
+    func testCreatedSubtasksInARowStackNewestFirst() {
+        var tasks = [
+            makeTask(id: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-a", parent: "parent", position: "00000000000000000000"),
+        ]
+
+        tasks = tasksWithCreatedTask(makeTask(id: "new-1", parent: "parent", position: "00000000000000000000"), in: tasks)
+        tasks = tasksWithCreatedTask(makeTask(id: "new-2", parent: "parent", position: "00000000000000000000"), in: tasks)
+
+        XCTAssertEqual(subtaskOrder(tasks, of: "parent"), ["new-2", "new-1", "child-a"])
+    }
+
+    func testCreatedRootTaskLandsFirstAmongRootTasks() {
+        let tasks = [
+            makeTask(id: "first", position: "00000000000000000000"),
+            makeTask(id: "child", parent: "first", position: "00000000000000000000"),
+            makeTask(id: "second", position: "00000000000000000001"),
+        ]
+        let created = makeTask(id: "new", position: "00000000000000000000")
+
+        let updated = tasksWithCreatedTask(created, in: tasks)
+
+        XCTAssertEqual(rootOrder(updated), ["new", "first", "second"])
+        XCTAssertEqual(subtaskOrder(updated, of: "first"), ["child"])
+    }
+
+    func testCreatedSubtaskWithMissingParentIsAppendedUnchanged() {
+        let tasks = [makeTask(id: "first", position: "00000000000000000000")]
+        let created = makeTask(id: "orphan", parent: "gone", position: "00000000000000000000")
+
+        let updated = tasksWithCreatedTask(created, in: tasks)
+
+        XCTAssertEqual(updated.map(\.id), ["first", "orphan"])
+        XCTAssertEqual(updated.last?.parent, "gone")
+        XCTAssertEqual(updated.first?.position, "00000000000000000000")
+    }
+
     // MARK: - Sign Out
 
     func testSignOutResetsAllState() throws {

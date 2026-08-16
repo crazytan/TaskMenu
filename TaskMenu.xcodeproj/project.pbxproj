@@ -25,6 +25,7 @@
 		44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */; };
 		47D5A568916BF8E1E6FC0347 /* TaskPopoverViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */; };
 		4C4A40DBCD2948E2FC0F1F3A /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7BCF6CD54266E26B32F6DD /* DateFormatting.swift */; };
+		623F012CBAB02C9AF0FC97F7 /* GoogleTasksAPILiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78C41E6DC45EAC0F639FAD9 /* GoogleTasksAPILiveTests.swift */; };
 		69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */; };
 		769F9F3B097D5D7C678CEE7F /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4F099FA85A0476A96ED002 /* StatusBarController.swift */; };
 		76E308FD16F5E910DE7D81E6 /* GoogleTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */; };
@@ -118,6 +119,7 @@
 		AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoTasksAPI.swift; sourceTree = "<group>"; };
 		B39705E088F29F844C149617 /* DueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationService.swift; sourceTree = "<group>"; };
 		B6BE8A6C21B3086FFB9D3D86 /* TaskDetailAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailAppKitViewController.swift; sourceTree = "<group>"; };
+		B78C41E6DC45EAC0F639FAD9 /* GoogleTasksAPILiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPILiveTests.swift; sourceTree = "<group>"; };
 		BB4F099FA85A0476A96ED002 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLProtocol.swift; sourceTree = "<group>"; };
 		BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryKeychainService.swift; sourceTree = "<group>"; };
@@ -241,6 +243,7 @@
 				1C007468F67DCAC110FDF650 /* GitHubUpdateCheckerTests.swift */,
 				C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */,
 				8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */,
+				B78C41E6DC45EAC0F639FAD9 /* GoogleTasksAPILiveTests.swift */,
 				C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */,
 				BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */,
 				058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */,
@@ -403,6 +406,7 @@
 				B4227F8E90C484F324C235C1 /* GitHubUpdateCheckerTests.swift in Sources */,
 				986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */,
 				068F90845303418F7954D22E /* GoogleTasksAPIBehaviorTests.swift in Sources */,
+				623F012CBAB02C9AF0FC97F7 /* GoogleTasksAPILiveTests.swift in Sources */,
 				69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */,
 				B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */,
 				3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */,

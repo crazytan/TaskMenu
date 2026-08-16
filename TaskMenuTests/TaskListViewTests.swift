@@ -454,6 +454,88 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(cancelCount, 2)
     }
 
+    /// End to end through `AppState` and the demo API, which stores a subtask
+    /// the way the Tasks API does for `tasks.insert` without `previous`:
+    /// first child, siblings renumbered, only the new task's position handed
+    /// back. The committed subtask has to render in the row right under the
+    /// field, ahead of the older subtasks, and a refresh (the server's order)
+    /// must leave it there.
+    @MainActor
+    func testCommittedSubtaskRendersUnderTheFieldAndStaysPutAfterRefresh() async throws {
+        let state = AppState(api: DemoTasksAPI())
+        state.isSignedIn = true
+        state.selectedListId = "demo-today"
+        await state.refreshTasks()
+        XCTAssertEqual(
+            state.subtasks(of: "today-review").map(\.title),
+            ["Sync the API client changes", "Leave notes on the test plan"]
+        )
+
+        let content = TaskListContentView()
+        content.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        content.render(
+            appState: state,
+            showCompleted: false,
+            expandedCompletedSubtaskParentIDs: [],
+            addingSubtaskParentID: "today-review"
+        )
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+        XCTAssertEqual(
+            Array(rowTitles(in: outline)[1...4]),
+            ["Review the pull request queue", "<add subtask>", "Sync the API client changes", "Leave notes on the test plan"]
+        )
+
+        let created = await state.addSubtask(title: "Ping the reviewers", parentId: "today-review")
+        XCTAssertNotNil(created)
+        content.render(
+            appState: state,
+            showCompleted: false,
+            expandedCompletedSubtaskParentIDs: [],
+            addingSubtaskParentID: "today-review"
+        )
+        let expectedRows = [
+            "Review the pull request queue",
+            "<add subtask>",
+            "Ping the reviewers",
+            "Sync the API client changes",
+            "Leave notes on the test plan",
+        ]
+        XCTAssertEqual(Array(rowTitles(in: outline)[1...5]), expectedRows)
+
+        await state.refreshTasks()
+        content.render(
+            appState: state,
+            showCompleted: false,
+            expandedCompletedSubtaskParentIDs: [],
+            addingSubtaskParentID: "today-review"
+        )
+        XCTAssertEqual(Array(rowTitles(in: outline)[1...5]), expectedRows, "the server's order matches the optimistic one")
+    }
+
+    /// One label per row: the task title, or `<add subtask>` for the inline field.
+    @MainActor
+    private func rowTitles(in outline: NSOutlineView) -> [String] {
+        (0..<outline.numberOfRows).map { row in
+            guard let cell = outline.view(atColumn: 0, row: row, makeIfNecessary: true) else { return "" }
+            if textFields(in: cell).contains(where: { $0.accessibilityLabel() == "Add subtask" }) {
+                return "<add subtask>"
+            }
+            return labels(in: cell).first { !$0.stringValue.isEmpty }?.stringValue ?? ""
+        }
+    }
+
+    @MainActor
+    private func labels(in view: NSView) -> [NSTextField] {
+        var found: [NSTextField] = []
+        if let label = view as? NSTextField, !(label is TaskMenuTextField) {
+            found.append(label)
+        }
+        for subview in view.subviews {
+            found.append(contentsOf: labels(in: subview))
+        }
+        return found
+    }
+
     @MainActor
     private func addSubtaskField(inRow row: Int, of outline: NSOutlineView) throws -> TaskMenuTextField {
         let cell = try XCTUnwrap(outline.view(atColumn: 0, row: row, makeIfNecessary: true))

@@ -24,7 +24,7 @@ actor DemoTasksAPI: TasksAPIProtocol {
             status: TaskItem.TaskStatus = .needsAction,
             dueInDays: Int? = nil,
             parent: String? = nil,
-            position: String
+            position: Int
         ) -> TaskItem {
             TaskItem(
                 id: id,
@@ -34,7 +34,7 @@ actor DemoTasksAPI: TasksAPIProtocol {
                 due: dueInDays.flatMap { due(inDays: $0) },
                 selfLink: nil,
                 parent: parent,
-                position: position,
+                position: String(format: "%020d", position),
                 updated: nil
             )
         }
@@ -46,20 +46,20 @@ actor DemoTasksAPI: TasksAPIProtocol {
                     "Write up standup notes",
                     notes: "Blockers first, then what shipped yesterday.",
                     dueInDays: 0,
-                    position: "0001"
+                    position: 0
                 ),
                 task(
                     "today-review",
                     "Review the pull request queue",
                     notes: "Start with anything blocking the release branch.",
                     dueInDays: 0,
-                    position: "0002"
+                    position: 1
                 ),
-                task("today-review-api", "Sync the API client changes", parent: "today-review", position: "0001"),
-                task("today-review-tests", "Leave notes on the test plan", parent: "today-review", position: "0002"),
-                task("today-invoice", "Send the March invoice", dueInDays: -1, position: "0003"),
-                task("today-walk", "Afternoon walk", dueInDays: 0, position: "0004"),
-                task("today-inbox", "Clear the inbox", status: .completed, dueInDays: 0, position: "0005")
+                task("today-review-api", "Sync the API client changes", parent: "today-review", position: 0),
+                task("today-review-tests", "Leave notes on the test plan", parent: "today-review", position: 1),
+                task("today-invoice", "Send the March invoice", dueInDays: -1, position: 2),
+                task("today-walk", "Afternoon walk", dueInDays: 0, position: 3),
+                task("today-inbox", "Clear the inbox", status: .completed, dueInDays: 0, position: 4)
             ],
             "demo-work": [
                 task(
@@ -67,22 +67,22 @@ actor DemoTasksAPI: TasksAPIProtocol {
                     "Ship the 2.0 launch checklist",
                     notes: "Everything below has to land before the announcement goes out.",
                     dueInDays: 3,
-                    position: "0001"
+                    position: 0
                 ),
-                task("work-launch-copy", "Finalize the release notes", parent: "work-launch", position: "0001"),
-                task("work-launch-assets", "Export the marketing screenshots", dueInDays: 1, parent: "work-launch", position: "0002"),
-                task("work-launch-qa", "Run the regression pass", status: .completed, parent: "work-launch", position: "0003"),
-                task("work-roadmap", "Draft next quarter's roadmap", dueInDays: 7, position: "0002"),
-                task("work-onemore", "Book the team offsite", dueInDays: 14, position: "0003"),
-                task("work-retro", "Schedule the sprint retro", status: .completed, dueInDays: -2, position: "0004")
+                task("work-launch-copy", "Finalize the release notes", parent: "work-launch", position: 0),
+                task("work-launch-assets", "Export the marketing screenshots", dueInDays: 1, parent: "work-launch", position: 1),
+                task("work-launch-qa", "Run the regression pass", status: .completed, parent: "work-launch", position: 2),
+                task("work-roadmap", "Draft next quarter's roadmap", dueInDays: 7, position: 1),
+                task("work-onemore", "Book the team offsite", dueInDays: 14, position: 2),
+                task("work-retro", "Schedule the sprint retro", status: .completed, dueInDays: -2, position: 3)
             ],
             "demo-personal": [
-                task("personal-groceries", "Pick up groceries", notes: "Coffee, olive oil, lemons.", dueInDays: 0, position: "0001"),
-                task("personal-dentist", "Book a dentist appointment", dueInDays: -3, position: "0002"),
-                task("personal-trip", "Plan the summer trip", dueInDays: 21, position: "0003"),
-                task("personal-trip-flights", "Compare flight prices", parent: "personal-trip", position: "0001"),
-                task("personal-trip-stay", "Shortlist places to stay", parent: "personal-trip", position: "0002"),
-                task("personal-books", "Return the library books", status: .completed, dueInDays: -1, position: "0004")
+                task("personal-groceries", "Pick up groceries", notes: "Coffee, olive oil, lemons.", dueInDays: 0, position: 0),
+                task("personal-dentist", "Book a dentist appointment", dueInDays: -3, position: 1),
+                task("personal-trip", "Plan the summer trip", dueInDays: 21, position: 2),
+                task("personal-trip-flights", "Compare flight prices", parent: "personal-trip", position: 0),
+                task("personal-trip-stay", "Shortlist places to stay", parent: "personal-trip", position: 1),
+                task("personal-books", "Return the library books", status: .completed, dueInDays: -1, position: 3)
             ]
         ]
     }
@@ -105,11 +105,14 @@ actor DemoTasksAPI: TasksAPIProtocol {
             due: due,
             selfLink: nil,
             parent: parentId,
-            position: String(format: "%04d", (tasksByListID[listId]?.count ?? 0) + 1),
+            position: nil,
             updated: nil
         )
-        tasksByListID[listId, default: []].insert(task, at: 0)
-        return task
+        // Mirror the Tasks API: a task inserted without `previous` becomes the
+        // first sibling and the group is renumbered.
+        let tasks = tasksWithCreatedTask(task, in: tasksByListID[listId] ?? [])
+        tasksByListID[listId] = tasks
+        return tasks.first { $0.id == task.id } ?? task
     }
 
     func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem {

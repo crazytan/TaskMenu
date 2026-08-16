@@ -517,6 +517,65 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertNotNil(state.errorMessage)
     }
 
+    // MARK: - addSubtask
+
+    /// A right-click "Add Subtask" hits `tasks.insert` with a parent and no
+    /// `previous`, which Google stores as the first child while renumbering
+    /// the siblings. The response only carries the new task's position, so it
+    /// ties with the former first child's stale position; the subtask still
+    /// has to show up first, where the server (and a refresh) put it.
+    func testAddSubtaskShowsNewSubtaskFirstDespiteStaleSiblingPositions() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-a", parent: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-b", parent: "parent", position: "00000000000000000001"),
+            makeTask(id: "other", position: "00000000000000000001"),
+        ]
+
+        stubResponse(json: #"{"id":"new","title":"New Sub","status":"needsAction","parent":"parent","position":"00000000000000000000"}"#)
+
+        let created = await state.addSubtask(title: "New Sub", parentId: "parent")
+
+        XCTAssertEqual(created?.id, "new")
+        XCTAssertEqual(state.subtasks(of: "parent").map(\.id), ["new", "child-a", "child-b"])
+        XCTAssertEqual(state.rootTasks.map(\.id), ["parent", "other"])
+        XCTAssertNil(state.errorMessage)
+
+        let request = MockURLProtocol.requestLog.last
+        XCTAssertEqual(request?.httpMethod, "POST")
+        XCTAssertEqual(request?.url?.query, "parent=parent")
+    }
+
+    func testAddSubtaskFilesTaskUnderRequestedParent() async {
+        state.selectedListId = "list1"
+        state.tasks = [makeTask(id: "parent", position: "00000000000000000000")]
+
+        stubResponse(json: #"{"id":"new","title":"New Sub","status":"needsAction","position":"00000000000000000000"}"#)
+
+        await state.addSubtask(title: "New Sub", parentId: "parent")
+
+        XCTAssertEqual(state.subtasks(of: "parent").map(\.id), ["new"])
+        XCTAssertEqual(state.rootTasks.map(\.id), ["parent"])
+        XCTAssertEqual(state.tasks.map(\.id), ["parent", "new"])
+    }
+
+    func testAddSubtaskReturnsNilOnFailureAndLeavesTasksAlone() async {
+        state.selectedListId = "list1"
+        state.tasks = [
+            makeTask(id: "parent", position: "00000000000000000000"),
+            makeTask(id: "child-a", parent: "parent", position: "00000000000000000000"),
+        ]
+
+        stubResponse(statusCode: 500, json: "")
+
+        let created = await state.addSubtask(title: "New Sub", parentId: "parent")
+
+        XCTAssertNil(created)
+        XCTAssertEqual(state.subtasks(of: "parent").map(\.id), ["child-a"])
+        XCTAssertNotNil(state.errorMessage)
+    }
+
     // MARK: - deleteTask
 
     func testDeleteTaskRemovesFromTasksAndCache() async {

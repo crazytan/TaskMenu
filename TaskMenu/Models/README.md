@@ -25,6 +25,7 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 - Use `tasksSortedByGooglePosition(_:)` for any Google-position-sensitive order. It preserves API order when positions are missing.
 - Root tasks have `parent == nil`; subtasks use their parent's task ID.
+- `addSubtask(title:parentId:)` commits the created task through `tasksWithCreatedTask(_:in:)`, which places it first among its siblings and rewrites the sibling group's positions like a move would. `tasks.insert` with a `parent` and no `previous` makes the new task the first child and renumbers the existing children server-side (verified live: every created child comes back as `00000000000000000000` and the former children shift up), so the created task's returned position ties with the former first child's stale local position; never place a created subtask by comparing positions. `addTask(title:)` inserts at index 0, where the position tie-break already lands the new root task first.
 - Drag-and-drop reordering goes through `moveTask(_:toParent:after:)`, which applies `tasksReorderedAfterMove(_:movedTaskID:newParentID:previousTaskID:)` optimistically (rewriting destination sibling positions locally), calls the move API, and rolls back on failure. Exact server positions reconcile on the next refresh.
 - Search matches titles and notes, and it includes the parent of a matching subtask so the UI can preserve context.
 

@@ -13,6 +13,7 @@
 - **Mac App Store builds** come from a separate `AppStore` configuration that leaves out the update checker and the tips link, since the App Store delivers its own updates and requires In-App Purchase for donations. Settings there shows a plain version row. Direct-download builds are unchanged.
 
 ### Fixed
+- **A subtask added from the right-click menu could show up in the wrong slot** — it landed below an older subtask until the next refresh moved it to the top, where Google actually puts it. The list now shows it at the top right away, matching the order on the Google Tasks website.
 - **"Explore the Demo" did nothing if you had started a Google sign-in and backed out of it** — the demo now takes over from the abandoned attempt instead of waiting for it.
 
 ### Added

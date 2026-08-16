@@ -361,7 +361,7 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
             status: TaskItem.TaskStatus = .needsAction,
             dueInDays: Int? = nil,
             parent: String? = nil,
-            position: String
+            position: Int
         ) -> TaskItem {
             TaskItem(
                 id: id,
@@ -371,7 +371,7 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
                 due: dueInDays.flatMap { dueString(daysFromToday: $0) },
                 selfLink: nil,
                 parent: parent,
-                position: position,
+                position: String(format: "%020d", position),
                 updated: nil
             )
         }
@@ -382,31 +382,31 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
                 String(format: "Long edit subtask %02d", index),
                 status: index >= 9 ? .completed : .needsAction,
                 parent: "long-parent",
-                position: String(format: "%04d", index)
+                position: index - 1
             )
         }
 
         tasksByListID = [
             "seeded-list": [
-                task("active-parent", "Active parent with subtasks", position: "0001"),
-                task("active-child", "Active subtask aligned left", parent: "active-parent", position: "0001"),
-                task("delete-target", "Right click delete target", position: "0002"),
-                task("active-standalone", "Another active task", position: "0003"),
-                task("completed-root", "Completed root task", status: .completed, position: "0004"),
-                task("completed-child", "Completed subtask aligned left", status: .completed, parent: "active-parent", position: "0002")
+                task("active-parent", "Active parent with subtasks", position: 0),
+                task("active-child", "Active subtask aligned left", parent: "active-parent", position: 0),
+                task("delete-target", "Right click delete target", position: 1),
+                task("active-standalone", "Another active task", position: 2),
+                task("completed-root", "Completed root task", status: .completed, position: 3),
+                task("completed-child", "Completed subtask aligned left", status: .completed, parent: "active-parent", position: 1)
             ],
             "seeded-due-dates": [
-                task("due-parent", "Parent due tomorrow with dated subtasks", dueInDays: 1, position: "0001"),
-                task("due-child-today", "Subtask due today", dueInDays: 0, parent: "due-parent", position: "0001"),
-                task("due-child-overdue", "Subtask overdue by two days", dueInDays: -2, parent: "due-parent", position: "0002"),
-                task("due-child-completed", "Completed subtask due yesterday", status: .completed, dueInDays: -1, parent: "due-parent", position: "0003"),
-                task("due-overdue", "Standalone overdue by a week", dueInDays: -7, position: "0002"),
-                task("due-future", "Standalone due in two weeks", dueInDays: 14, position: "0003"),
-                task("due-none", "Standalone without a due date", position: "0004"),
-                task("due-completed-root", "Completed root due last week", status: .completed, dueInDays: -7, position: "0005")
+                task("due-parent", "Parent due tomorrow with dated subtasks", dueInDays: 1, position: 0),
+                task("due-child-today", "Subtask due today", dueInDays: 0, parent: "due-parent", position: 0),
+                task("due-child-overdue", "Subtask overdue by two days", dueInDays: -2, parent: "due-parent", position: 1),
+                task("due-child-completed", "Completed subtask due yesterday", status: .completed, dueInDays: -1, parent: "due-parent", position: 2),
+                task("due-overdue", "Standalone overdue by a week", dueInDays: -7, position: 1),
+                task("due-future", "Standalone due in two weeks", dueInDays: 14, position: 2),
+                task("due-none", "Standalone without a due date", position: 3),
+                task("due-completed-root", "Completed root due last week", status: .completed, dueInDays: -7, position: 4)
             ],
             "seeded-long-subtasks": [
-                task("long-parent", "Parent with 12 subtasks", position: "0001")
+                task("long-parent", "Parent with 12 subtasks", position: 0)
             ] + longSubtasks,
             "seeded-empty": []
         ]
@@ -430,11 +430,16 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
             due: due,
             selfLink: nil,
             parent: parentId,
-            position: String(format: "%04d", (tasksByListID[listId]?.count ?? 0) + 1),
+            position: nil,
             updated: nil
         )
-        tasksByListID[listId, default: []].insert(task, at: 0)
-        return task
+        // Mirror the Tasks API: a task inserted without `previous` becomes the
+        // first sibling and the group is renumbered, so the position handed
+        // back collides with the one a client still holds for the former
+        // first sibling.
+        let tasks = tasksWithCreatedTask(task, in: tasksByListID[listId] ?? [])
+        tasksByListID[listId] = tasks
+        return tasks.first { $0.id == task.id } ?? task
     }
 
     func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem {
