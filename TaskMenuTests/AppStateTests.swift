@@ -172,6 +172,129 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey), "dueDate")
     }
 
+    // MARK: - Menu-bar counter preference
+
+    func testInitialStateDefaultsMenuBarCounterToOff() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        XCTAssertEqual(state.menuBarCounterMode, .off)
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+    }
+
+    func testInitialStateUsesStoredMenuBarCounterMode() {
+        userDefaults.set("dueToday", forKey: Constants.UserDefaults.menuBarCounterModeKey)
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        XCTAssertEqual(state.menuBarCounterMode, .dueToday)
+    }
+
+    func testInitialStateIgnoresUnknownStoredMenuBarCounterMode() {
+        userDefaults.set("bogus", forKey: Constants.UserDefaults.menuBarCounterModeKey)
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        XCTAssertEqual(state.menuBarCounterMode, .off)
+    }
+
+    func testChangingMenuBarCounterModePersistsRawValue() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        state.menuBarCounterMode = .openTasks
+        XCTAssertEqual(userDefaults.string(forKey: Constants.UserDefaults.menuBarCounterModeKey), "openTasks")
+
+        state.menuBarCounterMode = .off
+        XCTAssertEqual(userDefaults.string(forKey: Constants.UserDefaults.menuBarCounterModeKey), "off")
+    }
+
+    func testMenuBarPendingCountIsZeroWhenSignedOut() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.menuBarCounterMode = .openTasks
+        XCTAssertFalse(state.isSignedIn)
+        state.selectedListId = "l1"
+        state.tasks = [makeTask(id: "open")]
+
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        // Signed out, so enabling the counter must not start the loop either.
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+    }
+
+    func testMenuBarPendingCountIsZeroWhenOff() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        XCTAssertTrue(state.isSignedIn)
+        state.selectedListId = "l1"
+        state.tasks = [makeTask(id: "open"), makeTask(id: "open-2")]
+
+        XCTAssertEqual(state.menuBarCounterMode, .off)
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+    }
+
+    func testMenuBarPendingCountReadsLiveTasksForSelectedList() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.selectedListId = "l1"
+        state.tasks = [
+            makeTask(id: "open"),
+            makeTask(id: "child", parent: "open"),
+            makeTask(id: "done", status: .completed)
+        ]
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        XCTAssertEqual(state.menuBarPendingCount, 2)
+
+        state.tasks[0].isCompleted = true
+        XCTAssertEqual(state.menuBarPendingCount, 1)
+    }
+
+    func testMenuBarPendingCountDueTodayIncludesOverdue() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.selectedListId = "l1"
+        state.tasks = [
+            makeTask(id: "today", dueInDays: 0),
+            makeTask(id: "overdue", dueInDays: -2),
+            makeTask(id: "tomorrow", dueInDays: 1),
+            makeTask(id: "undated")
+        ]
+        state.menuBarCounterMode = .dueToday
+        defer { state.menuBarCounterMode = .off }
+
+        XCTAssertEqual(state.menuBarPendingCount, 2)
+    }
+
+    func testPendingTaskCountForModeIgnoresCurrentMode() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.selectedListId = "l1"
+        state.tasks = [makeTask(id: "open"), makeTask(id: "today", dueInDays: 0)]
+
+        XCTAssertEqual(state.menuBarCounterMode, .off)
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        XCTAssertEqual(state.pendingTaskCount(for: .openTasks), 2)
+        XCTAssertEqual(state.pendingTaskCount(for: .dueToday), 1)
+        XCTAssertEqual(state.pendingTaskCount(for: .off), 0)
+    }
+
+    func testSignOutZeroesMenuBarPendingCountAndStopsTheLoop() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.taskLists = [TaskList(id: "l1", title: "Work", selfLink: nil, updated: nil)]
+        state.selectedListId = "l1"
+        state.tasks = [makeTask(id: "open")]
+        state.menuBarCounterMode = .openTasks
+        XCTAssertEqual(state.menuBarPendingCount, 1)
+        XCTAssertTrue(state.isMenuBarCountRefreshLoopRunning)
+
+        state.signOut()
+
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+        // The preference itself survives sign-out like the other preferences.
+        XCTAssertEqual(state.menuBarCounterMode, .openTasks)
+        state.menuBarCounterMode = .off
+    }
+
     func testSignInFailureShowsErrorAndStopsLoading() async {
         let webAuthenticator = AppStateFailingWebAuthenticator(
             error: GoogleAuthError.tokenExchangeFailed("invalid_client: Unauthorized")

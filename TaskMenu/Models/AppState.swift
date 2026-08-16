@@ -142,6 +142,49 @@ final class AppState {
         taskSortOrder == .myOrder
     }
 
+    /// Menu-bar counter preference. Persisted; Off by default.
+    var menuBarCounterMode: MenuBarCounterMode {
+        didSet {
+            userDefaults.set(menuBarCounterMode.rawValue, forKey: Constants.UserDefaults.menuBarCounterModeKey)
+            guard menuBarCounterMode != oldValue else { return }
+            if menuBarCounterMode == .off {
+                stopMenuBarCountRefresh()
+            } else if oldValue == .off {
+                // Other lists have not been fetched while the counter was off.
+                scheduleMenuBarCountRefresh()
+            }
+            // .openTasks <-> .dueToday needs no fetch; the count is recomputed from cache.
+        }
+    }
+
+    /// Account-wide count for the current `menuBarCounterMode`: 0 when signed
+    /// out or Off. Reads the live `tasks` for the selected list and
+    /// `taskCacheByListID` for every other known list, so local mutations
+    /// committed through `commitTaskChange` show up immediately.
+    var menuBarPendingCount: Int {
+        pendingTaskCount(for: menuBarCounterMode)
+    }
+
+    /// Same as `menuBarPendingCount` for an explicit mode (used by tests and by
+    /// the accessor above). Only lists present in `taskLists` (plus the selected
+    /// list) contribute, so a cache entry for a list that disappeared is ignored.
+    func pendingTaskCount(for mode: MenuBarCounterMode, now: Date = Date()) -> Int {
+        guard isSignedIn, mode != .off else { return 0 }
+        var tasksByListID = taskCacheByListID
+        if let selectedListId {
+            tasksByListID[selectedListId] = tasks
+        }
+        var knownListIDs = Set(taskLists.map(\.id))
+        if let selectedListId { knownListIDs.insert(selectedListId) }
+        return tasksByListID.reduce(0) { total, entry in
+            guard knownListIDs.contains(entry.key) else { return total }
+            return total + TaskMenu.pendingTaskCount(in: entry.value, mode: mode, now: now)
+        }
+    }
+
+    /// Whether the periodic menu-bar count refresh loop is running (test probe).
+    var isMenuBarCountRefreshLoopRunning: Bool { menuBarCountRefreshLoop != nil }
+
     var dueDateNotificationsEnabled: Bool {
         didSet {
             userDefaults.set(
@@ -299,6 +342,15 @@ final class AppState {
     private var taskStateGeneration = 0
     /// Tail of the FIFO chain that serializes notification-service work.
     private var notificationWorkTask: Task<Void, Never>?
+    /// Pacing of the background count refresh loop; tests inject a short value.
+    private let menuBarCountRefreshInterval: Duration
+    /// The 5-minute loop; nil while the counter is off or the app is signed out.
+    private var menuBarCountRefreshLoop: Task<Void, Never>?
+    /// The sweep currently fetching lists, so ticks and re-triggers never overlap.
+    private var menuBarCountRefreshTask: Task<Void, Never>?
+    /// Identifies the sweep that owns `menuBarCountRefreshTask`; a cancelled
+    /// sweep that unwinds after its replacement started must not clear the slot.
+    private var menuBarCountSweepID = 0
 
     /// Mac App Store builds do not compile `GitHubUpdateChecker`, so they fall
     /// back to a checker that always reports "no update".
@@ -316,6 +368,7 @@ final class AppState {
         userDefaults: UserDefaults = .standard,
         dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService(),
         updateChecker: any UpdateChecking = defaultUpdateChecker(),
+        menuBarCountRefreshInterval: Duration = .seconds(5 * 60),
         currentAppVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
         currentBuildCommit: String? = Bundle.main.infoDictionary?["GITCommitHash"] as? String
     ) {
@@ -326,6 +379,7 @@ final class AppState {
         self.userDefaults = userDefaults
         self.dueDateNotificationService = dueDateNotificationService
         self.updateChecker = updateChecker
+        self.menuBarCountRefreshInterval = menuBarCountRefreshInterval
         self.currentAppVersion = currentAppVersion
         let trimmedBuildCommit = currentBuildCommit?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.currentBuildCommit = (trimmedBuildCommit?.isEmpty ?? true) ? nil : trimmedBuildCommit
@@ -341,6 +395,8 @@ final class AppState {
         // An unknown stored value falls back to the default rather than crashing.
         self.taskSortOrder = userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey)
             .flatMap(TaskSortOrder.init(rawValue:)) ?? .myOrder
+        self.menuBarCounterMode = userDefaults.string(forKey: Constants.UserDefaults.menuBarCounterModeKey)
+            .flatMap(MenuBarCounterMode.init(rawValue:)) ?? .off
         self.isSignedIn = authService.isSignedIn
         self.googleAccountProfile = authService.accountProfile
     }
@@ -453,6 +509,7 @@ final class AppState {
     }
 
     private func clearSignedInState() {
+        stopMenuBarCountRefresh()
         isSignedIn = false
         googleAccountProfile = nil
         taskLists = []
@@ -494,9 +551,100 @@ final class AppState {
                 selectedListId = first.id
             }
             await refreshTasks()
+            // Spawned, not awaited: the visible load returns as fast as before
+            // while the other lists fill in for the menu-bar count.
+            scheduleMenuBarCountRefresh()
         } catch {
             guard isSignedIn else { return }
             handleError(error)
+        }
+    }
+
+    // MARK: - Menu-bar counter refresh
+
+    /// Kicks off the account-wide fetch that keeps `menuBarPendingCount` covering
+    /// every list, and makes sure the periodic loop is running. No-op when the
+    /// counter is Off or the app is signed out; a sweep already in flight is not
+    /// duplicated. Never awaited by the callers on the visible load path.
+    private func scheduleMenuBarCountRefresh(includingSelectedList: Bool = false) {
+        guard menuBarCounterMode != .off, isSignedIn else { return }
+        startMenuBarCountRefreshLoopIfNeeded()
+        guard menuBarCountRefreshTask == nil else { return }
+        menuBarCountSweepID += 1
+        let sweepID = menuBarCountSweepID
+        menuBarCountRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            await self.refreshMenuBarCounts(includingSelectedList: includingSelectedList)
+            // Off → On (or sign-out → sign-in) cancels this sweep and may start
+            // a new one before this task unwinds; only the current sweep may
+            // free the slot, or the next tick would run a duplicate sweep
+            // alongside the replacement.
+            guard self.menuBarCountSweepID == sweepID else { return }
+            self.menuBarCountRefreshTask = nil
+        }
+    }
+
+    /// Whether an account-wide count sweep is currently fetching (test probe).
+    var isMenuBarCountSweepInFlight: Bool { menuBarCountRefreshTask != nil }
+
+    private func startMenuBarCountRefreshLoopIfNeeded() {
+        guard menuBarCountRefreshLoop == nil else { return }
+        let interval = menuBarCountRefreshInterval
+        menuBarCountRefreshLoop = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: interval)
+                } catch {
+                    return
+                }
+                guard let self, self.isSignedIn, self.menuBarCounterMode != .off else { return }
+                // Ticks refresh the selected list too, so a popover left closed
+                // for hours does not pin a stale contribution.
+                self.scheduleMenuBarCountRefresh(includingSelectedList: true)
+            }
+        }
+    }
+
+    private func stopMenuBarCountRefresh() {
+        menuBarCountRefreshLoop?.cancel()
+        menuBarCountRefreshLoop = nil
+        menuBarCountRefreshTask?.cancel()
+        menuBarCountRefreshTask = nil
+    }
+
+    /// Fetches each known list into `taskCacheByListID` for counting. Off the
+    /// visible load path on purpose: never toggles `isLoading`, never sets
+    /// `errorMessage` (failures are skipped), never bumps `taskLoadRequestID`,
+    /// and never calls `handleError` (a background 401 must not sign the user
+    /// out; the next foreground refresh surfaces it). Each list captures the
+    /// task-state generation before its request and discards the snapshot if
+    /// anything was committed meanwhile, exactly like `refreshTasks()`. The
+    /// selected list is only written when `includingSelectedList` is true, it
+    /// is still selected, no newer foreground load has started, and the
+    /// generation is unchanged; then both `tasks` and its cache entry are
+    /// replaced. Fetches are sequential on purpose (small N, no request burst).
+    private func refreshMenuBarCounts(includingSelectedList: Bool) async {
+        let listIDs = taskLists.map(\.id)
+        for listID in listIDs {
+            guard isSignedIn, menuBarCounterMode != .off, !Task.isCancelled else { return }
+            let isSelected = listID == selectedListId
+            if isSelected && !includingSelectedList { continue }
+            let generation = taskStateGeneration
+            let requestID = taskLoadRequestID
+            guard let fetched = try? await api.listTasks(listId: listID) else { continue }
+            guard isSignedIn, menuBarCounterMode != .off,
+                  taskStateGeneration == generation,
+                  taskLists.contains(where: { $0.id == listID })
+            else { continue }
+            if listID == selectedListId {
+                guard includingSelectedList, taskLoadRequestID == requestID else { continue }
+                tasks = fetched
+            } else if isSelected {
+                // Was selected when the request started but not any more; the
+                // list switch already loaded it through the foreground path.
+                continue
+            }
+            taskCacheByListID[listID] = fetched
         }
     }
 

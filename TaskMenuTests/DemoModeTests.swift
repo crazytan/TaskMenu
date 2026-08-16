@@ -137,6 +137,33 @@ final class DemoModeTests: XCTestCase {
         XCTAssertTrue(syncCalls.isEmpty)
     }
 
+    /// The menu-bar counter covers every demo list, not just the visible one,
+    /// and still never touches the network.
+    func testDemoModeCountsPendingTasksAcrossAllSampleLists() async {
+        MockURLProtocol.requestHandler = { _ in
+            XCTFail("Demo mode must not make network requests")
+            throw APIError.serverError(500, "unexpected request")
+        }
+        let state = makeState()
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        state.enterDemoMode()
+        await waitUntil { state.menuBarPendingCount == 16 }
+
+        // Today 6 + Work 5 + Personal 5 open tasks, subtasks included.
+        XCTAssertEqual(state.menuBarPendingCount, 16)
+        XCTAssertTrue(state.isMenuBarCountRefreshLoopRunning)
+
+        // Today 4 + Personal 2 due today or overdue; no fetch needed.
+        state.menuBarCounterMode = .dueToday
+        XCTAssertEqual(state.menuBarPendingCount, 6)
+
+        state.exitDemoMode()
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+    }
+
     // MARK: - Leaving
 
     func testExitDemoModeReturnsToSignedOutAndClearsSampleData() async {

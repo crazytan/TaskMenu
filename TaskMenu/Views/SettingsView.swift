@@ -99,6 +99,7 @@ private final class SettingsViewController: NSViewController {
             _ = appState.isDemoMode
             _ = appState.googleAccountProfile?.displayEmail
             _ = appState.dueDateNotificationsEnabled
+            _ = appState.menuBarCounterMode
             #if !APP_STORE_BUILD
             _ = appState.automaticUpdateChecksEnabled
             _ = appState.isCheckingForUpdates
@@ -210,6 +211,15 @@ private final class SettingsViewController: NSViewController {
                 isOn: appState.dueDateNotificationsEnabled,
                 onChange: { [appState] isOn in
                     appState.dueDateNotificationsEnabled = isOn
+                }
+            ),
+            popUpRow(
+                title: "Show in menu bar",
+                options: MenuBarCounterMode.allCases.map(\.title),
+                selectedIndex: MenuBarCounterMode.allCases.firstIndex(of: appState.menuBarCounterMode) ?? 0,
+                onChange: { [appState] index in
+                    guard MenuBarCounterMode.allCases.indices.contains(index) else { return }
+                    appState.menuBarCounterMode = MenuBarCounterMode.allCases[index]
                 }
             )
         ]
@@ -568,6 +578,19 @@ private final class SettingsViewController: NSViewController {
         return settingRow(title: title, control: toggle)
     }
 
+    private func popUpRow(
+        title: String,
+        options: [String],
+        selectedIndex: Int,
+        onChange: @escaping (Int) -> Void
+    ) -> NSView {
+        let popUp = SettingsPopUpButton(options: options, selectedIndex: selectedIndex, onChange: onChange)
+        popUp.controlSize = .small
+        popUp.font = .callout
+        popUp.setAccessibilityLabel(title)
+        return settingRow(title: title, control: popUp)
+    }
+
     private func linkButton(title: String, url: URL) -> NSButton {
         let button = SettingsButton(title: title) { _ in
             NSWorkspace.shared.open(url)
@@ -748,6 +771,33 @@ private final class SettingsSwitch: NSSwitch {
 
     @objc private func changed() {
         onChange(state == .on)
+    }
+}
+
+@MainActor
+private final class SettingsPopUpButton: NSPopUpButton {
+    private let onChange: (Int) -> Void
+
+    init(options: [String], selectedIndex: Int, onChange: @escaping (Int) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero, pullsDown: false)
+        addItems(withTitles: options)
+        if itemArray.indices.contains(selectedIndex) {
+            selectItem(at: selectedIndex)
+        }
+        target = self
+        action = #selector(changed)
+        translatesAutoresizingMaskIntoConstraints = false
+        setContentHuggingPriority(.required, for: .horizontal)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    @objc private func changed() {
+        onChange(indexOfSelectedItem)
     }
 }
 

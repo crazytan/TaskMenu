@@ -77,13 +77,17 @@ final class AppStateBehaviorTests: XCTestCase {
         }
     }
 
-    private func makeState(api: any TasksAPIProtocol) -> AppState {
+    private func makeState(
+        api: any TasksAPIProtocol,
+        menuBarCountRefreshInterval: Duration = .seconds(300)
+    ) -> AppState {
         let authService = GoogleAuthService(keychain: keychain, session: MockURLProtocol.mockSession())
         return AppState(
             authService: authService,
             api: api,
             userDefaults: userDefaults,
-            dueDateNotificationService: dueDateNotificationService
+            dueDateNotificationService: dueDateNotificationService,
+            menuBarCountRefreshInterval: menuBarCountRefreshInterval
         )
     }
 
@@ -1116,6 +1120,277 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertEqual(events, ["removeAll"])
     }
 
+    // MARK: - Menu-bar counter: background sweep and periodic refresh
+
+    private var counterLists: [TaskList] {
+        [
+            TaskList(id: "l1", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "l2", title: "Work", selfLink: nil, updated: nil),
+            TaskList(id: "l3", title: "Home", selfLink: nil, updated: nil)
+        ]
+    }
+
+    private func makeDueTask(id: String, dueInDays: Int) -> TaskItem {
+        var task = makeTask(id: id)
+        task.due = DateFormatting.formatGoogleTaskDueDate(
+            Calendar.current.date(byAdding: .day, value: dueInDays, to: Date()) ?? Date()
+        )
+        return task
+    }
+
+    /// l1: 2 open + 1 completed; l2: 3 open (one overdue); l3: 1 open.
+    private func makeCounterAPI(delaysByListID: [String: Duration] = [:]) -> DelayedTasksAPI {
+        DelayedTasksAPI(
+            taskLists: counterLists,
+            tasksByListID: [
+                "l1": [makeTask(id: "a1"), makeTask(id: "a2"), makeTask(id: "a-done", status: .completed)],
+                "l2": [makeTask(id: "b1"), makeTask(id: "b2"), makeDueTask(id: "b-overdue", dueInDays: -1)],
+                "l3": [makeTask(id: "c1")]
+            ],
+            delaysByListID: delaysByListID
+        )
+    }
+
+    func testLoadTaskListsFetchesOtherListsForMenuBarCounterWithoutDelayingTheSelectedList() async {
+        let api = makeCounterAPI(delaysByListID: ["l2": .milliseconds(200)])
+        let state = makeState(api: api)
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        await state.loadTaskLists()
+
+        // The visible load returns as soon as the selected list is in.
+        XCTAssertEqual(state.tasks.map(\.id), ["a1", "a2", "a-done"])
+        XCTAssertFalse(state.isLoading)
+        XCTAssertEqual(state.menuBarPendingCount, 2)
+        XCTAssertTrue(state.isMenuBarCountRefreshLoopRunning)
+
+        await waitUntil { state.menuBarPendingCount == 6 }
+        XCTAssertEqual(state.menuBarPendingCount, 6)
+        XCTAssertFalse(state.isLoading)
+        XCTAssertNil(state.errorMessage)
+        let calls = await api.listTasksCallsByListID
+        XCTAssertEqual(calls["l1"], 1)
+        XCTAssertEqual(calls["l2"], 1)
+        XCTAssertEqual(calls["l3"], 1)
+    }
+
+    func testLoadTaskListsDoesNotFetchOtherListsWhenMenuBarCounterIsOff() async {
+        let api = makeCounterAPI()
+        let state = makeState(api: api)
+        XCTAssertEqual(state.menuBarCounterMode, .off)
+
+        await state.loadTaskLists()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let calls = await api.listTasksCallsByListID
+        XCTAssertEqual(calls["l1"], 1)
+        XCTAssertNil(calls["l2"])
+        XCTAssertNil(calls["l3"])
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+    }
+
+    func testEnablingMenuBarCounterFetchesOtherListsAndStartsTheLoop() async {
+        let api = makeCounterAPI()
+        let state = makeState(api: api)
+        await state.loadTaskLists()
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+        XCTAssertTrue(state.isMenuBarCountRefreshLoopRunning)
+
+        await waitUntil { state.menuBarPendingCount == 6 }
+        XCTAssertEqual(state.menuBarPendingCount, 6)
+        let calls = await api.listTasksCallsByListID
+        XCTAssertEqual(calls["l2"], 1)
+        XCTAssertEqual(calls["l3"], 1)
+    }
+
+    func testSwitchingBetweenOpenAndDueTodayDoesNotRefetch() async {
+        let api = makeCounterAPI()
+        let state = makeState(api: api)
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+        await state.loadTaskLists()
+        await waitUntil { state.menuBarPendingCount == 6 }
+        let callsBefore = await api.listTasksCallsByListID
+
+        state.menuBarCounterMode = .dueToday
+        XCTAssertEqual(state.menuBarPendingCount, 1)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        let callsAfter = await api.listTasksCallsByListID
+        XCTAssertEqual(callsAfter, callsBefore)
+        XCTAssertTrue(state.isMenuBarCountRefreshLoopRunning)
+
+        state.menuBarCounterMode = .openTasks
+        XCTAssertEqual(state.menuBarPendingCount, 6)
+    }
+
+    func testMenuBarCounterRefreshesPeriodicallyAndStopsWhenDisabled() async {
+        let api = makeCounterAPI()
+        let state = makeState(api: api, menuBarCountRefreshInterval: .milliseconds(20))
+        state.menuBarCounterMode = .openTasks
+        await state.loadTaskLists()
+        await waitUntil { state.menuBarPendingCount == 6 }
+
+        // Ticks re-fetch every list, the selected one included.
+        await waitUntil {
+            let calls = await api.listTasksCallsByListID
+            return (calls["l2"] ?? 0) >= 3 && (calls["l1"] ?? 0) >= 2
+        }
+        let callsDuring = await api.listTasksCallsByListID
+        XCTAssertGreaterThanOrEqual(callsDuring["l2"] ?? 0, 3)
+        XCTAssertGreaterThanOrEqual(callsDuring["l1"] ?? 0, 2)
+
+        // A remote change on a non-selected list shows up after the next tick.
+        await api.setTasks([makeTask(id: "b1")], for: "l2")
+        await waitUntil { state.menuBarPendingCount == 4 }
+        XCTAssertEqual(state.menuBarPendingCount, 4)
+
+        state.menuBarCounterMode = .off
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        // Let any tick that was mid-flight drain, then the counts must freeze.
+        try? await Task.sleep(for: .milliseconds(60))
+        let callsAtOff = await api.listTasksCallsByListID
+        try? await Task.sleep(for: .milliseconds(100))
+        let callsLater = await api.listTasksCallsByListID
+        XCTAssertEqual(callsLater, callsAtOff)
+    }
+
+    func testPeriodicTickUpdatesSelectedListTasks() async {
+        let api = makeCounterAPI()
+        let state = makeState(api: api, menuBarCountRefreshInterval: .milliseconds(20))
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+        await state.loadTaskLists()
+        XCTAssertEqual(state.tasks.map(\.id), ["a1", "a2", "a-done"])
+
+        await api.setTasks([makeTask(id: "a-new")], for: "l1")
+        await waitUntil { state.tasks.map(\.id) == ["a-new"] }
+
+        XCTAssertEqual(state.tasks.map(\.id), ["a-new"])
+        XCTAssertFalse(state.isLoading)
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testSignOutStopsMenuBarCounterRefresh() async {
+        let api = makeCounterAPI()
+        let state = makeState(api: api, menuBarCountRefreshInterval: .milliseconds(20))
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+        await state.loadTaskLists()
+        await waitUntil { state.menuBarPendingCount == 6 }
+
+        state.signOut()
+
+        XCTAssertEqual(state.menuBarPendingCount, 0)
+        XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
+        try? await Task.sleep(for: .milliseconds(60))
+        let callsAfterSignOut = await api.listTasksCallsByListID
+        try? await Task.sleep(for: .milliseconds(100))
+        let callsLater = await api.listTasksCallsByListID
+        XCTAssertEqual(callsLater, callsAfterSignOut)
+    }
+
+    func testMenuBarCounterBackgroundFetchSwallowsErrors() async {
+        let api = makeCounterAPI()
+        await api.setListTasksError(.serverError(500, "boom"), for: "l2")
+        let state = makeState(api: api)
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        await state.loadTaskLists()
+        await waitUntil { state.menuBarPendingCount == 3 }
+
+        XCTAssertEqual(state.menuBarPendingCount, 3)
+        XCTAssertNil(state.errorMessage)
+        XCTAssertFalse(state.isLoading)
+        XCTAssertTrue(state.isSignedIn)
+    }
+
+    func testMenuBarCounterBackgroundUnauthorizedDoesNotSignOut() async {
+        let api = makeCounterAPI()
+        await api.setListTasksError(.unauthorized, for: "l2")
+        let state = makeState(api: api)
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        await state.loadTaskLists()
+        await waitUntil { state.menuBarPendingCount == 3 }
+
+        XCTAssertEqual(state.menuBarPendingCount, 3)
+        XCTAssertTrue(state.isSignedIn)
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testBackgroundSnapshotTakenBeforeALocalChangeIsDiscarded() async {
+        let api = makeCounterAPI(delaysByListID: ["l2": .milliseconds(150)])
+        let state = makeState(api: api)
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        await state.loadTaskLists()
+        // The sweep fetches l2 first (150 ms), then l3.
+        await waitUntil {
+            let calls = await api.listTasksCallsByListID
+            return calls["l2"] == 1
+        }
+
+        // A local change while l2 is in flight makes that snapshot stale.
+        await state.addTask(title: "New")
+        XCTAssertEqual(state.menuBarPendingCount, 3)
+
+        // l3 (fetched after the change) counts; the stale l2 snapshot does not.
+        await waitUntil { state.menuBarPendingCount == 4 }
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(state.menuBarPendingCount, 4)
+
+        // The next sweep repairs it (a tick would do the same; re-enabling
+        // triggers one deterministically).
+        state.menuBarCounterMode = .off
+        state.menuBarCounterMode = .openTasks
+        await waitUntil { state.menuBarPendingCount == 7 }
+        XCTAssertEqual(state.menuBarPendingCount, 7)
+    }
+
+    /// Off → On while a sweep is mid-flight cancels it and starts a fresh one;
+    /// the cancelled sweep unwinding afterwards must not mark the new sweep as
+    /// finished (a later tick would then run a duplicate sweep alongside it).
+    func testReenablingDuringASweepKeepsTheReplacementSweepTracked() async {
+        let api = makeCounterAPI(delaysByListID: ["l2": .milliseconds(150)])
+        let state = makeState(api: api)
+        state.menuBarCounterMode = .openTasks
+        defer { state.menuBarCounterMode = .off }
+
+        await state.loadTaskLists()
+        await waitUntil {
+            let calls = await api.listTasksCallsByListID
+            return calls["l2"] == 1
+        }
+        XCTAssertTrue(state.isMenuBarCountSweepInFlight)
+
+        // Cancel the in-flight sweep and start its replacement immediately.
+        state.menuBarCounterMode = .off
+        XCTAssertFalse(state.isMenuBarCountSweepInFlight)
+        state.menuBarCounterMode = .openTasks
+        XCTAssertTrue(state.isMenuBarCountSweepInFlight)
+
+        // Let the cancelled sweep unwind; the replacement is still on l2's delay.
+        try? await Task.sleep(for: .milliseconds(40))
+        XCTAssertTrue(state.isMenuBarCountSweepInFlight)
+
+        await waitUntil { state.menuBarPendingCount == 6 }
+        await waitUntil { !state.isMenuBarCountSweepInFlight }
+        XCTAssertFalse(state.isMenuBarCountSweepInFlight)
+        let calls = await api.listTasksCallsByListID
+        XCTAssertEqual(calls["l2"], 2)
+        XCTAssertEqual(calls["l3"], 1)
+    }
+
     // MARK: - Notification preference toggling
 
     func testRapidNotificationPreferenceTogglingEndingDisabledRemovesNotifications() async {
@@ -1173,6 +1448,8 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     private var moveTaskDelay: Duration?
     private var moveTaskError: APIError?
     private(set) var updateTaskCallCount = 0
+    private(set) var listTasksCallsByListID: [String: Int] = [:]
+    private var listTasksErrorsByListID: [String: APIError] = [:]
 
     init(
         taskLists: [TaskList],
@@ -1200,6 +1477,11 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
         createTaskDelay = delay
     }
 
+    /// Makes `listTasks` throw `error` for `listID` until cleared with `nil`.
+    func setListTasksError(_ error: APIError?, for listID: String) {
+        listTasksErrorsByListID[listID] = error
+    }
+
     /// Queues one updateTask response for the task; stubs are consumed in call order.
     func addUpdateStub(forTaskID taskID: String, delay: Duration? = nil, result: Result<TaskItem, APIError>) {
         updateStubsByTaskID[taskID, default: []].append(UpdateStub(delay: delay, result: result))
@@ -1218,11 +1500,15 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     }
 
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {
+        listTasksCallsByListID[listId, default: 0] += 1
         // Snapshot before the delay to model a server response computed when
         // the request arrived, not when the response lands.
         let tasks = tasksByListID[listId] ?? []
         if let delay = delaysByListID[listId] {
             try? await Task.sleep(for: delay)
+        }
+        if let error = listTasksErrorsByListID[listId] {
+            throw error
         }
 
         if showCompleted {

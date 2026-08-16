@@ -17,6 +17,7 @@
 - **"Explore the Demo" did nothing if you had started a Google sign-in and backed out of it** — the demo now takes over from the abandoned attempt instead of waiting for it.
 
 ### Added
+- **Pending-task count in the menu bar** — Settings → General → "Show in menu bar" can put the number of open tasks, or of tasks due today (overdue included), next to the menu bar icon. It counts every list in your account (or every demo list), drops as soon as you complete a task, and refreshes in the background every five minutes. Off by default.
 - **Sort by due date** — the "…" menu has a "Sort by" submenu with "My order" (Google's order, the default) and "Due date", which lists overdue tasks first, then today, tomorrow, and later, with undated tasks at the end. Subtasks stay under their parent in their usual order. Drag-and-drop reordering pauses while sorted by due date, since the list no longer shows Google's positions.
 - **Add a subtask straight from the list** — right-click a task and choose "Add Subtask" to get an inline field under it. Enter creates the subtask and keeps the field open for the next one; an empty Enter or Escape closes it.
 - **Demo mode** — an "Explore the Demo" button on the sign-in screen opens the app on sample task lists, so you can try everything without connecting a Google account. Nothing leaves your Mac: no sign-in, no network, no reminders, and the sample edits are discarded when you leave. A banner above the list marks the session and exits back to sign-in, as do "Exit demo" in the "…" menu and Settings.

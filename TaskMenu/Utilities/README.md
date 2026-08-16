@@ -17,6 +17,7 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 - Add new UserDefaults keys under `Constants.UserDefaults` and cover default behavior in `AppStateTests` or the nearest behavior suite.
 - Update-check defaults use `automaticUpdateChecksEnabledKey`, `lastUpdateCheckDateKey`, and `lastAlertedUpdateVersionKey`; keep Settings and launch-alert behavior in sync with any changes.
 - Preference defaults also use `dueDateNotificationsEnabledKey` and `taskSortOrderKey` (raw `TaskSortOrder` string, defaults to `myOrder`; unknown values fall back to it).
+- `menuBarCounterModeKey` stores `MenuBarCounterMode.rawValue` (`off` / `openTasks` / `dueToday`); unknown values fall back to Off.
 
 ## Date Formatting
 

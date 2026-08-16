@@ -6,17 +6,26 @@ final class StatusBarController: NSObject {
     private let popover: NSPopover
     private let contextMenu = NSMenu()
     private let menuPresentationRefreshTrigger: MenuPresentationRefreshTrigger
+    private let appState: AppState
+    private let appStateObserver = TaskMenuAppStateObserver()
+    /// Lives for the process, like the controller itself; a `deinit` that
+    /// removes it would need main-actor access the compiler will not grant.
+    private var dayChangeObserver: (any NSObjectProtocol)?
     private var outsideClickMonitors: [Any] = []
 
     init(appState: AppState) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         popover = NSPopover()
         menuPresentationRefreshTrigger = MenuPresentationRefreshTrigger(appState: appState)
+        self.appState = appState
         super.init()
 
         configureStatusItem()
         configurePopover(appState: appState)
         configureContextMenu()
+        updateStatusItemTitle()
+        observeAppState()
+        observeDayChanges()
     }
 
     private func configureStatusItem() {
@@ -27,10 +36,43 @@ final class StatusBarController: NSObject {
         image?.isTemplate = true
 
         button.image = image
+        button.imageHugsTitle = true
         button.toolTip = "TaskMenu"
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+    }
+
+    /// Re-renders the pending count whenever the state it depends on changes.
+    /// The count itself is kept fresh by `AppState` (background sweep and
+    /// periodic loop); this only draws it.
+    private func observeAppState() {
+        appStateObserver.observe { [appState] in
+            _ = appState.menuBarPendingCount
+        } onChange: { [weak self] in
+            self?.updateStatusItemTitle()
+        }
+    }
+
+    /// A "Due today" count rolls over at midnight without waiting for the
+    /// next periodic tick.
+    private func observeDayChanges() {
+        dayChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSCalendarDayChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateStatusItemTitle()
+            }
+        }
+    }
+
+    private func updateStatusItemTitle() {
+        guard let button = statusItem.button else { return }
+        let title = MenuBarCounterPresentation.title(forPendingCount: appState.menuBarPendingCount)
+        MenuBarCounterPresentation.apply(title: title, to: button)
+        statusItem.length = MenuBarCounterPresentation.statusItemLength(forTitle: title)
     }
 
     private func configurePopover(appState: AppState) {
@@ -233,5 +275,30 @@ enum PopoverClickHandling {
 enum StatusItemHighlighting {
     static func apply(_ isHighlighted: Bool, to button: NSButton?) {
         button?.highlight(isHighlighted)
+    }
+}
+
+/// Renders the pending count next to the status item icon: title + image
+/// when there is something to show, icon only otherwise. No animation —
+/// nothing here should move, with or without Reduce Motion.
+@MainActor
+enum MenuBarCounterPresentation {
+    /// nil when nothing should be shown (count <= 0).
+    static func title(forPendingCount count: Int) -> String? {
+        count > 0 ? String(count) : nil
+    }
+
+    static func apply(title: String?, to button: NSButton) {
+        if let title {
+            button.title = title
+            button.imagePosition = .imageLeading
+        } else {
+            button.title = ""
+            button.imagePosition = .imageOnly
+        }
+    }
+
+    static func statusItemLength(forTitle title: String?) -> CGFloat {
+        title == nil ? NSStatusItem.squareLength : NSStatusItem.variableLength
     }
 }
