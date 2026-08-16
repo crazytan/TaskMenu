@@ -300,6 +300,46 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         XCTAssertFalse(url.contains("previous="))
     }
 
+    func testMoveTaskSendsDestinationTasklistQuery() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"id":"t1","title":"Task","status":"needsAction","position":"00000000000000000000"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let result = try await api.moveTask(
+            listId: "list1",
+            taskId: "t1",
+            parentId: nil,
+            previousTaskId: nil,
+            destinationListId: "list2"
+        )
+
+        let request = MockURLProtocol.requestLog.last!
+        XCTAssertEqual(request.httpMethod, "POST")
+        let url = request.url!.absoluteString
+        XCTAssertTrue(url.contains("/lists/list1/tasks/t1/move"))
+        XCTAssertTrue(url.contains("destinationTasklist=list2"))
+        XCTAssertFalse(url.contains("parent="))
+        XCTAssertFalse(url.contains("previous="))
+        XCTAssertNil(request.httpBody)
+        XCTAssertEqual(result.id, "t1")
+    }
+
+    func testMoveTaskOmitsDestinationTasklistWhenNil() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"id":"t1","title":"Task","status":"needsAction","position":"00000000000000000000"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        _ = try await api.moveTask(listId: "list1", taskId: "t1", parentId: "p1", previousTaskId: nil)
+
+        let url = MockURLProtocol.requestLog.last!.url!.absoluteString
+        XCTAssertTrue(url.contains("parent=p1"))
+        XCTAssertFalse(url.contains("destinationTasklist"))
+    }
+
     // MARK: - updateTask
 
     func testUpdateTaskSendsPatchMethod() async throws {

@@ -314,6 +314,16 @@ final class TaskListAppKitViewController: NSViewController {
                 await appState.deleteTask(task)
             }
         }
+        contentView.onMoveTaskToList = { [weak self] task, listID in
+            guard let self else { return }
+            // The composer row belongs to the row that is about to leave the list.
+            if addingSubtaskParentID == task.id {
+                closeAddSubtaskField()
+            }
+            Task { [appState] in
+                await appState.moveTask(task, toList: listID)
+            }
+        }
         contentView.onMoveTask = { [appState] task, newParentID, previousTaskID in
             Task {
                 await appState.moveTask(task, toParent: newParentID, after: previousTaskID)

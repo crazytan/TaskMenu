@@ -109,6 +109,75 @@ func tasksWithCreatedTask(_ task: TaskItem, in tasks: [TaskItem]) -> [TaskItem] 
     ) ?? updatedTasks
 }
 
+/// The task's id plus the ids of all of its descendants, walking the parent
+/// relation transitively so nested subtasks are included. The task's own id
+/// comes first; the rest follow in breadth-first order.
+func taskIDsIncludingDescendants(of taskID: String, in tasks: [TaskItem]) -> [String] {
+    var collectedIDs = [taskID]
+    var collectedIDSet: Set<String> = [taskID]
+    var frontierIDs: Set<String> = [taskID]
+    while !frontierIDs.isEmpty {
+        let childIDs = tasks
+            .filter { task in
+                guard let parent = task.parent else { return false }
+                return frontierIDs.contains(parent) && !collectedIDSet.contains(task.id)
+            }
+            .map(\.id)
+        collectedIDs.append(contentsOf: childIDs)
+        collectedIDSet.formUnion(childIDs)
+        frontierIDs = Set(childIDs)
+    }
+    return collectedIDs
+}
+
+/// Files a task tree that arrived from another list into `tasks`: the root
+/// (`rootTaskID`) becomes the first top-level task and the destination's
+/// root positions are rewritten the way `tasksReorderedAfterMove` does; the
+/// tree's subtasks keep their own positions and parent. Any stale copies of
+/// the moved tasks already in `tasks` are replaced. Mirrors what
+/// `tasks.move` with `destinationTasklist` and no `parent`/`previous` does.
+func tasksInsertingMovedTaskTree(_ movedTasks: [TaskItem], rootTaskID: String, into tasks: [TaskItem]) -> [TaskItem] {
+    let movedIDs = Set(movedTasks.map(\.id))
+    var updatedTasks = tasks.filter { !movedIDs.contains($0.id) }
+    updatedTasks.insert(contentsOf: movedTasks, at: 0)
+    return tasksReorderedAfterMove(
+        updatedTasks,
+        movedTaskID: rootTaskID,
+        newParentID: nil,
+        previousTaskID: nil
+    ) ?? updatedTasks
+}
+
+/// The in-memory equivalent of `tasks.move` with `destinationTasklist`, shared
+/// by the demo and testing-window fakes: the task tree rooted at `taskID`
+/// leaves `sourceTasks` and lands first among `destinationTasks`' roots, then
+/// an optional `parentId`/`previousTaskId` places it inside the destination.
+/// Returns the updated source, destination, and moved task, or nil when the
+/// task is missing or the placement is invalid.
+func tasksMovingTaskTree(
+    _ taskID: String,
+    from sourceTasks: [TaskItem],
+    to destinationTasks: [TaskItem],
+    parentId: String?,
+    previousTaskId: String?
+) -> (source: [TaskItem], destination: [TaskItem], movedTask: TaskItem)? {
+    let movedIDs = Set(taskIDsIncludingDescendants(of: taskID, in: sourceTasks))
+    let movedTasks = sourceTasks.filter { movedIDs.contains($0.id) }
+    guard movedTasks.contains(where: { $0.id == taskID }) else { return nil }
+    var destination = tasksInsertingMovedTaskTree(movedTasks, rootTaskID: taskID, into: destinationTasks)
+    if parentId != nil || previousTaskId != nil {
+        guard let reordered = tasksReorderedAfterMove(
+            destination,
+            movedTaskID: taskID,
+            newParentID: parentId,
+            previousTaskID: previousTaskId
+        ) else { return nil }
+        destination = reordered
+    }
+    guard let movedTask = destination.first(where: { $0.id == taskID }) else { return nil }
+    return (sourceTasks.filter { !movedIDs.contains($0.id) }, destination, movedTask)
+}
+
 @MainActor
 @Observable
 final class AppState {
@@ -334,6 +403,12 @@ final class AppState {
 
     /// In-memory cache of visible tasks keyed by task list.
     private var taskCacheByListID: [String: [TaskItem]] = [:]
+    /// Lists whose cache entry was seeded by `moveTask(_:toList:)` before the
+    /// list was ever fetched, so it holds only the moved task trees. Reminders
+    /// are never synced from such an entry (a sync removes every pending
+    /// reminder of the list that is not in the array it is handed); the next
+    /// full fetch of the list clears the mark.
+    private var partiallyCachedListIDs: Set<String> = []
     /// Monotonic token used to ignore stale task-list responses.
     private var taskLoadRequestID = 0
     /// Monotonic generation bumped by every committed local task change and
@@ -517,6 +592,7 @@ final class AppState {
         selectedListId = nil
         hasCompletedInitialTaskLoad = false
         taskCacheByListID = [:]
+        partiallyCachedListIDs = []
         taskLoadRequestID += 1
         taskStateGeneration += 1
         // Enqueue on the notification chain so the removal deterministically
@@ -668,7 +744,7 @@ final class AppState {
                 // list switch already loaded it through the foreground path.
                 continue
             }
-            taskCacheByListID[listID] = fetched
+            cacheFetchedTasks(fetched, for: listID)
         }
     }
 
@@ -927,6 +1003,77 @@ final class AppState {
         }
     }
 
+    /// Moves a top-level task together with its subtasks from the selected list
+    /// to `destinationListID`, where it lands first among the root tasks.
+    /// Optimistic: both lists change immediately (the live array for the
+    /// selected list, the cache for the other) and the move is undone with
+    /// `errorMessage` set if the API call fails. Subtasks are never moved on
+    /// their own, since that would leave their parent behind.
+    func moveTask(_ task: TaskItem, toList destinationListID: String) async {
+        guard let sourceListID = selectedListId,
+              destinationListID != sourceListID,
+              let liveTask = tasks.first(where: { $0.id == task.id }),
+              liveTask.parent == nil
+        else { return }
+
+        // Snapshot the tree (array order preserved) so a failure can put it
+        // back exactly where it was; source positions are never rewritten.
+        let movedIDs = taskIDsIncludingDescendants(of: task.id, in: tasks)
+        let movedIDSet = Set(movedIDs)
+        let movedTasks = tasks.filter { movedIDSet.contains($0.id) }
+        let originalIndex = tasks.firstIndex { $0.id == task.id } ?? 0
+        // A destination that was never fetched gets a cache holding only the
+        // moved tree; mark it so no reminder sync treats that as the list.
+        // The mark outlives a rollback on purpose (the entry stays, empty).
+        if taskCacheByListID[destinationListID] == nil {
+            partiallyCachedListIDs.insert(destinationListID)
+        }
+
+        commitTaskChange(to: sourceListID) { tasks in
+            tasks.removeAll { movedIDSet.contains($0.id) }
+        }
+        commitTaskChange(to: destinationListID) { tasks in
+            tasks = tasksInsertingMovedTaskTree(movedTasks, rootTaskID: task.id, into: tasks)
+        }
+
+        do {
+            // The returned position is not comparable with the cached sibling
+            // positions (same reason as `addSubtask`); the next refresh reconciles.
+            _ = try await api.moveTask(
+                listId: sourceListID,
+                taskId: task.id,
+                parentId: nil,
+                previousTaskId: nil,
+                destinationListId: destinationListID
+            )
+            guard isSignedIn else { return }
+            let dueDateNotificationService = dueDateNotificationService
+            await enqueueNotificationWork {
+                await dueDateNotificationService.removeNotifications(forTaskIDs: movedIDs, inListID: sourceListID)
+            }.value
+            await syncDueDateNotificationsIfNeeded()
+            // Re-syncs the destination's reminders, unless its cache is still
+            // only the moved trees (`partiallyCachedListIDs`, checked inside):
+            // syncing a partial cache would wipe that list's other reminders,
+            // so the next full load of the list schedules them instead.
+            await enqueueNotificationWork { [weak self] in
+                await self?.performDueDateNotificationSync(forListID: destinationListID)
+            }.value
+        } catch {
+            guard isSignedIn else { return }
+            // Roll back against the current state so edits committed during
+            // the request survive.
+            commitTaskChange(to: destinationListID) { tasks in
+                tasks.removeAll { movedIDSet.contains($0.id) }
+            }
+            commitTaskChange(to: sourceListID) { tasks in
+                tasks.removeAll { movedIDSet.contains($0.id) }
+                tasks.insert(contentsOf: movedTasks, at: min(originalIndex, tasks.endIndex))
+            }
+            handleError(error)
+        }
+    }
+
     func selectList(_ listId: String) async {
         selectedListId = listId
         if let cachedTasks = taskCacheByListID[listId] {
@@ -1016,13 +1163,26 @@ final class AppState {
         }.value
     }
 
-    /// One guarded sync against current state. Only call from the
-    /// notification work chain so it cannot interleave with a sign-out's
-    /// removeAll or a preference flip's removal.
-    private func performDueDateNotificationSync() async {
+    /// One guarded sync for `listID` (the selected list when nil) against
+    /// current state. Only call from the notification work chain so it cannot
+    /// interleave with a sign-out's removeAll or a preference flip's removal.
+    private func performDueDateNotificationSync(forListID listID: String? = nil) async {
         // Demo tasks are sample data, so they never schedule real reminders.
-        guard isSignedIn, !isDemoMode, dueDateNotificationsEnabled, let selectedList else { return }
-        await dueDateNotificationService.syncNotifications(for: tasks, in: selectedList)
+        // A cache seeded only by moves is not the list; syncing it would drop
+        // every other pending reminder of that list until it is next loaded.
+        guard isSignedIn, !isDemoMode, dueDateNotificationsEnabled,
+              let targetListID = listID ?? selectedListId,
+              !partiallyCachedListIDs.contains(targetListID),
+              let list = taskLists.first(where: { $0.id == targetListID })
+        else { return }
+        let listTasks = targetListID == selectedListId ? tasks : (taskCacheByListID[targetListID] ?? [])
+        await dueDateNotificationService.syncNotifications(for: listTasks, in: list)
+    }
+
+    /// Read-only view of the per-list cache; the selected list's entry mirrors
+    /// `tasks`. Nil when the list has never been loaded or written.
+    func cachedTasks(forListID listID: String) -> [TaskItem]? {
+        taskCacheByListID[listID]
     }
 
     /// Applies a committed local change to the list captured before a
@@ -1056,26 +1216,6 @@ final class AppState {
         tasks[index].status = original.status
     }
 
-    /// The task's id plus the ids of all of its descendants, walking the
-    /// parent relation transitively so nested subtasks are included.
-    private func taskIDsIncludingDescendants(of taskID: String, in tasks: [TaskItem]) -> [String] {
-        var collectedIDs = [taskID]
-        var collectedIDSet: Set<String> = [taskID]
-        var frontierIDs: Set<String> = [taskID]
-        while !frontierIDs.isEmpty {
-            let childIDs = tasks
-                .filter { task in
-                    guard let parent = task.parent else { return false }
-                    return frontierIDs.contains(parent) && !collectedIDSet.contains(task.id)
-                }
-                .map(\.id)
-            collectedIDs.append(contentsOf: childIDs)
-            collectedIDSet.formUnion(childIDs)
-            frontierIDs = Set(childIDs)
-        }
-        return collectedIDs
-    }
-
     /// Identifies one in-flight task load: the list it was started for, the
     /// load request it belongs to, and the task-state generation it saw.
     private struct TaskLoadToken {
@@ -1107,8 +1247,11 @@ final class AppState {
             && taskStateGeneration == token.generation
     }
 
+    /// Stores a full server snapshot for `listId`, which also clears the
+    /// partial mark left by a move into a list that had never been fetched.
     private func cacheFetchedTasks(_ fetchedTasks: [TaskItem], for listId: String) {
         taskCacheByListID[listId] = fetchedTasks
+        partiallyCachedListIDs.remove(listId)
     }
 
     private func applyLoadedTasks(_ loadedTasks: [TaskItem], for token: TaskLoadToken) async {

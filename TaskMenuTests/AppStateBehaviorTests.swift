@@ -1026,6 +1026,253 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertNil(state.errorMessage)
     }
 
+    // MARK: - moveTask(_:toList:)
+
+    private var crossListLists: [TaskList] {
+        [
+            TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "list2", title: "Later", selfLink: nil, updated: nil)
+        ]
+    }
+
+    private var crossListSourceTasks: [TaskItem] {
+        [
+            makeTask(id: "first", position: "00000000000000000001"),
+            makeTask(id: "parent", position: "00000000000000000002"),
+            makeTask(id: "child", parent: "parent", position: "00000000000000000001"),
+            makeTask(id: "other", position: "00000000000000000003")
+        ]
+    }
+
+    func testMoveTaskToListRemovesTreeFromSourceInsertsFirstInDestinationAndCallsMoveEndpoint() async {
+        state.taskLists = crossListLists
+        state.selectedListId = "list1"
+        state.tasks = crossListSourceTasks
+        stubResponse(json: #"{"id":"parent","title":"Test","status":"needsAction","position":"00000000000000000000"}"#)
+
+        await state.moveTask(state.tasks[1], toList: "list2")
+
+        XCTAssertEqual(state.tasks.map(\.id), ["first", "other"])
+        let destination = state.cachedTasks(forListID: "list2")
+        XCTAssertEqual(destination?.map(\.id), ["parent", "child"])
+        XCTAssertEqual(destination?.first?.position, "00000000000000000000")
+        XCTAssertNil(destination?.first?.parent)
+        XCTAssertEqual(destination?.last?.parent, "parent")
+        XCTAssertNil(state.errorMessage)
+
+        let request = MockURLProtocol.requestLog.last
+        XCTAssertEqual(request?.httpMethod, "POST")
+        let url = request?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("/lists/list1/tasks/parent/move"))
+        XCTAssertTrue(url.contains("destinationTasklist=list2"))
+        XCTAssertFalse(url.contains("parent="))
+        XCTAssertFalse(url.contains("previous="))
+    }
+
+    func testMoveTaskToListLandsFirstAmongExistingDestinationRoots() async {
+        let api = DelayedTasksAPI(
+            taskLists: crossListLists,
+            tasksByListID: [
+                "list1": [makeTask(id: "a", position: "00000000000000000000"), makeTask(id: "b", position: "00000000000000000001")],
+                "list2": [makeTask(id: "x", position: "00000000000000000000"), makeTask(id: "y", position: "00000000000000000001")]
+            ]
+        )
+        await api.setMoveTaskSuccess()
+        let state = makeState(api: api)
+        state.isSignedIn = true
+        state.taskLists = crossListLists
+        await state.selectList("list2")
+        await state.selectList("list1")
+
+        await state.moveTask(state.tasks[0], toList: "list2")
+
+        let destinationRoots = tasksSortedByGooglePosition(
+            (state.cachedTasks(forListID: "list2") ?? []).filter { $0.parent == nil }
+        )
+        XCTAssertEqual(destinationRoots.map(\.id), ["a", "x", "y"])
+        XCTAssertEqual(
+            destinationRoots.map(\.position),
+            ["00000000000000000000", "00000000000000000001", "00000000000000000002"]
+        )
+        XCTAssertEqual(state.tasks.map(\.id), ["b"])
+        let moveCalls = await api.moveCalls
+        XCTAssertEqual(moveCalls.last?.destinationListId, "list2")
+        XCTAssertEqual(moveCalls.last?.listId, "list1")
+        XCTAssertNil(moveCalls.last?.parentId)
+        XCTAssertNil(moveCalls.last?.previousTaskId)
+        // The fake applied the move server-side too, so a refresh agrees.
+        let serverDestination = await api.tasks(for: "list2")
+        XCTAssertEqual(tasksSortedByGooglePosition(serverDestination).map(\.id), ["a", "x", "y"])
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testMoveTaskToListRollsBackBothListsOnServerError() async {
+        state.taskLists = crossListLists
+        state.selectedListId = "list1"
+        state.tasks = crossListSourceTasks
+        stubResponse(statusCode: 500, json: #"{"error":"boom"}"#)
+
+        await state.moveTask(state.tasks[1], toList: "list2")
+
+        XCTAssertEqual(state.rootTasks.map(\.id), ["first", "parent", "other"])
+        XCTAssertEqual(state.subtasks(of: "parent").map(\.id), ["child"])
+        XCTAssertFalse((state.cachedTasks(forListID: "list2") ?? []).contains { $0.id == "parent" })
+        XCTAssertNotNil(state.errorMessage)
+    }
+
+    func testMoveTaskToListIgnoresSubtasksAndSameList() async {
+        state.taskLists = crossListLists
+        state.selectedListId = "list1"
+        state.tasks = crossListSourceTasks
+        let originalIDs = state.tasks.map(\.id)
+
+        await state.moveTask(state.tasks[2], toList: "list2")
+        await state.moveTask(state.tasks[1], toList: "list1")
+
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertEqual(state.tasks.map(\.id), originalIDs)
+        XCTAssertNil(state.cachedTasks(forListID: "list2"))
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testMoveTaskToListRemovesSourceRemindersAndSyncsBothLists() async {
+        let api = DelayedTasksAPI(
+            taskLists: crossListLists,
+            tasksByListID: ["list1": crossListSourceTasks, "list2": [makeTask(id: "x", position: "00000000000000000000")]]
+        )
+        await api.setMoveTaskSuccess()
+        let state = makeState(api: api)
+        state.isSignedIn = true
+        state.taskLists = crossListLists
+        await state.selectList("list2")
+        await state.selectList("list1")
+        let notificationService: TestDueDateNotificationService = dueDateNotificationService
+        let eventsBefore = await notificationService.eventLog.count
+
+        await state.moveTask(state.tasks[1], toList: "list2")
+
+        await waitUntil { await notificationService.eventLog.count >= eventsBefore + 3 }
+        let events = await notificationService.eventLog
+        XCTAssertEqual(Array(events.suffix(3)), ["removeTasks", "sync", "sync"])
+        let removedListIDs = await notificationService.removedListIDs
+        let removedTaskIDs = await notificationService.removedTaskIDs
+        XCTAssertEqual(removedListIDs.last, "list1")
+        XCTAssertEqual(removedTaskIDs.last, ["parent", "child"])
+        let syncCalls = await notificationService.syncCalls
+        XCTAssertEqual(syncCalls.suffix(2).map(\.list.id), ["list1", "list2"])
+        XCTAssertFalse(syncCalls.suffix(2).first?.tasks.contains { $0.id == "parent" } ?? true)
+        XCTAssertTrue(syncCalls.last?.tasks.contains { $0.id == "parent" } ?? false)
+    }
+
+    func testMoveTaskToListSkipsDestinationSyncWithoutDestinationCache() async {
+        let api = DelayedTasksAPI(
+            taskLists: crossListLists,
+            tasksByListID: ["list1": crossListSourceTasks, "list2": []]
+        )
+        await api.setMoveTaskSuccess()
+        let state = makeState(api: api)
+        state.isSignedIn = true
+        state.taskLists = crossListLists
+        await state.selectList("list1")
+        let notificationService: TestDueDateNotificationService = dueDateNotificationService
+        let eventsBefore = await notificationService.eventLog.count
+
+        await state.moveTask(state.tasks[1], toList: "list2")
+
+        await waitUntil { await notificationService.eventLog.count >= eventsBefore + 2 }
+        // Give a stray destination sync a chance to land before asserting it did not.
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        let events = await notificationService.eventLog
+        XCTAssertEqual(Array(events.suffix(2)), ["removeTasks", "sync"])
+        XCTAssertEqual(events.count, eventsBefore + 2)
+        let syncCalls = await notificationService.syncCalls
+        XCTAssertEqual(syncCalls.last?.list.id, "list1")
+        XCTAssertEqual(state.cachedTasks(forListID: "list2")?.map(\.id), ["parent", "child"])
+    }
+
+    /// A second move into a list whose cache was only seeded by the first
+    /// move must not sync that partial cache either (it would wipe the
+    /// list's other reminders); once the list is actually loaded, syncs resume.
+    func testMoveTaskToListKeepsSkippingDestinationSyncWhileCacheIsOnlyMovedTrees() async {
+        let api = DelayedTasksAPI(
+            taskLists: crossListLists,
+            tasksByListID: ["list1": crossListSourceTasks, "list2": [makeTask(id: "x", position: "00000000000000000000")]]
+        )
+        await api.setMoveTaskSuccess()
+        let state = makeState(api: api)
+        state.isSignedIn = true
+        state.taskLists = crossListLists
+        await state.selectList("list1")
+        let notificationService: TestDueDateNotificationService = dueDateNotificationService
+
+        await state.moveTask(state.tasks[1], toList: "list2")
+        let eventsBetween = await notificationService.eventLog.count
+        await state.moveTask(state.tasks[0], toList: "list2")
+
+        await waitUntil { await notificationService.eventLog.count >= eventsBetween + 2 }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        let events = await notificationService.eventLog
+        XCTAssertEqual(Array(events.suffix(2)), ["removeTasks", "sync"], "still only the source list is synced")
+        XCTAssertEqual(events.count, eventsBetween + 2)
+        let syncCalls = await notificationService.syncCalls
+        XCTAssertFalse(syncCalls.contains { $0.list.id == "list2" })
+        XCTAssertEqual(state.cachedTasks(forListID: "list2")?.map(\.id), ["first", "parent", "child"])
+
+        // Loading the list replaces the partial cache with the server's, and
+        // that load's own sync covers every task in it.
+        await state.selectList("list2")
+        let list2Sync = await notificationService.syncCalls.last { $0.list.id == "list2" }
+        XCTAssertEqual(
+            Set(list2Sync?.tasks.map(\.id) ?? []),
+            ["first", "parent", "child", "x"],
+            "the full list is synced once fetched"
+        )
+    }
+
+    func testMoveTaskToListWithDemoAPIShowsTaskFirstInDestinationAfterRefresh() async {
+        let state = makeState(api: DemoTasksAPI())
+        state.isSignedIn = true
+        state.selectedListId = "demo-today"
+        await state.refreshTasks()
+        guard let review = state.tasks.first(where: { $0.id == "today-review" }) else {
+            return XCTFail("Expected the seeded demo task")
+        }
+        XCTAssertEqual(state.subtasks(of: "today-review").count, 2)
+
+        await state.moveTask(review, toList: "demo-work")
+
+        XCTAssertFalse(state.tasks.contains { $0.id == "today-review" || $0.parent == "today-review" })
+        XCTAssertNil(state.errorMessage)
+
+        await state.selectList("demo-work")
+        XCTAssertEqual(state.rootTasks.first?.id, "today-review")
+        XCTAssertEqual(state.subtasks(of: "today-review").map(\.id), ["today-review-api", "today-review-tests"])
+        XCTAssertEqual(
+            state.rootTasks.map(\.id),
+            ["today-review", "work-launch", "work-roadmap", "work-onemore", "work-retro"]
+        )
+    }
+
+    func testMoveTaskToListDiscardsResultAfterSignOut() async {
+        let api = DelayedTasksAPI(taskLists: crossListLists, tasksByListID: ["list1": crossListSourceTasks, "list2": []])
+        await api.setMoveTaskSuccess(delay: .milliseconds(200))
+        let state = makeState(api: api)
+        state.taskLists = crossListLists
+        state.selectedListId = "list1"
+        state.tasks = crossListSourceTasks
+
+        let moveHandle = Task { await state.moveTask(state.tasks[1], toList: "list2") }
+        await Task.yield()
+        XCTAssertEqual(state.tasks.map(\.id), ["first", "other"])
+
+        state.signOut()
+        await moveHandle.value
+
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertNil(state.cachedTasks(forListID: "list2"))
+        XCTAssertNil(state.errorMessage)
+    }
+
     // MARK: - deleteTask: Transitive Descendants
 
     func testDeleteTaskRemovesTransitiveDescendants() async {
@@ -1564,6 +1811,14 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
         let result: Result<TaskItem, APIError>
     }
 
+    struct MoveCall: Sendable, Equatable {
+        let listId: String
+        let taskId: String
+        let parentId: String?
+        let previousTaskId: String?
+        let destinationListId: String?
+    }
+
     private var taskLists: [TaskList]
     private var tasksByListID: [String: [TaskItem]]
     private var delaysByListID: [String: Duration]
@@ -1574,6 +1829,8 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     private var updateStubsByTaskID: [String: [UpdateStub]] = [:]
     private var moveTaskDelay: Duration?
     private var moveTaskError: APIError?
+    private var moveTaskSucceeds = false
+    private(set) var moveCalls: [MoveCall] = []
     private(set) var updateTaskCallCount = 0
     private(set) var createTaskListCallCount = 0
     private(set) var listTasksCallsByListID: [String: Int] = [:]
@@ -1626,6 +1883,18 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     func setMoveTaskFailure(delay: Duration? = nil, error: APIError) {
         moveTaskDelay = delay
         moveTaskError = error
+    }
+
+    /// Makes `moveTask` apply the move to the in-memory lists (after the
+    /// optional delay) and return the moved task instead of throwing 501.
+    func setMoveTaskSuccess(delay: Duration? = nil) {
+        moveTaskDelay = delay
+        moveTaskError = nil
+        moveTaskSucceeds = true
+    }
+
+    func tasks(for listID: String) -> [TaskItem] {
+        tasksByListID[listID] ?? []
     }
 
     func listTaskLists() async throws -> [TaskList] {
@@ -1706,14 +1975,53 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
         throw APIError.serverError(501, "Not implemented")
     }
 
-    func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem {
+    func moveTask(
+        listId: String,
+        taskId: String,
+        parentId: String?,
+        previousTaskId: String?,
+        destinationListId: String?
+    ) async throws -> TaskItem {
+        moveCalls.append(MoveCall(
+            listId: listId,
+            taskId: taskId,
+            parentId: parentId,
+            previousTaskId: previousTaskId,
+            destinationListId: destinationListId
+        ))
         if let moveTaskDelay {
             try? await Task.sleep(for: moveTaskDelay)
         }
         if let moveTaskError {
             throw moveTaskError
         }
-        throw APIError.serverError(501, "Not implemented")
+        guard moveTaskSucceeds else {
+            throw APIError.serverError(501, "Not implemented")
+        }
+        if let destinationListId, destinationListId != listId {
+            guard let moved = tasksMovingTaskTree(
+                taskId,
+                from: tasksByListID[listId] ?? [],
+                to: tasksByListID[destinationListId] ?? [],
+                parentId: parentId,
+                previousTaskId: previousTaskId
+            ) else {
+                throw APIError.serverError(400, "Invalid move")
+            }
+            tasksByListID[listId] = moved.source
+            tasksByListID[destinationListId] = moved.destination
+            return moved.movedTask
+        }
+        guard let reordered = tasksReorderedAfterMove(
+            tasksByListID[listId] ?? [],
+            movedTaskID: taskId,
+            newParentID: parentId,
+            previousTaskID: previousTaskId
+        ), let movedTask = reordered.first(where: { $0.id == taskId }) else {
+            throw APIError.serverError(400, "Invalid move")
+        }
+        tasksByListID[listId] = reordered
+        return movedTask
     }
 }
 

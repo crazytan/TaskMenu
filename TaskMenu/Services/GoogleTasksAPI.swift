@@ -92,10 +92,18 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         _ = try await request(path: "/lists/\(listId)/tasks/\(taskId)", method: "DELETE")
     }
 
-    func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem {
+    func moveTask(
+        listId: String,
+        taskId: String,
+        parentId: String?,
+        previousTaskId: String?,
+        destinationListId: String?
+    ) async throws -> TaskItem {
         var queryItems = [URLQueryItem]()
         if let parentId { queryItems.append(URLQueryItem(name: "parent", value: parentId)) }
         if let previousTaskId { queryItems.append(URLQueryItem(name: "previous", value: previousTaskId)) }
+        // Moves the task out of `listId`; Google rejects recurring tasks here.
+        if let destinationListId { queryItems.append(URLQueryItem(name: "destinationTasklist", value: destinationListId)) }
 
         let data = try await request(path: "/lists/\(listId)/tasks/\(taskId)/move", method: "POST", queryItems: queryItems)
         return try decode(TaskItem.self, from: data)

@@ -21,7 +21,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
     private let onDismiss: () -> Void
 
     private let rootStack = NSStackView()
-    private let titleField = NSTextField()
+    /// Internal so tests can type into it before a save or move.
+    let titleField = NSTextField()
     private let notesTextView = NSTextView()
     private let notesPlaceholderLabel = TaskMenuAppKit.label(
         "Notes",
@@ -29,7 +30,8 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         color: .tertiaryLabelColor
     )
     private let dueDateControls = NSStackView()
-    private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    /// Internal so tests can inspect the list picker's items and state.
+    let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let subtaskScrollView = NSScrollView()
     private let subtaskDocumentView = TaskDetailFlippedDocumentView()
     let subtaskListStack = NSStackView()
@@ -270,16 +272,57 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         return spacer
     }
 
+    /// The List row: every task list keyed by ID (two lists may share a
+    /// title), built once at load like the rest of the meta rows. Enabled for
+    /// top-level tasks when there is somewhere else to go; subtasks travel
+    /// with their parent, so theirs stays disabled.
     private func configuredListPopup() -> NSPopUpButton {
-        listPopup.removeAllItems()
-        listPopup.addItems(withTitles: appState.taskLists.map(\.title))
-        if let selectedList = appState.selectedList {
-            listPopup.selectItem(withTitle: selectedList.title)
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for list in appState.taskLists {
+            let item = NSMenuItem(title: list.title, action: nil, keyEquivalent: "")
+            item.representedObject = list.id
+            menu.addItem(item)
+        }
+        listPopup.menu = menu
+        if let index = appState.taskLists.firstIndex(where: { $0.id == appState.selectedListId }) {
+            listPopup.selectItem(at: index)
         }
         listPopup.controlSize = .small
-        listPopup.isEnabled = false
-        listPopup.toolTip = "Moving tasks between lists is not wired yet."
+        listPopup.target = self
+        listPopup.action = #selector(listPopupChanged(_:))
+        listPopup.setAccessibilityLabel("List")
+        let isTopLevel = task.parent == nil
+        listPopup.isEnabled = isTopLevel && appState.taskLists.count > 1
+        listPopup.toolTip = isTopLevel ? "Move to another list" : "Subtasks move with their parent task"
         return listPopup
+    }
+
+    @objc private func listPopupChanged(_ sender: NSPopUpButton) {
+        guard let listID = sender.selectedItem?.representedObject as? String,
+              listID != appState.selectedListId
+        else { return }
+        moveTask(toList: listID)
+    }
+
+    /// Saves pending edits the way "Done" would, then moves the task and pops
+    /// back to the list. Internal so tests can drive it without a menu.
+    func moveTask(toList destinationListID: String) {
+        closeDueDateCalendar()
+        let edited = editedTaskFromFields()
+        // Judge "unsaved" against what AppState holds, not the initial copy,
+        // since background refreshes update `task` while the editor is open.
+        let current = appState.tasks.first { $0.id == task.id } ?? task
+        let hasUnsavedEdits = edited.title != current.title
+            || edited.notes != current.notes
+            || edited.due != current.due
+        Task { [appState, onDismiss] in
+            if hasUnsavedEdits {
+                await appState.updateTask(edited)
+            }
+            await appState.moveTask(edited, toList: destinationListID)
+            onDismiss()
+        }
     }
 
     /// Rebuilt only at load and when the user enables or clears the due date.
@@ -691,14 +734,21 @@ final class TaskDetailAppKitViewController: NSViewController, NSTextViewDelegate
         closeDueDateCalendar()
     }
 
-    @objc private func saveTask() {
+    /// Reads the title, notes, and due-date fields into `task` and returns
+    /// the task as "Done" would save it. Shared by save and move so the two
+    /// cannot drift.
+    private func editedTaskFromFields() -> TaskItem {
         task.title = TaskDetailEditing.effectiveTitle(fieldText: titleField.stringValue, existingTitle: task.title)
         let notes = notesTextView.string.trimmingCharacters(in: .whitespacesAndNewlines)
         task.notes = notes.isEmpty ? nil : notes
         if dueDateState.isEnabled, let dueDatePicker {
             dueDateState.selection = dueDatePicker.dateValue
         }
-        let updatedTask = dueDateState.applying(to: task)
+        return dueDateState.applying(to: task)
+    }
+
+    @objc private func saveTask() {
+        let updatedTask = editedTaskFromFields()
         Task { [appState, onDismiss] in
             await appState.updateTask(updatedTask)
             onDismiss()

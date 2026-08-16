@@ -402,6 +402,60 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(titles(3), ["Delete"], "completed task row")
     }
 
+    /// "Move to" lists the other lists on top-level rows, open or completed;
+    /// a subtask cannot leave its parent, so its menu has no such item.
+    @MainActor
+    func testMoveToContextSubmenuListsOtherListsForTopLevelRowsOnly() throws {
+        let state = makeIsolatedAppState()
+        state.taskLists = [
+            TaskList(id: "A", title: "A", selfLink: nil, updated: nil),
+            TaskList(id: "B", title: "B", selfLink: nil, updated: nil),
+            TaskList(id: "C", title: "C", selfLink: nil, updated: nil)
+        ]
+        state.selectedListId = "A"
+        state.tasks = [
+            makeTask(id: "parent", title: "Parent", position: "0001"),
+            makeTask(id: "child", title: "Child", parent: "parent", position: "0001"),
+            makeTask(id: "done", title: "Done", status: .completed, position: "0002")
+        ]
+
+        let content = TaskListContentView()
+        content.render(appState: state, showCompleted: true, expandedCompletedSubtaskParentIDs: [])
+
+        let titles = { (row: Int) in
+            (content.contextMenu(forRow: row)?.items ?? []).map(\.title)
+        }
+        XCTAssertEqual(titles(0), ["Add Subtask", "Move to", "", "Delete"], "top-level open task")
+        XCTAssertEqual(titles(1), ["Delete"], "subtask row")
+        XCTAssertEqual(titles(3), ["Move to", "", "Delete"], "completed top-level task")
+
+        let moveItem = try XCTUnwrap(content.contextMenu(forRow: 0)?.items.first { $0.title == "Move to" })
+        XCTAssertEqual(moveItem.submenu?.items.map(\.title), ["B", "C"], "every list but the selected one")
+
+        var moves: [(taskID: String, listID: String)] = []
+        content.onMoveTaskToList = { task, listID in moves.append((task.id, listID)) }
+        let itemB = try XCTUnwrap(content.contextMenu(forRow: 0)?.items.first { $0.title == "Move to" }?.submenu?.items.first)
+        _ = itemB.target?.perform(itemB.action, with: itemB)
+        XCTAssertEqual(moves.map(\.taskID), ["parent"])
+        XCTAssertEqual(moves.map(\.listID), ["B"])
+    }
+
+    @MainActor
+    func testMoveToContextItemAbsentWithoutOtherLists() throws {
+        let state = makeIsolatedAppState()
+        state.taskLists = [TaskList(id: "A", title: "A", selfLink: nil, updated: nil)]
+        state.selectedListId = "A"
+        state.tasks = [makeTask(id: "parent", title: "Parent", position: "0001")]
+
+        let content = TaskListContentView()
+        content.render(appState: state, showCompleted: true, expandedCompletedSubtaskParentIDs: [])
+
+        XCTAssertEqual(
+            (content.contextMenu(forRow: 0)?.items ?? []).map(\.title),
+            ["Add Subtask", "", "Delete"]
+        )
+    }
+
     /// The field belongs directly under the parent row, because that is where
     /// the Tasks API drops a new subtask: `tasks.insert` with a `parent` and no
     /// `previous` makes it the first child.

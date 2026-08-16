@@ -17,6 +17,7 @@
 - **"Explore the Demo" did nothing if you had started a Google sign-in and backed out of it** — the demo now takes over from the abandoned attempt instead of waiting for it.
 
 ### Added
+- **Move a task to another list** — right-click a task and pick a list under "Move to", or change the List row in the task editor. The task takes its subtasks with it and lands at the top of the destination list. Works in demo mode too.
 - **Create a task list from the popover** — the list picker now ends with "New List…". Choose it, type a name in the header, and press Enter; the new list is created in Google Tasks and opened right away. Escape or an empty Enter puts the picker back. Works in demo mode too (the list lasts for the demo session).
 - **Pending-task count in the menu bar** — Settings → General → "Show in menu bar" can put the number of open tasks, or of tasks due today (overdue included), next to the menu bar icon. It counts every list in your account (or every demo list), drops as soon as you complete a task, and refreshes in the background every five minutes. Off by default.
 - **Sort by due date** — the "…" menu has a "Sort by" submenu with "My order" (Google's order, the default) and "Due date", which lists overdue tasks first, then today, tomorrow, and later, with undated tasks at the end. Subtasks stay under their parent in their usual order. Drag-and-drop reordering pauses while sorted by due date, since the list no longer shows Google's positions.

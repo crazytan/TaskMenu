@@ -16,6 +16,8 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     var onOpenTask: ((TaskItem) -> Void)?
     var onToggleTask: ((TaskItem) -> Void)?
     var onDeleteTask: ((TaskItem) -> Void)?
+    /// Right-click "Move to <list>": (task, destination list ID).
+    var onMoveTaskToList: ((TaskItem, String) -> Void)?
     var onToggleCollapsed: ((String) -> Void)?
     var onToggleCompletedSection: (() -> Void)?
     var onToggleCompletedSubtasks: ((String) -> Void)?
@@ -41,6 +43,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     /// Task currently showing the inline "add subtask" field, if any.
     private var addingSubtaskParentID: String?
     private var isSearching = false
+    /// Lists other than the selected one, snapshotted at render time so the
+    /// context menu can be built synchronously.
+    private var moveDestinationLists: [TaskList] = []
     /// False while `AppState.taskSortOrder` shows something other than Google
     /// positions, since drop indices would not map back to positions.
     private var canReorder = true
@@ -92,6 +97,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         let newCollapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
         self.addingSubtaskParentID = addingSubtaskParentID
+        moveDestinationLists = appState.taskLists.filter { $0.id != appState.selectedListId }
 
         let contextKey = "\(appState.selectedListId ?? "")|\(appState.searchText)|\(appState.taskSortOrder.rawValue)"
         let animated = hasRenderedOnce
@@ -350,7 +356,9 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
 
     /// Row context menu. "Add Subtask" is offered only where a subtask can
     /// actually go: an open top-level task, matching Google Tasks' single level
-    /// of subtasks and the drag-and-drop nesting rule.
+    /// of subtasks and the drag-and-drop nesting rule. "Move to" lists the
+    /// other task lists for top-level rows (open or completed); a subtask has
+    /// no such item because it cannot leave its parent on its own.
     func contextMenu(forRow row: Int) -> NSMenu? {
         guard let node = outlineView.item(atRow: row) as? TaskOutlineNode,
               let entry = node.taskEntry
@@ -364,6 +372,23 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
             menu.addItem(ClosureMenuItem(title: "Add Subtask", symbolName: "plus") { [weak self] in
                 self?.onBeginAddSubtask?(task)
             })
+        }
+        // `task.parent` rather than the indent level, so an orphaned completed
+        // subtask (rendered indented under a missing parent) is excluded too.
+        if task.parent == nil, !moveDestinationLists.isEmpty {
+            let moveItem = NSMenuItem(title: "Move to", action: nil, keyEquivalent: "")
+            moveItem.image = TaskMenuAppKit.symbol("arrow.turn.up.right", pointSize: 13)
+            let submenu = NSMenu()
+            submenu.autoenablesItems = false
+            for list in moveDestinationLists {
+                submenu.addItem(ClosureMenuItem(title: list.title) { [weak self] in
+                    self?.onMoveTaskToList?(task, list.id)
+                })
+            }
+            moveItem.submenu = submenu
+            menu.addItem(moveItem)
+        }
+        if !menu.items.isEmpty {
             menu.addItem(.separator())
         }
         menu.addItem(ClosureMenuItem(title: "Delete", symbolName: "trash") { [weak self] in

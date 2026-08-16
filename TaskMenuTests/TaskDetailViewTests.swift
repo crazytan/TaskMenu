@@ -34,6 +34,115 @@ final class TaskDetailViewTests: XCTestCase {
         return (state, controller)
     }
 
+    /// `AppState` on demo data and an isolated defaults suite, so the editor
+    /// can be exercised end to end without touching the host's preferences.
+    @MainActor
+    private func makeDemoAppState() async -> AppState {
+        let suiteName = "dev.crazytan.TaskMenu.tests.taskdetailview.\(UUID().uuidString)"
+        let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
+        userDefaults.removePersistentDomain(forName: suiteName)
+        let state = AppState(api: DemoTasksAPI(), userDefaults: userDefaults)
+        state.isSignedIn = true
+        state.taskLists = (try? await DemoTasksAPI().listTaskLists()) ?? []
+        state.selectedListId = "demo-today"
+        await state.refreshTasks()
+        return state
+    }
+
+    @MainActor
+    private func waitUntil(_ condition: @MainActor @escaping () -> Bool) async {
+        for _ in 0..<50 {
+            if condition() { return }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    // MARK: - List picker
+
+    @MainActor
+    func testListPickerIsEnabledForTopLevelTaskAndSelectsCurrentListByID() {
+        let state = AppState()
+        state.taskLists = [
+            TaskList(id: "A", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "B", title: "Inbox", selfLink: nil, updated: nil)
+        ]
+        state.selectedListId = "B"
+        let task = makeTask(id: "t1")
+        state.tasks = [task]
+        let controller = TaskDetailAppKitViewController(appState: state, task: task, onDismiss: {})
+        _ = controller.view
+
+        XCTAssertTrue(controller.listPopup.isEnabled)
+        XCTAssertEqual(controller.listPopup.itemTitles, ["Inbox", "Inbox"])
+        XCTAssertEqual(controller.listPopup.indexOfSelectedItem, 1)
+        XCTAssertEqual(controller.listPopup.selectedItem?.representedObject as? String, "B")
+    }
+
+    @MainActor
+    func testListPickerIsDisabledForSubtasksAndSingleList() {
+        let twoLists = [
+            TaskList(id: "A", title: "Inbox", selfLink: nil, updated: nil),
+            TaskList(id: "B", title: "Later", selfLink: nil, updated: nil)
+        ]
+        let parent = makeTask(id: "p1")
+        let child = makeTask(id: "c1", parent: "p1")
+
+        let subtaskState = AppState()
+        subtaskState.taskLists = twoLists
+        subtaskState.selectedListId = "A"
+        subtaskState.tasks = [parent, child]
+        let subtaskController = TaskDetailAppKitViewController(appState: subtaskState, task: child, onDismiss: {})
+        _ = subtaskController.view
+        XCTAssertFalse(subtaskController.listPopup.isEnabled, "subtasks move with their parent")
+
+        let singleListState = AppState()
+        singleListState.taskLists = [twoLists[0]]
+        singleListState.selectedListId = "A"
+        singleListState.tasks = [parent]
+        let singleListController = TaskDetailAppKitViewController(appState: singleListState, task: parent, onDismiss: {})
+        _ = singleListController.view
+        XCTAssertFalse(singleListController.listPopup.isEnabled, "nowhere else to go")
+    }
+
+    @MainActor
+    func testChoosingAnotherListMovesTaskAndDismisses() async throws {
+        let state = await makeDemoAppState()
+        let walk = try XCTUnwrap(state.tasks.first { $0.id == "today-walk" })
+        var dismissCount = 0
+        let controller = TaskDetailAppKitViewController(appState: state, task: walk, onDismiss: { dismissCount += 1 })
+        _ = controller.view
+        XCTAssertTrue(controller.listPopup.isEnabled)
+
+        controller.moveTask(toList: "demo-work")
+
+        await waitUntil { dismissCount == 1 }
+        XCTAssertEqual(dismissCount, 1)
+        XCTAssertFalse(state.tasks.contains { $0.id == "today-walk" })
+        XCTAssertNil(state.errorMessage)
+
+        await state.selectList("demo-work")
+        XCTAssertEqual(state.rootTasks.first?.id, "today-walk")
+    }
+
+    @MainActor
+    func testChoosingAnotherListSavesUnsavedTitleFirst() async throws {
+        let state = await makeDemoAppState()
+        let walk = try XCTUnwrap(state.tasks.first { $0.id == "today-walk" })
+        var dismissCount = 0
+        let controller = TaskDetailAppKitViewController(appState: state, task: walk, onDismiss: { dismissCount += 1 })
+        _ = controller.view
+        controller.titleField.stringValue = "Evening walk"
+
+        controller.moveTask(toList: "demo-work")
+
+        await waitUntil { dismissCount == 1 }
+        XCTAssertEqual(dismissCount, 1)
+        await state.selectList("demo-work")
+        XCTAssertEqual(state.rootTasks.first?.id, "today-walk")
+        XCTAssertEqual(state.rootTasks.first?.title, "Evening walk")
+    }
+
     func testDueDateStateStartsDisabledForTaskWithoutDueDate() {
         let task = TaskItem(
             id: "t1",

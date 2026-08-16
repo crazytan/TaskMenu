@@ -104,6 +104,48 @@ final class GoogleTasksAPILiveTests: XCTestCase {
             "the local placement helper reproduces the server's order from the creation responses alone"
         )
     }
+
+    /// `tasks.move` with `destinationTasklist` is what `AppState.moveTask(_:toList:)`
+    /// sends for a parent; the app assumes the server carries the parent's
+    /// subtasks along (the Google Tasks web UI does when dragging a parent to
+    /// another list), which the docs do not spell out. Logs the outcome so the
+    /// maintainer can see what the server actually did.
+    func testMoveTaskToAnotherListCarriesSubtasksAlong() async throws {
+        let secondListID = try await client.createTaskList(title: "TaskMenu live move \(UUID().uuidString.prefix(8))")
+        do {
+            try await assertMoveCarriesSubtasks(to: secondListID)
+        } catch {
+            try? await client.deleteTaskList(id: secondListID)
+            throw error
+        }
+        try await client.deleteTaskList(id: secondListID)
+    }
+
+    private func assertMoveCarriesSubtasks(to secondListID: String) async throws {
+        let parent = try await client.api.createTask(listId: scratchListID, title: "Moving parent")
+        let subtask = try await client.api.createTask(listId: scratchListID, title: "Moving subtask", parentId: parent.id)
+
+        let moved = try await client.api.moveTask(
+            listId: scratchListID,
+            taskId: parent.id,
+            parentId: nil,
+            previousTaskId: nil,
+            destinationListId: secondListID
+        )
+        XCTAssertEqual(moved.id, parent.id)
+        XCTAssertNil(moved.parent)
+
+        let destination = try await client.api.listTasks(listId: secondListID)
+        let source = try await client.api.listTasks(listId: scratchListID)
+        client.log(
+            "move-to-list",
+            message: "moved \(moved.title)@\(moved.position ?? "nil") destination \(destination.map { "\($0.title)/\($0.parent ?? "root")" }) source \(source.map(\.title))"
+        )
+
+        XCTAssertTrue(destination.contains { $0.id == parent.id && $0.parent == nil }, "parent arrives at the top level")
+        XCTAssertTrue(destination.contains { $0.id == subtask.id && $0.parent == parent.id }, "subtask travels with its parent")
+        XCTAssertFalse(source.contains { $0.id == parent.id || $0.id == subtask.id }, "neither is left behind")
+    }
 }
 
 /// Thin wrapper over the app's API actor plus the task-list create/delete

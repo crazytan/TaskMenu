@@ -488,7 +488,28 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
         tasksByListID[listId]?.removeAll { removedIDs.contains($0.id) }
     }
 
-    func moveTask(listId: String, taskId: String, parentId: String?, previousTaskId: String?) async throws -> TaskItem {
+    func moveTask(
+        listId: String,
+        taskId: String,
+        parentId: String?,
+        previousTaskId: String?,
+        destinationListId: String?
+    ) async throws -> TaskItem {
+        if let destinationListId, destinationListId != listId {
+            // Cross-list move: the task tree lands first among the destination's roots.
+            guard let moved = tasksMovingTaskTree(
+                taskId,
+                from: tasksByListID[listId] ?? [],
+                to: tasksByListID[destinationListId] ?? [],
+                parentId: parentId,
+                previousTaskId: previousTaskId
+            ) else {
+                throw APIError.serverError(400, "Invalid move")
+            }
+            tasksByListID[listId] = moved.source
+            tasksByListID[destinationListId] = moved.destination
+            return moved.movedTask
+        }
         guard let tasks = tasksByListID[listId],
               let reordered = tasksReorderedAfterMove(
                 tasks,
