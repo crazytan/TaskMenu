@@ -81,7 +81,7 @@ any issues early (e.g., macOS permission issues).
 - Adding `--signed-out` starts on the sign-in screen instead of a seeded signed-in state, which is how to reach the "Explore the Demo" button and exercise demo mode.
 - Adding `--demo` opens directly in demo mode on the realistic sample lists (Today/Work/Personal). This is the state the App Store preview sources are captured from.
 - Adding `--list <id>` (e.g. `--list seeded-due-dates`) switches to that seeded list after the first load, and `--sort-due-date` starts with the list sorted by due date, so sort screenshots need no clicking.
-- Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no update checks, no persisted defaults. Task mutations (add, add subtask, edit, complete, delete) work against the fake API and reset on relaunch.
+- Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no update checks, no persisted defaults. Task mutations (add, add subtask, edit, complete, delete) and creating a list from the picker's "New List…" item work against the fake API and reset on relaunch.
 - Take screenshots with `screencapture` to inspect rendering, then kill the process when done.
 - Fakes live at the bottom of `TaskMenu/TaskMenuApp.swift` (`TestingWindowTasksAPI` and friends); extend the seeded data there if a UI state you need is missing.
 

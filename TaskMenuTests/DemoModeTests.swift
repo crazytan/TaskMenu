@@ -164,6 +164,27 @@ final class DemoModeTests: XCTestCase {
         XCTAssertFalse(state.isMenuBarCountRefreshLoopRunning)
     }
 
+    func testCreateTaskListInDemoModeAddsAnInMemoryListWithoutNetwork() async {
+        let state = makeState()
+        state.enterDemoMode()
+        await waitUntil { state.taskLists.count == 3 }
+
+        await state.createTaskList(title: "Errands")
+
+        XCTAssertEqual(state.taskLists.count, 4)
+        XCTAssertEqual(state.taskLists.last?.title, "Errands")
+        XCTAssertEqual(state.selectedListId, state.taskLists.last?.id)
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+
+        // The demo list dies with the session: a fresh demo has the sample lists only.
+        state.exitDemoMode()
+        XCTAssertTrue(state.taskLists.isEmpty)
+        state.enterDemoMode()
+        await waitUntil { state.taskLists.count == 3 }
+        XCTAssertEqual(state.taskLists.map(\.title), ["Today", "Work", "Personal"])
+    }
+
     // MARK: - Leaving
 
     func testExitDemoModeReturnsToSignedOutAndClearsSampleData() async {

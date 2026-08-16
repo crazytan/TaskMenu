@@ -12,8 +12,9 @@ Models hold the app's main state container and Google Tasks data shapes. Keep th
 
 ## AppState Rules
 
-- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `refreshTasks()`, `addTask(title:)`, `addSubtask(title:parentId:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, `moveTask(_:toParent:after:)`, `expandTask(_:)`, and update-check helpers. `addTask(title:)` and `addSubtask(title:parentId:)` return the created task so a view can flash the new row.
+- Treat `AppState` as the only view-facing mutation surface. Views call methods such as `loadTaskLists()`, `createTaskList(title:)`, `refreshTasks()`, `addTask(title:)`, `addSubtask(title:parentId:)`, `toggleTask(_:)`, `updateTask(_:)`, `deleteTask(_:)`, `moveTask(_:toParent:after:)`, `expandTask(_:)`, and update-check helpers. `addTask(title:)` and `addSubtask(title:parentId:)` return the created task so a view can flash the new row.
 - Keep `AppState` `@MainActor`. Inject services through the initializer for tests instead of reaching for globals.
+- `createTaskList(title:)` is the only list-creating surface: it trims the title, ignores blanks, posts through the API, appends the returned list to `taskLists`, and selects it through `selectList(_:)`; nothing is added optimistically, so a failure only sets `errorMessage`. It re-checks `isSignedIn` after the await like every other mutation, so a sign-out or demo exit mid-request drops the result.
 - Preserve `toggleTask(_:)` optimistic-update rollback behavior. If an optimistic API call fails, restore the prior local task state and set `errorMessage`.
 - Keep the per-list cache in sync when adding, adding subtasks, completing, updating, deleting, or selecting lists.
 - Use `taskLoadRequestID` guards when introducing async task-loading work so stale responses cannot overwrite the active list. Fetches also capture `taskStateGeneration`, which every committed mutation bumps, so a fetch snapshot taken before a local change is discarded rather than applied.

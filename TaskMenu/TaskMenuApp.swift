@@ -365,7 +365,7 @@ private struct NoOpDueDateNotificationService: DueDateNotificationServicing {
 }
 
 private actor TestingWindowTasksAPI: TasksAPIProtocol {
-    private let lists = [
+    private var lists = [
         TaskList(id: "seeded-list", title: "Seeded Tasks", selfLink: nil, updated: nil),
         TaskList(id: "seeded-due-dates", title: "Due Dates", selfLink: nil, updated: nil),
         TaskList(id: "seeded-long-subtasks", title: "Long Subtasks", selfLink: nil, updated: nil),
@@ -439,6 +439,13 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
 
     func listTaskLists() async throws -> [TaskList] {
         lists
+    }
+
+    func createTaskList(title: String) async throws -> TaskList {
+        let list = TaskList(id: "seeded-list-\(UUID().uuidString)", title: title, selfLink: nil, updated: nil)
+        lists.append(list)
+        tasksByListID[list.id] = []
+        return list
     }
 
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {

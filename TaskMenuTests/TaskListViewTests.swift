@@ -628,6 +628,175 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(rowTitles(in: outline), ["Overdue", "Later", "Undated"])
     }
 
+    // MARK: - List picker and New List field
+
+    @MainActor
+    private func makeHostedHeaderView() -> TaskListHeaderView {
+        let header = TaskListHeaderView()
+        let host = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 60),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        host.contentView?.addSubview(header)
+        header.frame = NSRect(x: 0, y: 0, width: 320, height: 40)
+        return header
+    }
+
+    private func makeLists(_ titles: [String]) -> [TaskList] {
+        titles.map { TaskList(id: "list-\($0)", title: $0, selfLink: nil, updated: nil) }
+    }
+
+    @MainActor
+    func testListPickerMenuEndsWithEnabledNewListItemAndStaysEnabledForOneList() throws {
+        let header = makeHostedHeaderView()
+        header.render(
+            listTitle: "Inbox",
+            taskLists: makeLists(["Inbox"]),
+            selectedListID: "list-Inbox",
+            sortOrder: .myOrder,
+            isLoading: false
+        )
+        let popup = try XCTUnwrap(findPopUpButton(in: header))
+        XCTAssertTrue(popup.isEnabled, "one list still needs the picker for New List…")
+        let items = try XCTUnwrap(popup.menu?.items)
+        XCTAssertEqual(items.map(\.title), ["Inbox", "", "New List…"])
+        XCTAssertTrue(items[1].isSeparatorItem)
+        XCTAssertTrue(items[2].isEnabled)
+
+        header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .myOrder, isLoading: false)
+        XCTAssertEqual(popup.menu?.items.map(\.title), ["New List…"])
+        XCTAssertTrue(popup.isEnabled)
+    }
+
+    @MainActor
+    func testChoosingNewListFiresBeginCallbackAndRestoresSelection() throws {
+        let header = makeHostedHeaderView()
+        header.render(
+            listTitle: "B",
+            taskLists: makeLists(["A", "B"]),
+            selectedListID: "list-B",
+            sortOrder: .myOrder,
+            isLoading: false
+        )
+        var beginCount = 0
+        header.onBeginNewList = { beginCount += 1 }
+        let popup = try XCTUnwrap(findPopUpButton(in: header))
+        let menu = try XCTUnwrap(popup.menu)
+        XCTAssertEqual(menu.items.map(\.title), ["A", "B", "", "New List…"])
+        XCTAssertEqual(popup.indexOfSelectedItem, 1)
+
+        // The item's own action.
+        menu.performActionForItem(at: 3)
+        XCTAssertEqual(beginCount, 1)
+        XCTAssertEqual(popup.indexOfSelectedItem, 1, "the picker snaps back to the current list")
+
+        // The popup's action, with "New List…" selected.
+        popup.selectItem(at: 3)
+        _ = popup.sendAction(popup.action, to: popup.target)
+        XCTAssertEqual(beginCount, 2)
+        XCTAssertEqual(popup.indexOfSelectedItem, 1)
+    }
+
+    @MainActor
+    func testNewListFieldSwapsInAndCommitsTrimmedTitleOnEnter() throws {
+        let header = makeHostedHeaderView()
+        let lists = makeLists(["Inbox"])
+        var committed: [String] = []
+        var cancelCount = 0
+        header.onCommitNewList = { committed.append($0) }
+        header.onCancelNewList = { cancelCount += 1 }
+        let render = { (composing: Bool, loading: Bool) in
+            header.render(
+                listTitle: "Inbox",
+                taskLists: lists,
+                selectedListID: "list-Inbox",
+                sortOrder: .myOrder,
+                isLoading: loading,
+                isComposingNewList: composing
+            )
+        }
+
+        render(false, false)
+        let popup = try XCTUnwrap(findPopUpButton(in: header))
+        let field = try XCTUnwrap(findTextField(in: header, accessibilityLabel: "New list name"))
+        XCTAssertFalse(popup.isHidden)
+        XCTAssertTrue(field.isHiddenOrHasHiddenAncestor)
+
+        render(true, false)
+        XCTAssertTrue(popup.isHidden)
+        XCTAssertFalse(field.isHiddenOrHasHiddenAncestor)
+        XCTAssertEqual(field.stringValue, "")
+
+        field.stringValue = "  Errands "
+        _ = field.sendAction(field.action, to: field.target)
+        XCTAssertEqual(committed, ["Errands"])
+        XCTAssertEqual(cancelCount, 0)
+
+        render(false, false)
+        XCTAssertFalse(popup.isHidden)
+        XCTAssertTrue(field.isHiddenOrHasHiddenAncestor)
+        XCTAssertEqual(field.stringValue, "")
+
+        // Background re-renders while composing keep what was typed.
+        render(true, false)
+        field.stringValue = "Groceries"
+        render(true, true)
+        render(true, false)
+        XCTAssertEqual(field.stringValue, "Groceries")
+        XCTAssertTrue(popup.isHidden)
+    }
+
+    @MainActor
+    func testNewListFieldEmptyEnterAndEscapeCancel() throws {
+        let header = makeHostedHeaderView()
+        var committed: [String] = []
+        var cancelCount = 0
+        header.onCommitNewList = { committed.append($0) }
+        header.onCancelNewList = { cancelCount += 1 }
+        header.render(
+            listTitle: "Inbox",
+            taskLists: makeLists(["Inbox"]),
+            selectedListID: "list-Inbox",
+            sortOrder: .myOrder,
+            isLoading: false,
+            isComposingNewList: true
+        )
+        let field = try XCTUnwrap(findTextField(in: header, accessibilityLabel: "New list name"))
+
+        field.stringValue = "   "
+        _ = field.sendAction(field.action, to: field.target)
+        XCTAssertEqual(cancelCount, 1)
+
+        let handled = field.control(
+            field,
+            textView: NSTextView(),
+            doCommandBy: #selector(NSResponder.cancelOperation(_:))
+        )
+        XCTAssertTrue(handled)
+        XCTAssertEqual(cancelCount, 2)
+        XCTAssertTrue(committed.isEmpty)
+    }
+
+    @MainActor
+    private func findPopUpButton(in view: NSView) -> NSPopUpButton? {
+        if let popup = view as? NSPopUpButton {
+            return popup
+        }
+        for subview in view.subviews {
+            if let found = findPopUpButton(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    @MainActor
+    private func findTextField(in view: NSView, accessibilityLabel: String) -> TaskMenuTextField? {
+        textFields(in: view).first { $0.accessibilityLabel() == accessibilityLabel }
+    }
+
     /// One label per row: the task title, or `<add subtask>` for the inline field.
     @MainActor
     private func rowTitles(in outline: NSOutlineView) -> [String] {

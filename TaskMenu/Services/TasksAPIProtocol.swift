@@ -2,6 +2,8 @@ import Foundation
 
 protocol TasksAPIProtocol: Sendable {
     func listTaskLists() async throws -> [TaskList]
+    /// Creates a task list titled `title` and returns the server's copy.
+    func createTaskList(title: String) async throws -> TaskList
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem]
     func createTask(listId: String, title: String, notes: String?, due: String?, parentId: String?) async throws -> TaskItem
     func updateTask(listId: String, taskId: String, task: TaskItem) async throws -> TaskItem

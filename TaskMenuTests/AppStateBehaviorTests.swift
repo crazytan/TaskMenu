@@ -6,6 +6,7 @@ import XCTest
 /// Uses MockURLProtocol.requestLog to inspect requests (avoids captured var issues with Swift 6 concurrency).
 @MainActor
 final class AppStateBehaviorTests: XCTestCase {
+    nonisolated(unsafe) private static var capturedCreateTaskListBody: Data?
     private var keychain: InMemoryKeychainService!
     private var state: AppState!
     private var userDefaults: UserDefaults!
@@ -311,6 +312,130 @@ final class AppStateBehaviorTests: XCTestCase {
 
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertFalse(state.isLoading)
+    }
+
+    // MARK: - createTaskList
+
+    /// `POST …/users/@me/lists` creates the list and its JSON body is captured
+    /// in `capturedCreateTaskListBody`; a fetch for the new list's tasks is
+    /// empty; every other request (a switch back to list1) is served by
+    /// `otherJSON`.
+    private func stubCreateTaskListResponses(
+        createStatusCode: Int = 200,
+        createJSON: String = #"{"id":"list-new","title":"Errands"}"#,
+        otherJSON: String = #"{"items":[]}"#
+    ) {
+        Self.capturedCreateTaskListBody = nil
+        MockURLProtocol.requestHandler = { request in
+            let path = request.url?.path ?? ""
+            let response = { (status: Int) in
+                HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+            }
+            if request.httpMethod == "POST", path.hasSuffix("/users/@me/lists") {
+                Self.capturedCreateTaskListBody = requestBodyData(from: request)
+                return (response(createStatusCode), Data(createJSON.utf8))
+            }
+            if path.contains("/lists/list-new/") {
+                return (response(200), Data(#"{"items":[]}"#.utf8))
+            }
+            return (response(200), Data(otherJSON.utf8))
+        }
+    }
+
+    func testCreateTaskListAppendsSelectsAndLoadsTheNewList() async throws {
+        state.isSignedIn = true
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+        state.tasks = [makeTask()]
+        stubCreateTaskListResponses(otherJSON: #"{"items":[{"id":"t1","title":"Test","status":"needsAction"}]}"#)
+
+        let created = await state.createTaskList(title: "  Errands ")
+
+        XCTAssertEqual(created?.id, "list-new")
+        XCTAssertEqual(state.taskLists.map(\.id), ["list1", "list-new"])
+        XCTAssertEqual(state.selectedListId, "list-new")
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertNil(state.errorMessage)
+
+        XCTAssertEqual(MockURLProtocol.requestLog.filter { $0.httpMethod == "POST" }.count, 1)
+        let body = try XCTUnwrap(Self.capturedCreateTaskListBody)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: body) as? [String: String], ["title": "Errands"])
+        let paths = MockURLProtocol.requestLog.compactMap { $0.url?.path }
+        XCTAssertEqual(paths.count, 2)
+        XCTAssertTrue(paths[0].hasSuffix("/users/@me/lists"), paths[0])
+        XCTAssertTrue(paths[1].contains("/lists/list-new/tasks"), paths[1])
+
+        // Switching back goes through the normal cache/refresh path.
+        await state.selectList("list1")
+        XCTAssertEqual(state.selectedListId, "list1")
+        XCTAssertEqual(state.tasks.map(\.id), ["t1"])
+    }
+
+    func testCreateTaskListIgnoresBlankTitle() async {
+        state.isSignedIn = true
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+        stubCreateTaskListResponses()
+
+        let created = await state.createTaskList(title: "   ")
+
+        XCTAssertNil(created)
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertEqual(state.taskLists.map(\.id), ["list1"])
+        XCTAssertEqual(state.selectedListId, "list1")
+    }
+
+    func testCreateTaskListFailureSetsErrorAndKeepsSelection() async {
+        state.isSignedIn = true
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+        state.tasks = [makeTask()]
+        stubCreateTaskListResponses(createStatusCode: 500, createJSON: "boom")
+
+        let created = await state.createTaskList(title: "Errands")
+
+        XCTAssertNil(created)
+        XCTAssertEqual(state.errorMessage?.hasPrefix("Server error 500"), true)
+        XCTAssertEqual(state.taskLists.map(\.id), ["list1"])
+        XCTAssertEqual(state.selectedListId, "list1")
+        XCTAssertEqual(state.tasks.map(\.id), ["t1"])
+    }
+
+    func testCreateTaskListResultIsDiscardedAfterSignOut() async {
+        let api = DelayedTasksAPI(
+            taskLists: [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)],
+            tasksByListID: ["list1": []]
+        )
+        await api.setCreateTaskListDelay(.milliseconds(200))
+        let state = makeState(api: api)
+        state.isSignedIn = true
+        state.taskLists = [TaskList(id: "list1", title: "Inbox", selfLink: nil, updated: nil)]
+        state.selectedListId = "list1"
+
+        let creation = Task { await state.createTaskList(title: "Errands") }
+        // Sign out only once the request is in flight, so the guard under test
+        // is the one after the await, not the entry guard.
+        await waitUntil { await api.createTaskListCallCount == 1 }
+        XCTAssertTrue(state.isSignedIn)
+        state.signOut()
+        let created = await creation.value
+
+        XCTAssertNil(created)
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertTrue(state.taskLists.isEmpty)
+        XCTAssertNil(state.selectedListId)
+        XCTAssertNil(state.errorMessage)
+    }
+
+    func testCreateTaskListDoesNothingWhenSignedOut() async {
+        state.isSignedIn = false
+        stubCreateTaskListResponses()
+
+        let created = await state.createTaskList(title: "Errands")
+
+        XCTAssertNil(created)
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertTrue(state.taskLists.isEmpty)
     }
 
     // MARK: - selectList: Per-list Cache
@@ -1443,11 +1568,14 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
     private var tasksByListID: [String: [TaskItem]]
     private var delaysByListID: [String: Duration]
     private var listTaskListsDelay: Duration?
+    private var createTaskListDelay: Duration?
+    private var createTaskListError: APIError?
     private var createTaskDelay: Duration?
     private var updateStubsByTaskID: [String: [UpdateStub]] = [:]
     private var moveTaskDelay: Duration?
     private var moveTaskError: APIError?
     private(set) var updateTaskCallCount = 0
+    private(set) var createTaskListCallCount = 0
     private(set) var listTasksCallsByListID: [String: Int] = [:]
     private var listTasksErrorsByListID: [String: APIError] = [:]
 
@@ -1477,6 +1605,14 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
         createTaskDelay = delay
     }
 
+    func setCreateTaskListDelay(_ delay: Duration) {
+        createTaskListDelay = delay
+    }
+
+    func setCreateTaskListFailure(_ error: APIError) {
+        createTaskListError = error
+    }
+
     /// Makes `listTasks` throw `error` for `listID` until cleared with `nil`.
     func setListTasksError(_ error: APIError?, for listID: String) {
         listTasksErrorsByListID[listID] = error
@@ -1497,6 +1633,20 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
             try? await Task.sleep(for: listTaskListsDelay)
         }
         return taskLists
+    }
+
+    func createTaskList(title: String) async throws -> TaskList {
+        createTaskListCallCount += 1
+        if let createTaskListDelay {
+            try? await Task.sleep(for: createTaskListDelay)
+        }
+        if let createTaskListError {
+            throw createTaskListError
+        }
+        let list = TaskList(id: "created-list-\(title)", title: title, selfLink: nil, updated: nil)
+        taskLists.append(list)
+        tasksByListID[list.id] = []
+        return list
     }
 
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {
@@ -1565,4 +1715,21 @@ private actor DelayedTasksAPI: TasksAPIProtocol {
         }
         throw APIError.serverError(501, "Not implemented")
     }
+}
+
+private func requestBodyData(from request: URLRequest) -> Data? {
+    if let body = request.httpBody {
+        return body
+    }
+    guard let stream = request.httpBodyStream else { return nil }
+    stream.open()
+    defer { stream.close() }
+    var data = Data()
+    var buffer = [UInt8](repeating: 0, count: 1024)
+    while stream.hasBytesAvailable {
+        let read = stream.read(&buffer, maxLength: buffer.count)
+        guard read > 0 else { break }
+        data.append(buffer, count: read)
+    }
+    return data
 }

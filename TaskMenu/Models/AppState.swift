@@ -560,6 +560,30 @@ final class AppState {
         }
     }
 
+    /// Creates a task list from a trimmed, non-empty title, appends it to
+    /// `taskLists`, and selects it. Blank titles are ignored. Failures surface
+    /// through `errorMessage`; nothing is added optimistically, so there is no
+    /// rollback. Returns the created list, or nil when nothing was created.
+    @discardableResult
+    func createTaskList(title: String) async -> TaskList? {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty, isSignedIn else { return nil }
+        do {
+            let list = try await api.createTaskList(title: trimmedTitle)
+            // Sign-out (or leaving the demo) during the request cleared the
+            // lists; do not repopulate signed-out state.
+            guard isSignedIn else { return nil }
+            taskLists.removeAll { $0.id == list.id }
+            taskLists.append(list)
+            await selectList(list.id)
+            return list
+        } catch {
+            guard isSignedIn else { return nil }
+            handleError(error)
+            return nil
+        }
+    }
+
     // MARK: - Menu-bar counter refresh
 
     /// Kicks off the account-wide fetch that keeps `menuBarPendingCount` covering

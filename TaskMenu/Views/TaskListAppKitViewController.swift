@@ -11,6 +11,8 @@ final class TaskListAppKitViewController: NSViewController {
     private var expandedCompletedSubtaskParentIDs: Set<String> = []
     /// Task whose inline "add subtask" field is open, from the row context menu.
     private var addingSubtaskParentID: String?
+    /// Whether the header shows the inline new-list field instead of the picker.
+    private var isComposingNewList = false
 
     private let containerView = NSView()
     private let listPageView = NSStackView()
@@ -73,6 +75,13 @@ final class TaskListAppKitViewController: NSViewController {
         quickAddView.focusField()
     }
 
+    /// A closed-and-reopened popover shows the picker again, and the
+    /// quick-add focus in `viewDidAppear` never competes with the field.
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        closeNewListComposer()
+    }
+
     private func configureControls() {
         headerView.onSelectList = { [weak self] listID in
             self?.selectList(listID)
@@ -86,6 +95,16 @@ final class TaskListAppKitViewController: NSViewController {
         headerView.isDemoMode = appState.isDemoMode
         headerView.onSignOut = { [appState] in
             appState.signOut()
+        }
+        headerView.onBeginNewList = { [weak self] in
+            self?.openNewListComposer()
+        }
+        headerView.onCommitNewList = { [weak self] title in
+            self?.commitNewList(title: title)
+        }
+        headerView.onCancelNewList = { [weak self] in
+            self?.closeNewListComposer()
+            self?.quickAddView.focusField()
         }
         headerView.onSelectSortOrder = { [weak self] order in
             guard let self, order != appState.taskSortOrder else { return }
@@ -180,6 +199,8 @@ final class TaskListAppKitViewController: NSViewController {
             closeAddSubtaskField()
             renderListContent()
         }
+        // Same for the header's new-list field.
+        closeNewListComposer()
 
         let detail = TaskDetailAppKitViewController(appState: appState, task: task) { [weak self] in
             self?.dismissTaskDetail()
@@ -350,6 +371,44 @@ final class TaskListAppKitViewController: NSViewController {
         addingSubtaskParentID = nil
     }
 
+    // MARK: - New List Composer
+
+    /// Idempotent: the popup can dispatch "New List…" through both the item's
+    /// action and its own, so a double fire must not re-render twice.
+    private func openNewListComposer() {
+        guard !isComposingNewList else { return }
+        isComposingNewList = true
+        renderListScreen()
+    }
+
+    private func closeNewListComposer() {
+        guard isComposingNewList else { return }
+        isComposingNewList = false
+        renderListScreen()
+    }
+
+    /// Enter in the header field: close the field first so a slow request
+    /// never leaves an editable field over a picker that is about to change,
+    /// reset the per-list UI the way a list switch does (`AppState` selects
+    /// the new list itself, bypassing `selectList(_:)` here), then create and
+    /// select.
+    private func commitNewList(title: String) {
+        closeNewListComposer()
+        resetPerListUIState()
+        quickAddView.focusField()
+        Task { [appState] in
+            await appState.createTaskList(title: title)
+        }
+    }
+
+    /// Shared by `selectList(_:)` and `commitNewList(title:)`.
+    private func resetPerListUIState() {
+        showCompleted = false
+        expandedCompletedSubtaskParentIDs = []
+        closeAddSubtaskField()
+        appState.searchText = ""
+    }
+
     /// One-shot `--capture task` hook: the seeded tasks arrive asynchronously,
     /// so the push waits for the first render that has one to open.
     private func presentTaskDetailForCaptureIfNeeded() {
@@ -372,7 +431,8 @@ final class TaskListAppKitViewController: NSViewController {
             taskLists: appState.taskLists,
             selectedListID: appState.selectedListId,
             sortOrder: appState.taskSortOrder,
-            isLoading: appState.isLoading
+            isLoading: appState.isLoading,
+            isComposingNewList: isComposingNewList
         )
         quickAddView.render(listTitle: appState.selectedList?.title ?? "Tasks")
         searchBarView.render(
@@ -394,10 +454,8 @@ final class TaskListAppKitViewController: NSViewController {
 
     private func selectList(_ listID: String) {
         guard listID != appState.selectedListId else { return }
-        showCompleted = false
-        expandedCompletedSubtaskParentIDs = []
-        closeAddSubtaskField()
-        appState.searchText = ""
+        closeNewListComposer()
+        resetPerListUIState()
         Task { [appState] in
             await appState.selectList(listID)
         }

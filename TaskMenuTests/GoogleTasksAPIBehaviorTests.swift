@@ -417,6 +417,48 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         XCTAssertTrue(MockURLProtocol.requestLog.first!.url!.absoluteString.contains("maxResults=100"))
     }
 
+    // MARK: - createTaskList
+
+    func testCreateTaskListPostsTitleToUsersMeLists() async throws {
+        Self.capturedRequestBody = nil
+        MockURLProtocol.requestHandler = { request in
+            Self.capturedRequestBody = requestBodyData(from: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, #"{"id":"list-new","title":"Errands"}"#.data(using: .utf8)!)
+        }
+
+        let list = try await api.createTaskList(title: "Errands")
+
+        XCTAssertEqual(list.id, "list-new")
+        XCTAssertEqual(list.title, "Errands")
+        let lastRequest = try XCTUnwrap(MockURLProtocol.requestLog.last)
+        XCTAssertEqual(lastRequest.httpMethod, "POST")
+        let path = try XCTUnwrap(lastRequest.url?.path)
+        XCTAssertTrue(path.hasSuffix("/users/@me/lists"), path)
+        XCTAssertFalse(path.contains("/lists/list"), path)
+        XCTAssertEqual(lastRequest.value(forHTTPHeaderField: "Content-Type"), "application/json")
+        XCTAssertEqual(lastRequest.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+        let bodyData = try XCTUnwrap(Self.capturedRequestBody)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: bodyData) as? [String: String])
+        XCTAssertEqual(body, ["title": "Errands"])
+    }
+
+    func testCreateTaskListThrowsServerErrorOn500() async {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("boom".utf8))
+        }
+
+        do {
+            _ = try await api.createTaskList(title: "Errands")
+            XCTFail("Expected serverError")
+        } catch let APIError.serverError(code, _) {
+            XCTAssertEqual(code, 500)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
     func testListTaskListsEmptyReturnsEmptyArray() async throws {
         MockURLProtocol.requestHandler = { request in
             let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!

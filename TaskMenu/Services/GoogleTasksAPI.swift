@@ -39,6 +39,12 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         return allLists
     }
 
+    func createTaskList(title: String) async throws -> TaskList {
+        let bodyData = try JSONSerialization.data(withJSONObject: ["title": title])
+        let data = try await request(path: "/users/@me/lists", method: "POST", body: bodyData)
+        return try decode(TaskList.self, from: data)
+    }
+
     // MARK: - Tasks
 
     func listTasks(listId: String, showCompleted: Bool = true, showHidden: Bool = true) async throws -> [TaskItem] {

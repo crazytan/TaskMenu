@@ -4,7 +4,7 @@ import Foundation
 /// Google account. Mutations live and die with the demo session. Unlike the
 /// deliberately odd `TestingWindowTasksAPI` fixtures, this content is realistic.
 actor DemoTasksAPI: TasksAPIProtocol {
-    private let lists = [
+    private var lists = [
         TaskList(id: "demo-today", title: "Today", selfLink: nil, updated: nil),
         TaskList(id: "demo-work", title: "Work", selfLink: nil, updated: nil),
         TaskList(id: "demo-personal", title: "Personal", selfLink: nil, updated: nil)
@@ -89,6 +89,13 @@ actor DemoTasksAPI: TasksAPIProtocol {
 
     func listTaskLists() async throws -> [TaskList] {
         lists
+    }
+
+    func createTaskList(title: String) async throws -> TaskList {
+        let list = TaskList(id: "demo-list-\(UUID().uuidString)", title: title, selfLink: nil, updated: nil)
+        lists.append(list)
+        tasksByListID[list.id] = []
+        return list
     }
 
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {

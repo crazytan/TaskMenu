@@ -7,12 +7,35 @@ final class TaskListHeaderView: NSView {
     var onRefresh: (() -> Void)?
     var onSignOut: (() -> Void)?
     var onSelectSortOrder: ((TaskSortOrder) -> Void)?
+    /// "New List…" was chosen from the list picker.
+    var onBeginNewList: (() -> Void)?
+    /// Enter in the inline new-list field with a trimmed, non-empty title.
+    var onCommitNewList: ((String) -> Void)?
+    /// Escape or an empty Enter in the inline new-list field.
+    var onCancelNewList: (() -> Void)?
     /// Retitles the sign-out item, which leaves the demo instead.
     var isDemoMode = false
     /// Current sort, reflected as the checkmark in the "Sort by" submenu.
     private var sortOrder: TaskSortOrder = .myOrder
 
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    /// Hosts both the list picker and the inline new-list field so hiding one
+    /// never detaches it from the layout (an `NSStackView` drops hidden
+    /// arranged subviews, which would change the header height).
+    private let listSwitcherContainer = NSView()
+    private let newListContainer = NSView()
+    private let newListField = TaskMenuTextField(placeholder: "List name")
+    private weak var newListMenuItem: NSMenuItem?
+    /// Active while composing: asks for more width than the header has at a
+    /// priority just above the picker's hugging, so the field grows to fill
+    /// what the buttons leave instead of hugging the hidden picker's title.
+    private var newListExpandConstraint: NSLayoutConstraint?
+    /// Last rendered composer state; visibility and the field's text only
+    /// change on transitions so background re-renders never clear typing.
+    private var isComposingNewList = false
+    /// Selected list from the last render, restored after "New List…" moves
+    /// the popup's selection onto itself.
+    private var lastSelectedListID: String?
     private let refreshButton = TaskMenuActionButton(
         symbolName: "arrow.clockwise",
         pointSize: 14,
@@ -44,12 +67,26 @@ final class TaskListHeaderView: NSView {
         taskLists: [TaskList],
         selectedListID: String?,
         sortOrder: TaskSortOrder,
-        isLoading: Bool
+        isLoading: Bool,
+        isComposingNewList: Bool = false
     ) {
         self.sortOrder = sortOrder
+        lastSelectedListID = selectedListID
         rebuildListMenu(taskLists: taskLists, selectedListID: selectedListID)
         listPopup.attributedTitle = headerTitle(listTitle: listTitle)
-        listPopup.isEnabled = taskLists.count > 1
+        // The menu always ends with "New List…", so the picker stays usable
+        // with one list, or none.
+        listPopup.isEnabled = true
+        if isComposingNewList != self.isComposingNewList {
+            self.isComposingNewList = isComposingNewList
+            listPopup.isHidden = isComposingNewList
+            newListContainer.isHidden = !isComposingNewList
+            newListExpandConstraint?.isActive = isComposingNewList
+            newListField.stringValue = ""
+            if isComposingNewList {
+                focusNewListField()
+            }
+        }
         refreshButton.isEnabled = !isLoading
         if isLoading {
             showRefreshSpinner()
@@ -82,7 +119,17 @@ final class TaskListHeaderView: NSView {
         listPopup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         listPopup.toolTip = "Switch task list"
         listPopup.setAccessibilityLabel("Task list")
-        stack.addArrangedSubview(listPopup)
+
+        listSwitcherContainer.translatesAutoresizingMaskIntoConstraints = false
+        listSwitcherContainer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        listSwitcherContainer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        listSwitcherContainer.addSubview(listPopup)
+        TaskMenuAppKit.pin(listPopup, to: listSwitcherContainer)
+        let expand = listSwitcherContainer.widthAnchor.constraint(equalToConstant: 10_000)
+        expand.priority = .defaultLow + 10
+        newListExpandConstraint = expand
+        setupNewListComposer()
+        stack.addArrangedSubview(listSwitcherContainer)
 
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
         stack.addArrangedSubview(refreshControlContainer())
@@ -95,6 +142,78 @@ final class TaskListHeaderView: NSView {
         overflowButton.onPress = { [weak self] in
             self?.showOverflowMenu()
         }
+    }
+
+    /// The inline field that replaces the picker while a list is being named.
+    /// It sits inside `listSwitcherContainer` at a fixed height so the header
+    /// keeps the picker's height whichever of the two is showing.
+    private func setupNewListComposer() {
+        newListContainer.wantsLayer = true
+        newListContainer.layer?.cornerRadius = 7
+        newListContainer.layer?.borderWidth = 1
+        newListContainer.translatesAutoresizingMaskIntoConstraints = false
+        newListContainer.isHidden = true
+        applyBackgroundColors()
+
+        newListField.font = .systemFont(ofSize: 13)
+        newListField.setAccessibilityLabel("New list name")
+        newListField.onCommit = { [weak self] _ in
+            self?.commitNewList()
+        }
+        newListField.onEscape = { [weak self] in
+            self?.onCancelNewList?()
+        }
+        newListContainer.addSubview(newListField)
+        TaskMenuAppKit.pin(
+            newListField,
+            to: newListContainer,
+            insets: NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
+        )
+
+        listSwitcherContainer.addSubview(newListContainer)
+        NSLayoutConstraint.activate([
+            newListContainer.leadingAnchor.constraint(equalTo: listSwitcherContainer.leadingAnchor),
+            newListContainer.trailingAnchor.constraint(equalTo: listSwitcherContainer.trailingAnchor),
+            newListContainer.centerYAnchor.constraint(equalTo: listSwitcherContainer.centerYAnchor),
+            newListContainer.heightAnchor.constraint(equalToConstant: 24)
+        ])
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyBackgroundColors()
+    }
+
+    /// Layer colors are resolved CGColors; reapply them when the effective
+    /// appearance changes so light/dark switches don't leave stale colors.
+    private func applyBackgroundColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            newListContainer.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.7).cgColor
+            newListContainer.layer?.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.62).cgColor
+        }
+    }
+
+    /// Deferred so the field is in the window before it claims first responder.
+    /// Re-entering an active editing session would select the existing text,
+    /// and a composer closed again before this runs must not take focus while
+    /// hidden.
+    private func focusNewListField() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isComposingNewList, let window = self.window else { return }
+            if let editor = self.newListField.currentEditor(), window.firstResponder === editor {
+                return
+            }
+            window.makeFirstResponder(self.newListField)
+        }
+    }
+
+    private func commitNewList() {
+        let title = newListField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            onCancelNewList?()
+            return
+        }
+        onCommitNewList?(title)
     }
 
     private func rebuildListMenu(
@@ -117,9 +236,13 @@ final class TaskListHeaderView: NSView {
         if !taskLists.isEmpty {
             menu.addItem(.separator())
         }
-        let newListItem = NSMenuItem(title: "New List…", action: nil, keyEquivalent: "")
-        newListItem.isEnabled = false
+        // `representedObject` stays nil so `listSelectionChanged(_:)` never
+        // treats it as a list; it is matched by identity instead.
+        let newListItem = NSMenuItem(title: "New List…", action: #selector(newListMenuItemSelected(_:)), keyEquivalent: "")
+        newListItem.target = self
+        newListItem.isEnabled = true
         menu.addItem(newListItem)
+        newListMenuItem = newListItem
 
         listPopup.menu = menu
         if let selectedIndex = taskLists.firstIndex(where: { $0.id == selectedListID }) {
@@ -228,13 +351,34 @@ final class TaskListHeaderView: NSView {
     }
 
     @objc private func listSelectionChanged(_ sender: NSPopUpButton) {
-        guard let listID = sender.selectedItem?.representedObject as? String else { return }
-        onSelectList?(listID)
+        if let listID = sender.selectedItem?.representedObject as? String {
+            onSelectList?(listID)
+        } else if let selectedItem = sender.selectedItem, selectedItem === newListMenuItem {
+            // AppKit may dispatch through the item's action, the popup's
+            // action, or both; the controller side is idempotent.
+            beginNewList()
+        }
     }
 
     @objc private func listMenuItemSelected(_ sender: NSMenuItem) {
         guard let listID = sender.representedObject as? String else { return }
         onSelectList?(listID)
+    }
+
+    @objc private func newListMenuItemSelected(_ sender: NSMenuItem) {
+        beginNewList()
+    }
+
+    private func beginNewList() {
+        // The popup just moved its selection to "New List…"; put it back on
+        // the current list so nothing flashes when the picker returns.
+        if let lastSelectedListID,
+           let index = listPopup.itemArray.firstIndex(where: { ($0.representedObject as? String) == lastSelectedListID }) {
+            listPopup.selectItem(at: index)
+        } else {
+            listPopup.select(nil)
+        }
+        onBeginNewList?()
     }
 }
 

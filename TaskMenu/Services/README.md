@@ -7,7 +7,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - `GoogleAuthService.swift` - `@MainActor` OAuth 2.0 PKCE flow, web-auth callback parsing, token exchange/refresh/revocation, Keychain-backed token loading, and signed-in account email loading.
 - `GoogleTasksAPI.swift` - `actor` REST client for Google Tasks lists, tasks, subtask creation, updates, deletes, and pagination.
 - `TasksAPIProtocol.swift` - async API contract used by `AppState`, production API code, and unit-test doubles.
-- `DemoTasksAPI.swift` - `actor` in-memory sample data (Today/Work/Personal) backing demo mode; no network, no credentials, and mutations are discarded when the demo ends. Seeded positions use Google's 20-digit zero-padded format, and `createTask` mirrors the real API by storing the new task first among its siblings with the group renumbered (`tasksWithCreatedTask(_:in:)`), so demo mode reproduces the stale-position ordering the live account shows.
+- `DemoTasksAPI.swift` - `actor` in-memory sample data (Today/Work/Personal) backing demo mode; no network, no credentials, and mutations are discarded when the demo ends; `createTaskList` appends an in-memory list that lasts for the demo session. Seeded positions use Google's 20-digit zero-padded format, and `createTask` mirrors the real API by storing the new task first among its siblings with the group renumbered (`tasksWithCreatedTask(_:in:)`), so demo mode reproduces the stale-position ordering the live account shows.
 - `GitHubUpdateChecker.swift` - GitHub Releases latest-version lookup, semantic-version comparison, and the update-check protocol used by Settings and launch alerts. Also holds `DisabledUpdateChecker` for Mac App Store builds and the `--testing-window` fakes. `GitHubUpdateChecker` is wrapped in `#if !APP_STORE_BUILD`.
 - `KeychainService.swift` - Sendable wrapper around Security framework item CRUD; stores items in the data-protection keychain (device-only accessibility) with transparent migration from the legacy login-keychain location and a fallback for unsigned builds.
 - `DueDateNotificationService.swift` - UserNotifications abstraction and due-date reminder syncing.
@@ -26,6 +26,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - Keep `GoogleTasksAPI` actor-isolated and conforming to `TasksAPIProtocol`.
 - Use typed model decoding for responses. Avoid hand-parsing JSON except for small request bodies where the current code already uses dictionaries.
 - Preserve pagination for `listTasks` and `listTaskLists`; both loop on `nextPageToken` with `maxResults=100`.
+- `createTaskList(title:)` posts `{"title": …}` to `/users/@me/lists` and decodes the returned `TaskList`.
 - `listTasks` does not request assigned tasks with `showAssigned` today. Add that intentionally if assigned Workspace tasks become product scope.
 - Subtask creation uses the optional `parent` query parameter on `createTask`; the API layer does not expose moving tasks between lists.
 - `moveTask` posts to the `/move` endpoint with optional `parent` and `previous` query parameters; omitting `parent` moves the task to the top level and omitting `previous` places it first among its siblings.
@@ -55,4 +56,4 @@ Services isolate external systems and side effects from views. Keep protocols na
 
 - Prefer protocol injection over conditional production logic.
 - Use test doubles for keychain, web authentication, URL loading, update checking, and notification center behavior.
-- The `--testing-window` fake Tasks API lives in `TaskMenuApp.swift`; keep production services injectable instead of adding testing-window branches here.
+- The `--testing-window` fake Tasks API lives in `TaskMenuApp.swift` and implements `createTaskList` in memory like `DemoTasksAPI`; keep production services injectable instead of adding testing-window branches here.
