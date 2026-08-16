@@ -127,6 +127,21 @@ final class AppState {
     var hasCompletedInitialTaskLoad = false
     var collapsedTaskIDs: Set<String> = []
     var searchText: String = ""
+    /// App-wide root-task ordering; subtasks and the completed section always
+    /// keep Google order. Persisted like the notification preference and kept
+    /// across sign-out, disconnect, and demo exit.
+    var taskSortOrder: TaskSortOrder {
+        didSet {
+            userDefaults.set(taskSortOrder.rawValue, forKey: Constants.UserDefaults.taskSortOrderKey)
+        }
+    }
+
+    /// Drag-and-drop reordering only makes sense while the list shows Google's
+    /// own order; under any other sort the drop index would not map to a position.
+    var canReorderTasks: Bool {
+        taskSortOrder == .myOrder
+    }
+
     var dueDateNotificationsEnabled: Bool {
         didSet {
             userDefaults.set(
@@ -186,12 +201,13 @@ final class AppState {
         isSignedIn && !hasCompletedInitialTaskLoad && taskLists.isEmpty && tasks.isEmpty
     }
 
-    /// Root-level tasks (no parent), ordered by Google's sibling position.
+    /// Root-level tasks (no parent) in the user's chosen sort order.
     var rootTasks: [TaskItem] {
-        tasksSortedByGooglePosition(tasks.filter { $0.parent == nil })
+        tasksSorted(tasks.filter { $0.parent == nil }, by: taskSortOrder)
     }
 
-    /// Children of a given task, ordered by Google's sibling position.
+    /// Children of a given task, always ordered by Google's sibling position
+    /// regardless of `taskSortOrder`.
     func subtasks(of taskID: String) -> [TaskItem] {
         tasksSortedByGooglePosition(tasks.filter { $0.parent == taskID })
     }
@@ -232,12 +248,12 @@ final class AppState {
         return Set(tasks.filter { taskMatchesQuery($0, query: query) }.map(\.id))
     }
 
-    /// Root-level tasks from the search-filtered set.
+    /// Root-level tasks from the search-filtered set, in the chosen sort order.
     var searchFilteredRootTasks: [TaskItem] {
-        tasksSortedByGooglePosition(searchFilteredTasks.filter { $0.parent == nil })
+        tasksSorted(searchFilteredTasks.filter { $0.parent == nil }, by: taskSortOrder)
     }
 
-    /// Subtasks of a given task from the search-filtered set.
+    /// Subtasks of a given task from the search-filtered set, in Google order.
     func searchFilteredSubtasks(of taskID: String) -> [TaskItem] {
         tasksSortedByGooglePosition(searchFilteredTasks.filter { $0.parent == taskID })
     }
@@ -322,6 +338,9 @@ final class AppState {
         self.lastUpdateCheckDate = userDefaults.object(
             forKey: Constants.UserDefaults.lastUpdateCheckDateKey
         ) as? Date
+        // An unknown stored value falls back to the default rather than crashing.
+        self.taskSortOrder = userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey)
+            .flatMap(TaskSortOrder.init(rawValue:)) ?? .myOrder
         self.isSignedIn = authService.isSignedIn
         self.googleAccountProfile = authService.accountProfile
     }
@@ -671,9 +690,12 @@ final class AppState {
 
     /// Moves a task under `newParentID` (top level when nil), directly after
     /// sibling `previousTaskID` (first among siblings when nil). Applies the
-    /// reorder optimistically and rolls back if the API move fails.
+    /// reorder optimistically and rolls back if the API move fails. Ignored
+    /// unless `canReorderTasks`: under any other sort the visible order is not
+    /// the position order the drop indices describe.
     func moveTask(_ task: TaskItem, toParent newParentID: String?, after previousTaskID: String?) async {
-        guard let listId = selectedListId,
+        guard canReorderTasks,
+              let listId = selectedListId,
               let reordered = tasksReorderedAfterMove(
                 tasks,
                 movedTaskID: task.id,

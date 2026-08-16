@@ -867,6 +867,22 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertNil(state.errorMessage)
     }
 
+    func testMoveTaskIsIgnoredWhileSortedByDueDate() async {
+        state.selectedListId = "list1"
+        state.taskSortOrder = .dueDate
+        state.tasks = [
+            makeTask(id: "first", position: "00000001"),
+            makeTask(id: "second", position: "00000002"),
+            makeTask(id: "third", position: "00000003")
+        ]
+
+        await state.moveTask(state.tasks[2], toParent: nil, after: "first")
+
+        XCTAssertEqual(state.tasks.map(\.id), ["first", "second", "third"])
+        XCTAssertTrue(MockURLProtocol.requestLog.isEmpty)
+        XCTAssertNil(state.errorMessage)
+    }
+
     func testMoveTaskIgnoresInvalidMove() async {
         state.selectedListId = "list1"
         state.tasks = [

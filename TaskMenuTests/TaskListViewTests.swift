@@ -8,19 +8,49 @@ final class TaskListViewTests: XCTestCase {
         title: String = "Task",
         parent: String? = nil,
         status: TaskItem.TaskStatus = .needsAction,
-        position: String? = nil
+        position: String? = nil,
+        dueInDays: Int? = nil
     ) -> TaskItem {
         TaskItem(
             id: id,
             title: title,
             notes: nil,
             status: status,
-            due: nil,
+            due: dueInDays.map { days in
+                let date = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+                return DateFormatting.formatGoogleTaskDueDate(date)
+            },
             selfLink: nil,
             parent: parent,
             position: position,
             updated: nil
         )
+    }
+
+    /// `AppState` on an isolated defaults suite so sort-preference writes never
+    /// reach the test host's real domain.
+    @MainActor
+    private func makeIsolatedAppState() -> AppState {
+        let suiteName = "dev.crazytan.TaskMenu.tests.tasklistview.\(UUID().uuidString)"
+        let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
+        userDefaults.removePersistentDomain(forName: suiteName)
+        return AppState(userDefaults: userDefaults)
+    }
+
+    /// Hosts a content view in a window so outline rows get built and drag
+    /// callbacks behave as they do in the app.
+    @MainActor
+    private func makeHostedContentView() -> TaskListContentView {
+        let content = TaskListContentView()
+        let host = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 400),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        host.contentView?.addSubview(content)
+        content.frame = NSRect(x: 0, y: 0, width: 360, height: 400)
+        return content
     }
 
     @MainActor
@@ -510,6 +540,92 @@ final class TaskListViewTests: XCTestCase {
             addingSubtaskParentID: "today-review"
         )
         XCTAssertEqual(Array(rowTitles(in: outline)[1...5]), expectedRows, "the server's order matches the optimistic one")
+    }
+
+    // MARK: - Sort Order
+
+    @MainActor
+    func testOverflowMenuListsSortByFirstWithCheckmarkOnCurrentOrder() throws {
+        let header = TaskListHeaderView()
+        header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .dueDate, isLoading: false)
+
+        let menu = header.overflowMenu()
+        XCTAssertEqual(menu.items.map(\.title), ["Sort by", "", "Settings…", "Sign out", "Quit"])
+        XCTAssertTrue(menu.items[1].isSeparatorItem)
+
+        let sortMenu = try XCTUnwrap(menu.items[0].submenu)
+        XCTAssertEqual(sortMenu.items.map(\.title), ["My order", "Due date"])
+        XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on])
+
+        header.isDemoMode = true
+        XCTAssertEqual(header.overflowMenu().items[3].title, "Exit demo")
+    }
+
+    @MainActor
+    func testSortSubmenuItemReportsSelectedOrder() throws {
+        let header = TaskListHeaderView()
+        header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .dueDate, isLoading: false)
+        var selected: [TaskSortOrder] = []
+        header.onSelectSortOrder = { selected.append($0) }
+
+        let sortMenu = try XCTUnwrap(header.overflowMenu().items[0].submenu)
+        let myOrderItem = try XCTUnwrap(sortMenu.items.first { $0.title == "My order" })
+        let action = try XCTUnwrap(myOrderItem.action)
+        _ = myOrderItem.target?.perform(action, with: myOrderItem)
+
+        XCTAssertEqual(selected, [.myOrder])
+    }
+
+    /// Drop indices only map back to Google positions while the list shows
+    /// them, so a due-date sort has to turn dragging off.
+    @MainActor
+    func testDragIsDisabledWhileSortedByDueDate() throws {
+        let state = makeIsolatedAppState()
+        state.tasks = [
+            makeTask(id: "later", title: "Later", position: "0001", dueInDays: 5),
+            makeTask(id: "overdue", title: "Overdue", position: "0002", dueInDays: -1)
+        ]
+        let content = makeHostedContentView()
+        let render = {
+            content.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        }
+
+        render()
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+        let item = try XCTUnwrap(outline.item(atRow: 0))
+        XCTAssertNotNil(content.outlineView(outline, pasteboardWriterForItem: item))
+
+        state.taskSortOrder = .dueDate
+        render()
+        let sortedItem = try XCTUnwrap(outline.item(atRow: 0))
+        XCTAssertNil(content.outlineView(outline, pasteboardWriterForItem: sortedItem))
+
+        state.taskSortOrder = .myOrder
+        render()
+        let restoredItem = try XCTUnwrap(outline.item(atRow: 0))
+        XCTAssertNotNil(content.outlineView(outline, pasteboardWriterForItem: restoredItem))
+    }
+
+    @MainActor
+    func testDueDateSortReordersVisibleRows() throws {
+        let state = makeIsolatedAppState()
+        state.tasks = [
+            makeTask(id: "later", title: "Later", position: "0001", dueInDays: 5),
+            makeTask(id: "overdue", title: "Overdue", position: "0002", dueInDays: -1),
+            makeTask(id: "none", title: "Undated", position: "0000")
+        ]
+        let content = makeHostedContentView()
+        let render = {
+            content.render(appState: state, showCompleted: false, expandedCompletedSubtaskParentIDs: [])
+        }
+
+        render()
+        let outline = try XCTUnwrap(findOutlineView(in: content))
+        XCTAssertEqual(rowTitles(in: outline), ["Undated", "Later", "Overdue"])
+
+        state.taskSortOrder = .dueDate
+        render()
+        XCTAssertEqual(rowTitles(in: outline), ["Overdue", "Later", "Undated"])
     }
 
     /// One label per row: the task title, or `<add subtask>` for the inline field.

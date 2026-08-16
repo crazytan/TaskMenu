@@ -41,12 +41,16 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     /// Task currently showing the inline "add subtask" field, if any.
     private var addingSubtaskParentID: String?
     private var isSearching = false
+    /// False while `AppState.taskSortOrder` shows something other than Google
+    /// positions, since drop indices would not map back to positions.
+    private var canReorder = true
     private var pendingFlashTaskIDs: Set<String> = []
     private var flashingTaskIDs: Set<String> = []
     private var suppressExpansionCallbacks = false
     private var hasRenderedOnce = false
-    /// Identifies the list/search context of the last render; a context switch
-    /// (different list, search keystroke) re-renders without row animations.
+    /// Identifies the list/search/sort context of the last render; a context
+    /// switch (different list, search keystroke, sort change) re-renders
+    /// without row animations.
     private var lastRenderContextKey = ""
 
     override init(frame frameRect: NSRect) {
@@ -83,12 +87,13 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         addingSubtaskParentID: String? = nil
     ) {
         isSearching = appState.isSearching
+        canReorder = appState.canReorderTasks
         // Collapse state is ignored while searching so matching subtasks stay visible.
         let newCollapsedTaskIDs = isSearching ? [] : appState.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
         self.addingSubtaskParentID = addingSubtaskParentID
 
-        let contextKey = "\(appState.selectedListId ?? "")|\(appState.searchText)"
+        let contextKey = "\(appState.selectedListId ?? "")|\(appState.searchText)|\(appState.taskSortOrder.rawValue)"
         let animated = hasRenderedOnce
             && contextKey == lastRenderContextKey
             && window != nil
@@ -654,11 +659,17 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
 
     // MARK: - Drag And Drop
 
+    /// Search hides rows (drop indices skip them) and non-position sorts show
+    /// an order that has nothing to do with positions, so neither can reorder.
+    private var isDragReorderingAllowed: Bool {
+        !isSearching && canReorder
+    }
+
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
         // The composer row sits among a parent's children without being one of
         // its task siblings, so drop indices would be off by one under it.
         // Reordering during a half-typed subtask is not worth that math.
-        guard !isSearching,
+        guard isDragReorderingAllowed,
               addingSubtaskParentID == nil,
               let node = item as? TaskOutlineNode,
               let entry = node.taskEntry,
@@ -681,7 +692,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         // Keep the row-highlight feedback for drop-on-row nesting.
         if index == NSOutlineViewDropOnItemIndex,
            let node = item as? TaskOutlineNode,
-           !isSearching,
+           isDragReorderingAllowed,
            draggedNode.taskEntry?.section == .active,
            canDrop(draggedNode, under: node) {
             return .move
@@ -755,7 +766,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
         draggedNode: TaskOutlineNode,
         location: NSPoint
     ) -> TaskDropTarget? {
-        guard !isSearching, draggedNode.taskEntry?.section == .active else { return nil }
+        guard isDragReorderingAllowed, draggedNode.taskEntry?.section == .active else { return nil }
 
         if let node = item as? TaskOutlineNode {
             guard canDrop(draggedNode, under: node) else { return nil }

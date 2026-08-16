@@ -77,9 +77,10 @@ Remember to always run the full UI verification loop first before working on any
 any issues early (e.g., macOS permission issues).
 
 - The task UI opens in a regular window (signed-in state, seeded fake tasks) instead of the menu bar popover.
-- Seeded data covers four lists: "Seeded Tasks" (subtasks, completed section, delete target), "Due Dates" (overdue/today/tomorrow/future due dates on parents and subtasks), "Long Subtasks" (a parent with 12 subtasks for scroll behavior), and "Empty List" (empty state). Switch lists with the picker at the top.
+- Seeded data covers four lists: "Seeded Tasks" (subtasks, completed section, delete target), "Due Dates" (overdue/today/tomorrow/future due dates on parents and subtasks, plus standalone due-today and undated roots so "Sort by" → "Due date" visibly reorders it), "Long Subtasks" (a parent with 12 subtasks for scroll behavior), and "Empty List" (empty state). Switch lists with the picker at the top.
 - Adding `--signed-out` starts on the sign-in screen instead of a seeded signed-in state, which is how to reach the "Explore the Demo" button and exercise demo mode.
 - Adding `--demo` opens directly in demo mode on the realistic sample lists (Today/Work/Personal). This is the state the App Store preview sources are captured from.
+- Adding `--list <id>` (e.g. `--list seeded-due-dates`) switches to that seeded list after the first load, and `--sort-due-date` starts with the list sorted by due date, so sort screenshots need no clicking.
 - Everything is in memory: no Keychain access, no Google credentials, no network, no notifications, no update checks, no persisted defaults. Task mutations (add, add subtask, edit, complete, delete) work against the fake API and reset on relaunch.
 - Take screenshots with `screencapture` to inspect rendering, then kill the process when done.
 - Fakes live at the bottom of `TaskMenu/TaskMenuApp.swift` (`TestingWindowTasksAPI` and friends); extend the seeded data there if a UI state you need is missing.

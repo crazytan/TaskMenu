@@ -45,14 +45,18 @@ final class AppStateTests: XCTestCase {
         title: String = "Task",
         parent: String? = nil,
         status: TaskItem.TaskStatus = .needsAction,
-        position: String? = nil
+        position: String? = nil,
+        dueInDays: Int? = nil
     ) -> TaskItem {
         TaskItem(
             id: id,
             title: title,
             notes: nil,
             status: status,
-            due: nil,
+            due: dueInDays.map { days in
+                let date = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+                return DateFormatting.formatGoogleTaskDueDate(date)
+            },
             selfLink: nil,
             parent: parent,
             position: position,
@@ -122,6 +126,50 @@ final class AppStateTests: XCTestCase {
         let state = makeState(authService: authService)
 
         XCTAssertFalse(state.dueDateNotificationsEnabled)
+    }
+
+    func testInitialSortOrderDefaultsToMyOrder() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        XCTAssertEqual(state.taskSortOrder, .myOrder)
+        XCTAssertTrue(state.canReorderTasks)
+    }
+
+    func testInitialStateUsesStoredSortOrder() {
+        userDefaults.set("dueDate", forKey: Constants.UserDefaults.taskSortOrderKey)
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        XCTAssertEqual(state.taskSortOrder, .dueDate)
+        XCTAssertFalse(state.canReorderTasks)
+    }
+
+    func testInitialStateIgnoresUnknownStoredSortOrder() {
+        userDefaults.set("bogus", forKey: Constants.UserDefaults.taskSortOrderKey)
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        XCTAssertEqual(state.taskSortOrder, .myOrder)
+    }
+
+    func testChangingSortOrderPersistsPreference() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+
+        state.taskSortOrder = .dueDate
+        XCTAssertEqual(userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey), "dueDate")
+
+        state.taskSortOrder = .myOrder
+        XCTAssertEqual(userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey), "myOrder")
+    }
+
+    func testSignOutKeepsSortOrder() throws {
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "token")
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.taskSortOrder = .dueDate
+
+        state.signOut()
+
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertEqual(state.taskSortOrder, .dueDate)
+        XCTAssertEqual(userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey), "dueDate")
     }
 
     func testSignInFailureShowsErrorAndStopsLoading() async {
@@ -274,6 +322,84 @@ final class AppStateTests: XCTestCase {
         ]
 
         XCTAssertEqual(tasksSortedByGooglePosition(tasks).map(\.id), ["first", "second"])
+    }
+
+    // MARK: - Due Date Ordering
+
+    func testTasksSortedByDueDatePutsDatedBeforeUndatedAscending() {
+        let tasks = [
+            makeTask(id: "none", position: "00000000"),
+            makeTask(id: "later", position: "00000001", dueInDays: 14),
+            makeTask(id: "overdue", position: "00000002", dueInDays: -7),
+            makeTask(id: "today", position: "00000003", dueInDays: 0),
+        ]
+
+        XCTAssertEqual(tasksSortedByDueDate(tasks).map(\.id), ["overdue", "today", "later", "none"])
+    }
+
+    func testTasksSortedByDueDateBreaksTiesByGooglePosition() {
+        let tasks = [
+            makeTask(id: "same-2", position: "00000002", dueInDays: 3),
+            makeTask(id: "same-1", position: "00000001", dueInDays: 3),
+            makeTask(id: "undated-4", position: "00000004"),
+            makeTask(id: "undated-3", position: "00000003"),
+        ]
+
+        XCTAssertEqual(
+            tasksSortedByDueDate(tasks).map(\.id),
+            ["same-1", "same-2", "undated-3", "undated-4"]
+        )
+    }
+
+    func testTasksSortedByDueDateFallsBackToInputOrderWhenPositionsMissing() {
+        let tasks = [
+            makeTask(id: "first"),
+            makeTask(id: "second"),
+            makeTask(id: "dated", dueInDays: 1),
+        ]
+
+        XCTAssertEqual(tasksSortedByDueDate(tasks).map(\.id), ["dated", "first", "second"])
+    }
+
+    func testTasksSortedByDueDateTreatsMalformedDueAsUndated() {
+        var broken = makeTask(id: "broken", position: "00000000")
+        broken.due = "not-a-date"
+        let tasks = [broken, makeTask(id: "dated", position: "00000001", dueInDays: 2)]
+
+        XCTAssertEqual(tasksSortedByDueDate(tasks).map(\.id), ["dated", "broken"])
+    }
+
+    func testRootTasksFollowSortOrderPreference() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.tasks = [
+            makeTask(id: "later", position: "00000000", dueInDays: 5),
+            makeTask(id: "child", parent: "later", position: "00000000", dueInDays: -3),
+            makeTask(id: "none", position: "00000001"),
+            makeTask(id: "overdue", position: "00000002", dueInDays: -1),
+            makeTask(id: "done", status: .completed, position: "00000003", dueInDays: -9),
+        ]
+
+        state.taskSortOrder = .myOrder
+        XCTAssertEqual(state.rootTasks.map(\.id), ["later", "none", "overdue", "done"])
+
+        state.taskSortOrder = .dueDate
+        XCTAssertEqual(
+            state.rootTasks.map(\.id),
+            ["done", "overdue", "later", "none"],
+            "completed roots stay in rootTasks; the view filters them"
+        )
+    }
+
+    func testSubtasksKeepGoogleOrderWhileSortedByDueDate() {
+        let state = makeState(authService: GoogleAuthService(keychain: keychain))
+        state.tasks = [
+            makeTask(id: "parent", position: "00000000"),
+            makeTask(id: "child-late", parent: "parent", position: "00000000", dueInDays: 5),
+            makeTask(id: "child-early", parent: "parent", position: "00000001", dueInDays: -1),
+        ]
+        state.taskSortOrder = .dueDate
+
+        XCTAssertEqual(state.subtasks(of: "parent").map(\.id), ["child-late", "child-early"])
     }
 
     // MARK: - Reorder After Move

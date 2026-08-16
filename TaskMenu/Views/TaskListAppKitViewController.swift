@@ -87,6 +87,14 @@ final class TaskListAppKitViewController: NSViewController {
         headerView.onSignOut = { [appState] in
             appState.signOut()
         }
+        headerView.onSelectSortOrder = { [weak self] order in
+            guard let self, order != appState.taskSortOrder else { return }
+            // Re-sorting rebuilds the rows, which would drop the inline subtask
+            // field and whatever was typed in it (same rule as list switches
+            // and filtering).
+            closeAddSubtaskField()
+            appState.taskSortOrder = order
+        }
 
         quickAddView.onCommit = { [weak self] title in
             // Clear any active filter so the new task is visible and can flash.
@@ -363,6 +371,7 @@ final class TaskListAppKitViewController: NSViewController {
             listTitle: appState.selectedList?.title ?? "Tasks",
             taskLists: appState.taskLists,
             selectedListID: appState.selectedListId,
+            sortOrder: appState.taskSortOrder,
             isLoading: appState.isLoading
         )
         quickAddView.render(listTitle: appState.selectedList?.title ?? "Tasks")
@@ -403,6 +412,7 @@ final class TaskListAppKitViewController: NSViewController {
             _ = appState.tasks
             _ = appState.collapsedTaskIDs
             _ = appState.searchText
+            _ = appState.taskSortOrder
         } onChange: { [weak self] in
             self?.renderListScreen()
         }

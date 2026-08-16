@@ -6,8 +6,11 @@ final class TaskListHeaderView: NSView {
     var onOpenSettings: (() -> Void)?
     var onRefresh: (() -> Void)?
     var onSignOut: (() -> Void)?
+    var onSelectSortOrder: ((TaskSortOrder) -> Void)?
     /// Retitles the sign-out item, which leaves the demo instead.
     var isDemoMode = false
+    /// Current sort, reflected as the checkmark in the "Sort by" submenu.
+    private var sortOrder: TaskSortOrder = .myOrder
 
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let refreshButton = TaskMenuActionButton(
@@ -40,8 +43,10 @@ final class TaskListHeaderView: NSView {
         listTitle: String,
         taskLists: [TaskList],
         selectedListID: String?,
+        sortOrder: TaskSortOrder,
         isLoading: Bool
     ) {
+        self.sortOrder = sortOrder
         rebuildListMenu(taskLists: taskLists, selectedListID: selectedListID)
         listPopup.attributedTitle = headerTitle(listTitle: listTitle)
         listPopup.isEnabled = taskLists.count > 1
@@ -185,9 +190,26 @@ final class TaskListHeaderView: NSView {
         }
     }
 
-    private func showOverflowMenu() {
+    /// Builds the "…" menu. Kept separate from `showOverflowMenu()` so tests can
+    /// inspect the items without popping a tracking menu.
+    func overflowMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
+
+        let sortItem = NSMenuItem(title: "Sort by", action: nil, keyEquivalent: "")
+        let sortMenu = NSMenu(title: "Sort by")
+        sortMenu.autoenablesItems = false
+        for order in TaskSortOrder.allCases {
+            let item = ClosureMenuItem(title: order.displayName) { [weak self] in
+                self?.onSelectSortOrder?(order)
+            }
+            item.state = order == sortOrder ? .on : .off
+            sortMenu.addItem(item)
+        }
+        sortItem.submenu = sortMenu
+        menu.addItem(sortItem)
+        menu.addItem(.separator())
+
         menu.addItem(ClosureMenuItem(title: "Settings…") { [weak self] in
             self?.onOpenSettings?()
         })
@@ -197,6 +219,11 @@ final class TaskListHeaderView: NSView {
         menu.addItem(ClosureMenuItem(title: "Quit") {
             NSApplication.shared.terminate(nil)
         })
+        return menu
+    }
+
+    private func showOverflowMenu() {
+        let menu = overflowMenu()
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: overflowButton.bounds.height + 4), in: overflowButton)
     }
 

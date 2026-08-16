@@ -11,23 +11,33 @@ final class SearchFilterTests: XCTestCase {
         title: String,
         notes: String? = nil,
         parent: String? = nil,
-        status: TaskItem.TaskStatus = .needsAction
+        status: TaskItem.TaskStatus = .needsAction,
+        position: String? = nil,
+        dueInDays: Int? = nil
     ) -> TaskItem {
         TaskItem(
             id: id,
             title: title,
             notes: notes,
             status: status,
-            due: nil,
+            due: dueInDays.map { days in
+                let date = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+                return DateFormatting.formatGoogleTaskDueDate(date)
+            },
             selfLink: nil,
             parent: parent,
-            position: nil,
+            position: position,
             updated: nil
         )
     }
 
+    /// Isolated defaults so preference writes never touch the test host's
+    /// real domain.
     private func makeAppState(tasks: [TaskItem]) -> AppState {
-        let state = AppState()
+        let suiteName = "dev.crazytan.TaskMenu.tests.search.\(UUID().uuidString)"
+        let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
+        userDefaults.removePersistentDomain(forName: suiteName)
+        let state = AppState(userDefaults: userDefaults)
         state.tasks = tasks
         return state
     }
@@ -274,5 +284,22 @@ final class SearchFilterTests: XCTestCase {
         let subtaskIDs = Set(subtasks.map(\.id))
         XCTAssertTrue(subtaskIDs.contains("child1"))
         XCTAssertTrue(subtaskIDs.contains("child2"))
+    }
+
+    // MARK: - Sort Order
+
+    func testSearchFilteredRootTasksFollowDueDateSort() {
+        let state = makeAppState(tasks: [
+            makeTask(id: "alpha", title: "Alpha later", position: "00000000", dueInDays: 3),
+            makeTask(id: "alpha-2", title: "Alpha overdue", position: "00000001", dueInDays: -1),
+            makeTask(id: "beta", title: "Beta today", position: "00000002", dueInDays: 0),
+        ])
+        state.searchText = "alpha"
+
+        state.taskSortOrder = .dueDate
+        XCTAssertEqual(state.searchFilteredRootTasks.map(\.id), ["alpha-2", "alpha"])
+
+        state.taskSortOrder = .myOrder
+        XCTAssertEqual(state.searchFilteredRootTasks.map(\.id), ["alpha", "alpha-2"])
     }
 }

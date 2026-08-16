@@ -138,6 +138,8 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     /// Adding `--signed-out` starts on the sign-in screen instead, which is
     /// how the demo-mode entry point gets exercised without credentials.
     /// Adding `--demo` skips straight into demo mode.
+    /// Adding `--sort-due-date` starts with the list sorted by due date, and
+    /// `--list <id>` opens on that seeded list instead of the first one.
     /// Adding `--capture` renders the App Store preview states: the same
     /// realistic sample data, but signed in, so no demo banner or demo account
     /// row appears in the marketing screenshots.
@@ -154,6 +156,28 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
             dueDateNotificationService: NoOpDueDateNotificationService(),
             updateChecker: DisabledUpdateChecker()
         )
+        if CommandLine.arguments.contains("--sort-due-date") {
+            state.taskSortOrder = .dueDate
+        }
+        // `--list <id>` switches to that seeded list (e.g. `seeded-due-dates`)
+        // once the first load lands, so screenshots need no clicking. The
+        // bootstrap only runs while nothing is selected, so this cannot preset
+        // the selection up front. The wait is bounded so a `--signed-out`
+        // launch, which never loads, does not poll forever.
+        if let flagIndex = CommandLine.arguments.firstIndex(of: "--list"),
+           CommandLine.arguments.indices.contains(flagIndex + 1) {
+            let listID = CommandLine.arguments[flagIndex + 1]
+            Task { @MainActor in
+                var remainingPolls = 200
+                while !state.hasCompletedInitialTaskLoad, remainingPolls > 0 {
+                    remainingPolls -= 1
+                    try? await Task.sleep(for: .milliseconds(50))
+                }
+                guard state.hasCompletedInitialTaskLoad else { return }
+                guard state.taskLists.contains(where: { $0.id == listID }) else { return }
+                await state.selectList(listID)
+            }
+        }
         guard !CommandLine.arguments.contains("--signed-out") else { return state }
 
         if !isCapture, CommandLine.arguments.contains("--demo") {
@@ -402,8 +426,9 @@ private actor TestingWindowTasksAPI: TasksAPIProtocol {
                 task("due-child-completed", "Completed subtask due yesterday", status: .completed, dueInDays: -1, parent: "due-parent", position: 2),
                 task("due-overdue", "Standalone overdue by a week", dueInDays: -7, position: 1),
                 task("due-future", "Standalone due in two weeks", dueInDays: 14, position: 2),
-                task("due-none", "Standalone without a due date", position: 3),
-                task("due-completed-root", "Completed root due last week", status: .completed, dueInDays: -7, position: 4)
+                task("due-today", "Standalone due today", dueInDays: 0, position: 3),
+                task("due-none", "Standalone without a due date", position: 4),
+                task("due-completed-root", "Completed root due last week", status: .completed, dueInDays: -7, position: 5)
             ],
             "seeded-long-subtasks": [
                 task("long-parent", "Parent with 12 subtasks", position: 0)
