@@ -6,7 +6,7 @@
 - Global keyboard shortcut (Cmd+Shift+T)
 - Multiple Google accounts
 
-## Unreleased
+## v1.5.0 (2026-08-16)
 
 ### Changed
 - **Discord is now an About link** in Settings, next to GitHub, Support, and Privacy.
