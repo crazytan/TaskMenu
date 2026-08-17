@@ -8,13 +8,8 @@
 
 ## Unreleased
 
-### Changed
-- **Discord is now an About link** in Settings, next to GitHub, Support, and Privacy.
-- **Mac App Store builds** come from a separate `AppStore` configuration that leaves out the update checker and the tips link, since the App Store delivers its own updates and requires In-App Purchase for donations. Settings there shows a plain version row. Direct-download builds are unchanged.
-
 ### Fixed
 - **A subtask added from the right-click menu could show up in the wrong slot** — it landed below an older subtask until the next refresh moved it to the top, where Google actually puts it. The list now shows it at the top right away, matching the order on the Google Tasks website.
-- **"Explore the Demo" did nothing if you had started a Google sign-in and backed out of it** — the demo now takes over from the abandoned attempt instead of waiting for it.
 
 ### Added
 - **Two lists side by side** — turn on "Show two lists side by side" in Settings (or in the popover's "…" menu) and the popover widens into two independent panes, each with its own list picker, filter, quick add, and task editor. The right pane starts on the list after the left one and remembers its choice; edits made in one pane show up in the other when both show the same list, and moving a task to the other pane's list puts it there right away.
@@ -23,6 +18,17 @@
 - **Pending-task count in the menu bar** — Settings → General → "Show in menu bar" can put the number of open tasks, or of tasks due today (overdue included), next to the menu bar icon. It counts every list in your account (or every demo list), drops as soon as you complete a task, and refreshes in the background every five minutes. Off by default.
 - **Sort by due date** — the "…" menu has a "Sort by" submenu with "My order" (Google's order, the default) and "Due date", which lists overdue tasks first, then today, tomorrow, and later, with undated tasks at the end. Subtasks stay under their parent in their usual order. Drag-and-drop reordering pauses while sorted by due date, since the list no longer shows Google's positions.
 - **Add a subtask straight from the list** — right-click a task and choose "Add Subtask" to get an inline field under it. Enter creates the subtask and keeps the field open for the next one; an empty Enter or Escape closes it.
+
+## v1.5.0 (2026-08-16)
+
+### Changed
+- **Discord is now an About link** in Settings, next to GitHub, Support, and Privacy.
+- **Mac App Store builds** come from a separate `AppStore` configuration that leaves out the update checker and the tips link, since the App Store delivers its own updates and requires In-App Purchase for donations. Settings there shows a plain version row. Direct-download builds are unchanged.
+
+### Fixed
+- **"Explore the Demo" did nothing if you had started a Google sign-in and backed out of it** — the demo now takes over from the abandoned attempt instead of waiting for it.
+
+### Added
 - **Demo mode** — an "Explore the Demo" button on the sign-in screen opens the app on sample task lists, so you can try everything without connecting a Google account. Nothing leaves your Mac: no sign-in, no network, no reminders, and the sample edits are discarded when you leave. A banner above the list marks the session and exits back to sign-in, as do "Exit demo" in the "…" menu and Settings.
 
 ## v1.4.0 (2026-08-03)
