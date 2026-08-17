@@ -30,11 +30,15 @@ final class TaskListViewTests: XCTestCase {
     /// `AppState` on an isolated defaults suite so sort-preference writes never
     /// reach the test host's real domain.
     @MainActor
-    private func makeIsolatedAppState() -> AppState {
+    /// Every AppState here goes through this: a bare `AppState()` reads
+    /// `UserDefaults.standard`, which for the sandboxed test host is the same
+    /// container the installed app writes, so a stored sort order would decide
+    /// what these tests render.
+    private func makeIsolatedAppState(api: (any TasksAPIProtocol)? = nil) -> AppState {
         let suiteName = "dev.crazytan.TaskMenu.tests.tasklistview.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName) ?? .standard
         userDefaults.removePersistentDomain(forName: suiteName)
-        return AppState(userDefaults: userDefaults)
+        return AppState(api: api, userDefaults: userDefaults)
     }
 
     /// Hosts a content view in a window so outline rows get built and drag
@@ -197,7 +201,7 @@ final class TaskListViewTests: XCTestCase {
 
     @MainActor
     func testKeyboardSelectionBrowsesWithoutOpeningAndReturnOpensSelectedTask() throws {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "1", title: "First"),
             makeTask(id: "2", title: "Second")
@@ -254,7 +258,7 @@ final class TaskListViewTests: XCTestCase {
 
     @MainActor
     func testCompletedSectionSourceTasksUsesFilteredSetWhileSearching() {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "done-match", title: "Buy milk", status: .completed),
             makeTask(id: "done-other", title: "Walk dog", status: .completed),
@@ -324,7 +328,7 @@ final class TaskListViewTests: XCTestCase {
 
     @MainActor
     func testDisplaySubtasksShowsOnlyMatchingChildrenWhileSearching() {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "parent", title: "Errands"),
             makeTask(id: "done-child", title: "Renew passport", parent: "parent", status: .completed),
@@ -362,7 +366,7 @@ final class TaskListViewTests: XCTestCase {
     /// rows in and out of the outline, not just flip `collapsedTaskIDs`.
     @MainActor
     func testSubtaskChevronHidesAndShowsSubtaskRows() throws {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "parent", title: "Parent", position: "0001"),
             makeTask(id: "child-1", title: "Child 1", parent: "parent", position: "0001"),
@@ -408,7 +412,7 @@ final class TaskListViewTests: XCTestCase {
     /// collapsed parents have to come back collapsed.
     @MainActor
     func testFullReloadKeepsCollapsedSubtasksHidden() throws {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "parent", title: "Parent", position: "0001"),
             makeTask(id: "child", title: "Child", parent: "parent", position: "0001")
@@ -430,7 +434,7 @@ final class TaskListViewTests: XCTestCase {
     /// take a subtask.
     @MainActor
     func testAddSubtaskContextItemOnlyOnOpenTopLevelRows() throws {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "parent", title: "Parent", position: "0001"),
             makeTask(id: "child", title: "Child", parent: "parent", position: "0001"),
@@ -509,7 +513,7 @@ final class TaskListViewTests: XCTestCase {
     /// `previous` makes it the first child.
     @MainActor
     func testAddSubtaskFieldOpensAboveExistingSubtasks() throws {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [
             makeTask(id: "parent", title: "Parent", position: "0001"),
             makeTask(id: "child", title: "Child", parent: "parent", position: "0001")
@@ -536,7 +540,7 @@ final class TaskListViewTests: XCTestCase {
     /// a context-menu tap goes through in the running app.
     @MainActor
     func testAddSubtaskFieldOpensUnderParentWithoutSubtasksAndCommitsOnEnter() throws {
-        let state = AppState()
+        let state = makeIsolatedAppState()
         state.tasks = [makeTask(id: "solo", title: "Solo", position: "0001")]
 
         let content = TaskListContentView()
@@ -594,7 +598,7 @@ final class TaskListViewTests: XCTestCase {
     /// must leave it there.
     @MainActor
     func testCommittedSubtaskRendersUnderTheFieldAndStaysPutAfterRefresh() async throws {
-        let state = AppState(api: DemoTasksAPI())
+        let state = makeIsolatedAppState(api: DemoTasksAPI())
         state.isSignedIn = true
         state.selectedListId = "demo-today"
         await state.refreshTasks()
@@ -647,23 +651,31 @@ final class TaskListViewTests: XCTestCase {
     // MARK: - Sort Order
 
     @MainActor
-    func testOverflowMenuListsSortByFirstWithCheckmarkOnCurrentOrder() throws {
+    func testSortMenuListsOrdersWithCheckmarkOnCurrentOrder() throws {
+        let header = TaskListHeaderView()
+        header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .dueDate, isLoading: false)
+
+        let sortMenu = header.sortMenu()
+        XCTAssertEqual(sortMenu.items.map(\.title), ["My order", "Due date"])
+        XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on])
+    }
+
+    /// Sorting moved out of "…" onto its own header button, so the overflow
+    /// menu must not offer it in two places.
+    @MainActor
+    func testOverflowMenuNoLongerCarriesSortBy() throws {
         let header = TaskListHeaderView()
         header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .dueDate, isLoading: false)
 
         let menu = header.overflowMenu()
         XCTAssertEqual(
             menu.items.map(\.title),
-            ["Sort by", "Show two lists side by side", "", "Settings…", "Sign out", "Quit"]
+            ["Show two lists side by side", "", "Settings…", "Sign out", "Quit"]
         )
-        XCTAssertTrue(menu.items[2].isSeparatorItem)
-
-        let sortMenu = try XCTUnwrap(menu.items[0].submenu)
-        XCTAssertEqual(sortMenu.items.map(\.title), ["My order", "Due date"])
-        XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on])
+        XCTAssertTrue(menu.items[1].isSeparatorItem)
 
         header.isDemoMode = true
-        XCTAssertEqual(header.overflowMenu().items[4].title, "Exit demo")
+        XCTAssertEqual(header.overflowMenu().items[3].title, "Exit demo")
     }
 
     @MainActor
@@ -673,9 +685,9 @@ final class TaskListViewTests: XCTestCase {
         var toggleCount = 0
         header.onToggleSideBySide = { toggleCount += 1 }
 
-        XCTAssertEqual(header.overflowMenu().items[1].state, .off)
+        XCTAssertEqual(header.overflowMenu().items[0].state, .off)
         header.isSideBySideEnabled = true
-        let item = header.overflowMenu().items[1]
+        let item = header.overflowMenu().items[0]
         XCTAssertEqual(item.state, .on)
 
         let action = try XCTUnwrap(item.action)
@@ -684,14 +696,13 @@ final class TaskListViewTests: XCTestCase {
     }
 
     @MainActor
-    func testSortSubmenuItemReportsSelectedOrder() throws {
+    func testSortMenuItemReportsSelectedOrder() throws {
         let header = TaskListHeaderView()
         header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .dueDate, isLoading: false)
         var selected: [TaskSortOrder] = []
         header.onSelectSortOrder = { selected.append($0) }
 
-        let sortMenu = try XCTUnwrap(header.overflowMenu().items[0].submenu)
-        let myOrderItem = try XCTUnwrap(sortMenu.items.first { $0.title == "My order" })
+        let myOrderItem = try XCTUnwrap(header.sortMenu().items.first { $0.title == "My order" })
         let action = try XCTUnwrap(myOrderItem.action)
         _ = myOrderItem.target?.perform(action, with: myOrderItem)
 

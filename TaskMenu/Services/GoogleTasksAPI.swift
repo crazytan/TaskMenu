@@ -102,7 +102,7 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         var queryItems = [URLQueryItem]()
         if let parentId { queryItems.append(URLQueryItem(name: "parent", value: parentId)) }
         if let previousTaskId { queryItems.append(URLQueryItem(name: "previous", value: previousTaskId)) }
-        // Moves the task out of `listId`; Google rejects recurring tasks here.
+        // Moves the task out of `listId`, subtasks included.
         if let destinationListId { queryItems.append(URLQueryItem(name: "destinationTasklist", value: destinationListId)) }
 
         let data = try await request(path: "/lists/\(listId)/tasks/\(taskId)/move", method: "POST", queryItems: queryItems)

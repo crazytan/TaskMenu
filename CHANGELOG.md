@@ -8,7 +8,14 @@
 
 ## Unreleased
 
+### Changed
+- **Sorting has its own button in the list header**, between refresh and the "…" menu, instead of a "Sort by" submenu inside "…".
+- **Each list pane sorts on its own** — with two lists side by side, changing the sort in one pane leaves the other alone. Each pane remembers its own order.
+- **Settings no longer has a Quit button.** Quit is still in the menu bar icon's menu, the popover's "…" menu, and ⌘Q.
+
 ### Fixed
+- **Deleting a list on the Google Tasks website left the app stuck on it** until you quit and reopened — the popover kept asking for a list that was gone. It now notices, re-reads your lists, and moves to another one.
+- **Both panes forgot which list they were showing** when the app restarted. Each pane now reopens on the list it last showed, falling back if that list is gone.
 - **A subtask added from the right-click menu could show up in the wrong slot** — it landed below an older subtask until the next refresh moved it to the top, where Google actually puts it. The list now shows it at the top right away, matching the order on the Google Tasks website.
 
 ### Added

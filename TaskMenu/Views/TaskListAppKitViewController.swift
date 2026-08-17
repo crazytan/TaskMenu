@@ -121,12 +121,12 @@ final class TaskListAppKitViewController: NSViewController {
             self?.quickAddView.focusField()
         }
         headerView.onSelectSortOrder = { [weak self] order in
-            guard let self, order != appState.taskSortOrder else { return }
+            guard let self, order != pane.sortOrder else { return }
             // Re-sorting rebuilds the rows, which would drop the inline subtask
             // field and whatever was typed in it (same rule as list switches
             // and filtering).
             closeAddSubtaskField()
-            appState.taskSortOrder = order
+            appState.setSortOrder(order, in: pane)
         }
 
         quickAddView.onCommit = { [weak self] title in
@@ -462,7 +462,7 @@ final class TaskListAppKitViewController: NSViewController {
             listTitle: listTitle,
             taskLists: appState.taskLists,
             selectedListID: pane.selectedListId,
-            sortOrder: appState.taskSortOrder,
+            sortOrder: pane.sortOrder,
             isLoading: pane.isLoading,
             isComposingNewList: isComposingNewList
         )
@@ -504,7 +504,7 @@ final class TaskListAppKitViewController: NSViewController {
             _ = pane.tasks
             _ = pane.collapsedTaskIDs
             _ = pane.searchText
-            _ = appState.taskSortOrder
+            _ = pane.sortOrder
             _ = appState.sideBySideListsEnabled
         } onChange: { [weak self] in
             self?.renderListScreen()

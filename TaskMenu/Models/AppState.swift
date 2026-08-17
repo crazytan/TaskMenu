@@ -254,19 +254,47 @@ final class AppState {
         set { primaryPane.searchText = newValue }
     }
 
-    /// App-wide root-task ordering; subtasks and the completed section always
-    /// keep Google order. Persisted like the notification preference and kept
-    /// across sign-out, disconnect, and demo exit.
+    /// Primary pane's root-task ordering. Every pane sorts independently
+    /// (`TaskListPane.sortOrder`); subtasks and the completed section always
+    /// keep Google order. Persisted per pane and kept across sign-out,
+    /// disconnect, and demo exit.
     var taskSortOrder: TaskSortOrder {
-        didSet {
-            userDefaults.set(taskSortOrder.rawValue, forKey: Constants.UserDefaults.taskSortOrderKey)
-        }
+        get { primaryPane.sortOrder }
+        set { setSortOrder(newValue, in: primaryPane) }
+    }
+
+    /// Sets `pane`'s (the primary when nil) root-task ordering and persists it
+    /// under that pane's own key.
+    func setSortOrder(_ order: TaskSortOrder, in pane: TaskListPane? = nil) {
+        let pane = pane ?? primaryPane
+        pane.sortOrder = order
+        userDefaults.set(order.rawValue, forKey: Self.sortOrderKey(for: pane.id))
     }
 
     /// Drag-and-drop reordering only makes sense while the list shows Google's
     /// own order; under any other sort the drop index would not map to a position.
     var canReorderTasks: Bool {
-        taskSortOrder == .myOrder
+        canReorderTasks(in: primaryPane)
+    }
+
+    /// Whether `pane` currently shows Google's own order, so its rows can be
+    /// dragged into new positions.
+    func canReorderTasks(in pane: TaskListPane) -> Bool {
+        pane.sortOrder == .myOrder
+    }
+
+    private static func sortOrderKey(for paneID: TaskListPaneID) -> String {
+        switch paneID {
+        case .primary: Constants.UserDefaults.taskSortOrderKey
+        case .secondary: Constants.UserDefaults.secondaryTaskSortOrderKey
+        }
+    }
+
+    private static func selectedListIdKey(for paneID: TaskListPaneID) -> String {
+        switch paneID {
+        case .primary: Constants.UserDefaults.primarySelectedListIdKey
+        case .secondary: Constants.UserDefaults.secondarySelectedListIdKey
+        }
     }
 
     /// Menu-bar counter preference. Persisted; Off by default.
@@ -385,7 +413,7 @@ final class AppState {
 
     /// Root-level tasks of `pane` in the user's chosen sort order.
     func rootTasks(in pane: TaskListPane) -> [TaskItem] {
-        tasksSorted(pane.tasks.filter { $0.parent == nil }, by: taskSortOrder)
+        tasksSorted(pane.tasks.filter { $0.parent == nil }, by: pane.sortOrder)
     }
 
     /// Children of a given task, always ordered by Google's sibling position
@@ -450,7 +478,7 @@ final class AppState {
     }
 
     func searchFilteredRootTasks(in pane: TaskListPane) -> [TaskItem] {
-        tasksSorted(searchFilteredTasks(in: pane).filter { $0.parent == nil }, by: taskSortOrder)
+        tasksSorted(searchFilteredTasks(in: pane).filter { $0.parent == nil }, by: pane.sortOrder)
     }
 
     /// Subtasks of a given task from the search-filtered set, in Google order.
@@ -566,8 +594,15 @@ final class AppState {
             forKey: Constants.UserDefaults.lastUpdateCheckDateKey
         ) as? Date
         // An unknown stored value falls back to the default rather than crashing.
-        self.taskSortOrder = userDefaults.string(forKey: Constants.UserDefaults.taskSortOrderKey)
-            .flatMap(TaskSortOrder.init(rawValue:)) ?? .myOrder
+        // Assigned to the panes directly: `setSortOrder` would write straight
+        // back to defaults while restoring them.
+        for pane in [primaryPane, secondaryPane] {
+            pane.sortOrder = userDefaults.string(forKey: Self.sortOrderKey(for: pane.id))
+                .flatMap(TaskSortOrder.init(rawValue:)) ?? .myOrder
+            // Restored, not selected: `loadTaskLists` drops the id if the list
+            // is gone by the time the account's lists come back.
+            pane.selectedListId = userDefaults.string(forKey: Self.selectedListIdKey(for: pane.id))
+        }
         self.menuBarCounterMode = userDefaults.string(forKey: Constants.UserDefaults.menuBarCounterModeKey)
             .flatMap(MenuBarCounterMode.init(rawValue:)) ?? .off
         self.sideBySideListsEnabled = userDefaults.object(
@@ -690,7 +725,9 @@ final class AppState {
         googleAccountProfile = nil
         taskLists = []
         for pane in [primaryPane, secondaryPane] {
-            pane.selectedListId = nil
+            // Also drops the stored id: the next account must not open on a
+            // list belonging to the one that just signed out.
+            setSelectedList(nil, in: pane)
             pane.tasks = []
             pane.isLoading = false
             pane.taskLoadRequestID += 1
@@ -709,7 +746,9 @@ final class AppState {
     }
 
     func bootstrapSignedInState() async {
-        guard isSignedIn, taskLists.isEmpty, selectedListId == nil, !isLoading else { return }
+        // Not gated on `selectedListId`: a pane restored from defaults already
+        // has one before its account's lists have ever been fetched.
+        guard isSignedIn, taskLists.isEmpty, !isLoading else { return }
         await loadTaskLists()
     }
 
@@ -727,11 +766,7 @@ final class AppState {
             // so stale lists cannot repopulate signed-out state.
             guard isSignedIn else { return }
             taskLists = lists
-            if primaryPane.selectedListId == nil, let first = taskLists.first {
-                primaryPane.selectedListId = first.id
-                showCachedTasks(of: first.id, in: primaryPane)
-            }
-            ensureSecondaryPaneSelection()
+            reconcilePaneSelections()
             await refreshTasks()
             // Spawned, not awaited: the visible load returns as fast as before
             // while the other lists fill in for the menu-bar count.
@@ -742,6 +777,24 @@ final class AppState {
         }
     }
 
+    /// Points every pane at a list that still exists, and is called every time
+    /// `taskLists` is replaced. A pane holding a list that is gone — deleted
+    /// from the Google Tasks website, or restored from defaults for an account
+    /// that no longer has it — would otherwise keep asking for it and only
+    /// recover on relaunch.
+    private func reconcilePaneSelections() {
+        let knownListIDs = Set(taskLists.map(\.id))
+        if let id = primaryPane.selectedListId, !knownListIDs.contains(id) {
+            setSelectedList(nil, in: primaryPane)
+            primaryPane.tasks = []
+        }
+        if primaryPane.selectedListId == nil, let first = taskLists.first {
+            setSelectedList(first.id, in: primaryPane)
+            showCachedTasks(of: first.id, in: primaryPane)
+        }
+        ensureSecondaryPaneSelection()
+    }
+
     /// Gives the secondary pane a list when it is shown and has none, or its
     /// list vanished: the one after the primary's, wrapping around (see
     /// `TaskListPane.defaultSecondaryListID`). Seeds its tasks from the cache
@@ -749,14 +802,26 @@ final class AppState {
     private func ensureSecondaryPaneSelection() {
         guard sideBySideListsEnabled, !taskLists.isEmpty else { return }
         if let id = secondaryPane.selectedListId, taskLists.contains(where: { $0.id == id }) { return }
-        secondaryPane.selectedListId = TaskListPane.defaultSecondaryListID(
-            in: taskLists,
-            after: primaryPane.selectedListId
+        setSelectedList(
+            TaskListPane.defaultSecondaryListID(in: taskLists, after: primaryPane.selectedListId),
+            in: secondaryPane
         )
         if let listId = secondaryPane.selectedListId {
             showCachedTasks(of: listId, in: secondaryPane)
         } else {
             secondaryPane.tasks = []
+        }
+    }
+
+    /// Assigns `pane`'s list and persists it, so the pane opens on the same
+    /// list next launch. Clearing it removes the stored id rather than keeping
+    /// one that reconciliation just rejected.
+    private func setSelectedList(_ listId: String?, in pane: TaskListPane) {
+        pane.selectedListId = listId
+        if let listId {
+            userDefaults.set(listId, forKey: Self.selectedListIdKey(for: pane.id))
+        } else {
+            userDefaults.removeObject(forKey: Self.selectedListIdKey(for: pane.id))
         }
     }
 
@@ -955,6 +1020,10 @@ final class AppState {
         await loadTasks(for: listId, into: targets)
     }
 
+    /// Guards the reload in `loadTasks`: the recovery refreshes the lists,
+    /// which loads tasks again, and a second 404 must not recurse.
+    private var isRecoveringFromMissingList = false
+
     /// One request for `listId`, applied to every pane in `targetPanes`
     /// through its own load token, so each pane's stale-load protection and
     /// loading flag work independently.
@@ -975,11 +1044,30 @@ final class AppState {
                 await syncDueDateNotificationsIfNeeded()
             }
         } catch {
+            // A 404 means the list is gone from the account — deleted from the
+            // Google Tasks website while the app was running. Re-fetch the
+            // lists so the panes move off it; asking again would fail the same
+            // way until the next launch.
+            if isMissingListError(error), isSignedIn, !isRecoveringFromMissingList {
+                isRecoveringFromMissingList = true
+                taskCacheByListID[listId] = nil
+                partiallyCachedListIDs.remove(listId)
+                await loadTaskLists()
+                isRecoveringFromMissingList = false
+                return
+            }
             // Once, not per pane.
             if tokens.contains(where: isCurrentTaskLoad) {
                 handleError(error)
             }
         }
+    }
+
+    /// Whether `error` says the list itself is gone, rather than the request
+    /// failing for a reason a retry could survive.
+    private func isMissingListError(_ error: Error) -> Bool {
+        guard case let APIError.serverError(status, _) = error else { return false }
+        return status == 404
     }
 
     @discardableResult
@@ -1161,7 +1249,7 @@ final class AppState {
     ) async {
         let pane = pane ?? primaryPane
         let tasks = pane.tasks
-        guard canReorderTasks,
+        guard canReorderTasks(in: pane),
               let listId = pane.selectedListId,
               let reordered = tasksReorderedAfterMove(
                 tasks,
@@ -1299,7 +1387,7 @@ final class AppState {
     /// tasks right away, then refreshes that list for every pane showing it.
     func selectList(_ listId: String, in pane: TaskListPane? = nil) async {
         let pane = pane ?? primaryPane
-        pane.selectedListId = listId
+        setSelectedList(listId, in: pane)
         showCachedTasks(of: listId, in: pane)
         await refreshTasks(in: pane)
     }

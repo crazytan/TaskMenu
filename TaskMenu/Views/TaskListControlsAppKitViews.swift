@@ -19,7 +19,7 @@ final class TaskListHeaderView: NSView {
     var isSideBySideEnabled = false
     /// The "Show two lists side by side" overflow item was chosen.
     var onToggleSideBySide: (() -> Void)?
-    /// Current sort, reflected as the checkmark in the "Sort by" submenu.
+    /// Current sort, reflected as the checkmark in the sort button's menu.
     private var sortOrder: TaskSortOrder = .myOrder
 
     private let listPopup = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -45,6 +45,12 @@ final class TaskListHeaderView: NSView {
         pointSize: 14,
         weight: .medium,
         accessibilityDescription: "Refresh tasks"
+    )
+    private let sortButton = TaskMenuActionButton(
+        symbolName: "arrow.up.arrow.down",
+        pointSize: 13,
+        weight: .medium,
+        accessibilityDescription: "Sort tasks"
     )
     private let overflowButton = TaskMenuActionButton(
         symbolName: "ellipsis",
@@ -137,11 +143,15 @@ final class TaskListHeaderView: NSView {
 
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
         stack.addArrangedSubview(refreshControlContainer())
+        stack.addArrangedSubview(headerIconContainer(sortButton))
         stack.addArrangedSubview(headerIconContainer(overflowButton))
 
         refreshButton.onPress = { [weak self] in
             self?.showRefreshSpinner()
             self?.onRefresh?()
+        }
+        sortButton.onPress = { [weak self] in
+            self?.showSortMenu()
         }
         overflowButton.onPress = { [weak self] in
             self?.showOverflowMenu()
@@ -317,24 +327,31 @@ final class TaskListHeaderView: NSView {
         }
     }
 
-    /// Builds the "…" menu. Kept separate from `showOverflowMenu()` so tests can
-    /// inspect the items without popping a tracking menu.
-    func overflowMenu() -> NSMenu {
+    /// Builds the sort button's menu. Kept separate from `showSortMenu()` so
+    /// tests can inspect the items without popping a tracking menu.
+    func sortMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
-
-        let sortItem = NSMenuItem(title: "Sort by", action: nil, keyEquivalent: "")
-        let sortMenu = NSMenu(title: "Sort by")
-        sortMenu.autoenablesItems = false
         for order in TaskSortOrder.allCases {
             let item = ClosureMenuItem(title: order.displayName) { [weak self] in
                 self?.onSelectSortOrder?(order)
             }
             item.state = order == sortOrder ? .on : .off
-            sortMenu.addItem(item)
+            menu.addItem(item)
         }
-        sortItem.submenu = sortMenu
-        menu.addItem(sortItem)
+        return menu
+    }
+
+    private func showSortMenu() {
+        let menu = sortMenu()
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sortButton.bounds.height + 4), in: sortButton)
+    }
+
+    /// Builds the "…" menu. Kept separate from `showOverflowMenu()` so tests can
+    /// inspect the items without popping a tracking menu.
+    func overflowMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
 
         let sideBySideItem = ClosureMenuItem(title: "Show two lists side by side") { [weak self] in
             self?.onToggleSideBySide?()

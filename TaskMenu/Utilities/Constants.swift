@@ -51,9 +51,15 @@ enum Constants {
         static let automaticUpdateChecksEnabledKey = "automaticUpdateChecksEnabled"
         static let lastUpdateCheckDateKey = "lastUpdateCheckDate"
         static let lastAlertedUpdateVersionKey = "lastAlertedUpdateVersion"
+        /// Primary pane's sort order. Named without a pane prefix because it
+        /// predates panes, so an existing preference keeps working.
         static let taskSortOrderKey = "taskSortOrder"
+        static let secondaryTaskSortOrderKey = "secondaryTaskSortOrder"
         static let menuBarCounterModeKey = "menuBarCounterMode"
         static let sideBySideListsEnabledKey = "sideBySideListsEnabled"
+        /// Last list each pane showed, restored on launch when it still exists.
+        static let primarySelectedListIdKey = "primarySelectedListId"
+        static let secondarySelectedListIdKey = "secondarySelectedListId"
     }
 
     enum Notifications {

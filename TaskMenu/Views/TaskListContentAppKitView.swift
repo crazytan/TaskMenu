@@ -46,7 +46,7 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     /// Lists other than the selected one, snapshotted at render time so the
     /// context menu can be built synchronously.
     private var moveDestinationLists: [TaskList] = []
-    /// False while `AppState.taskSortOrder` shows something other than Google
+    /// False while this pane's sort order shows something other than Google
     /// positions, since drop indices would not map back to positions.
     private var canReorder = true
     private var pendingFlashTaskIDs: Set<String> = []
@@ -96,14 +96,14 @@ final class TaskListContentView: NSView, NSOutlineViewDataSource, NSOutlineViewD
     ) {
         let pane = pane ?? appState.primaryPane
         isSearching = pane.isSearching
-        canReorder = appState.canReorderTasks
+        canReorder = appState.canReorderTasks(in: pane)
         // Collapse state is ignored while searching so matching subtasks stay visible.
         let newCollapsedTaskIDs = isSearching ? [] : pane.collapsedTaskIDs
         self.expandedCompletedSubtaskParentIDs = expandedCompletedSubtaskParentIDs
         self.addingSubtaskParentID = addingSubtaskParentID
         moveDestinationLists = appState.taskLists.filter { $0.id != pane.selectedListId }
 
-        let contextKey = "\(pane.selectedListId ?? "")|\(pane.searchText)|\(appState.taskSortOrder.rawValue)"
+        let contextKey = "\(pane.selectedListId ?? "")|\(pane.searchText)|\(pane.sortOrder.rawValue)"
         let animated = hasRenderedOnce
             && contextKey == lastRenderContextKey
             && window != nil

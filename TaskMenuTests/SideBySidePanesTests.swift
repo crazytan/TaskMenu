@@ -433,15 +433,125 @@ final class SideBySidePanesTests: XCTestCase {
         XCTAssertEqual(state.secondaryPane.tasks.first?.id, todayTask.id)
         XCTAssertNil(state.errorMessage)
     }
+
+    // MARK: - Deleted Lists
+
+    /// Deleting the shown list on the website used to leave the pane asking for
+    /// it until the app was relaunched; the 404 now re-reads the lists.
+    func testListDeletedOnTheServerMovesThePaneToASurvivingList() async {
+        await signInAndLoad()
+        XCTAssertEqual(state.primaryPane.selectedListId, "demo-today")
+
+        await api.deleteListOnServer("demo-today")
+        await state.refreshTasks()
+
+        XCTAssertFalse(state.taskLists.contains { $0.id == "demo-today" })
+        XCTAssertEqual(state.primaryPane.selectedListId, "demo-work")
+        XCTAssertNil(state.errorMessage, "recovering is not an error the user has to see")
+    }
+
+    /// The recovery reloads the lists, which loads tasks again; a second 404
+    /// must not send it round the loop.
+    func testEveryListDeletedLeavesNoSelectionAndNoRecursion() async {
+        await signInAndLoad()
+        for listID in ["demo-today", "demo-work", "demo-personal"] {
+            await api.deleteListOnServer(listID)
+        }
+
+        await state.refreshTasks()
+
+        XCTAssertTrue(state.taskLists.isEmpty)
+        XCTAssertNil(state.primaryPane.selectedListId)
+        XCTAssertTrue(state.primaryPane.tasks.isEmpty)
+    }
+
+    // MARK: - Restored Across Launches
+
+    func testEachPaneReopensOnTheListItLastShowed() async {
+        await signInAndLoad()
+        state.sideBySideListsEnabled = true
+        await state.selectList("demo-personal")
+        await state.selectList("demo-work", in: state.secondaryPane)
+
+        let relaunched = makeState()
+
+        XCTAssertEqual(relaunched.primaryPane.selectedListId, "demo-personal")
+        XCTAssertEqual(relaunched.secondaryPane.selectedListId, "demo-work")
+    }
+
+    /// A stored list the account no longer has must not survive the first load.
+    func testRestoredListThatNoLongerExistsIsDropped() async {
+        await signInAndLoad()
+        await state.selectList("demo-personal")
+
+        await api.deleteListOnServer("demo-personal")
+        let relaunched = makeState()
+        XCTAssertEqual(relaunched.primaryPane.selectedListId, "demo-personal")
+
+        relaunched.isSignedIn = true
+        await relaunched.loadTaskLists()
+
+        XCTAssertEqual(relaunched.primaryPane.selectedListId, "demo-today")
+    }
+
+    func testSignOutForgetsTheStoredLists() async {
+        await signInAndLoad()
+        await state.selectList("demo-personal")
+
+        state.signOut()
+
+        XCTAssertNil(makeState().primaryPane.selectedListId)
+    }
+
+    // MARK: - Per-Pane Sort Order
+
+    /// Both panes show `demo-today`, so only the sort can explain a different
+    /// first row: `today-invoice` is the list's one overdue root task.
+    func testEachPaneSortsIndependentlyAndRemembersItsOrder() async {
+        await signInAndLoad()
+        state.sideBySideListsEnabled = true
+        await state.selectList("demo-today", in: state.secondaryPane)
+
+        state.setSortOrder(.dueDate, in: state.secondaryPane)
+
+        XCTAssertEqual(state.primaryPane.sortOrder, .myOrder)
+        XCTAssertEqual(state.rootTasks(in: state.primaryPane).first?.id, "today-standup")
+        XCTAssertEqual(state.rootTasks(in: state.secondaryPane).first?.id, "today-invoice")
+
+        let relaunched = makeState()
+        XCTAssertEqual(relaunched.primaryPane.sortOrder, .myOrder)
+        XCTAssertEqual(relaunched.secondaryPane.sortOrder, .dueDate)
+    }
+
+    /// Dragging maps drop indices back to Google positions, so it is gated per
+    /// pane rather than for the whole popover.
+    func testDraggingIsGatedPerPane() async {
+        await signInAndLoad()
+        state.sideBySideListsEnabled = true
+
+        state.setSortOrder(.dueDate, in: state.secondaryPane)
+
+        XCTAssertTrue(state.canReorderTasks(in: state.primaryPane))
+        XCTAssertFalse(state.canReorderTasks(in: state.secondaryPane))
+        XCTAssertTrue(state.canReorderTasks, "the bare property still reads the primary pane")
+    }
 }
 
 /// Wraps `DemoTasksAPI`, recording which lists `listTasks`/`updateTask` were
-/// called for and honouring a per-list `listTasks` delay.
+/// called for, honouring a per-list `listTasks` delay, and able to make a list
+/// disappear the way deleting it on the Google Tasks website does.
 private actor RecordingTasksAPI: TasksAPIProtocol {
     private let wrapped = DemoTasksAPI()
     private(set) var listTasksListIDs: [String] = []
     private(set) var updateTaskListIDs: [String] = []
     private var delaysByListID: [String: Duration] = [:]
+    private var deletedListIDs: Set<String> = []
+
+    /// Drops `listID` from `listTaskLists()` and makes its tasks 404, like a
+    /// list deleted elsewhere while the app was running.
+    func deleteListOnServer(_ listID: String) {
+        deletedListIDs.insert(listID)
+    }
 
     func clearLog() {
         listTasksListIDs = []
@@ -453,7 +563,7 @@ private actor RecordingTasksAPI: TasksAPIProtocol {
     }
 
     func listTaskLists() async throws -> [TaskList] {
-        try await wrapped.listTaskLists()
+        try await wrapped.listTaskLists().filter { !deletedListIDs.contains($0.id) }
     }
 
     func createTaskList(title: String) async throws -> TaskList {
@@ -462,6 +572,9 @@ private actor RecordingTasksAPI: TasksAPIProtocol {
 
     func listTasks(listId: String, showCompleted: Bool, showHidden: Bool) async throws -> [TaskItem] {
         listTasksListIDs.append(listId)
+        if deletedListIDs.contains(listId) {
+            throw APIError.serverError(404, "Not Found")
+        }
         // Snapshot before the delay, like a server responding to the request
         // as it arrived.
         let tasks = try await wrapped.listTasks(listId: listId, showCompleted: showCompleted, showHidden: showHidden)

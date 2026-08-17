@@ -186,14 +186,6 @@ private final class SettingsViewController: NSViewController {
         stack.addArrangedSubview(communitySection())
         #endif
         stack.addArrangedSubview(aboutSection())
-        stack.addArrangedSubview(centered(
-            actionButton(
-                title: "Quit TaskMenu",
-                onPress: { _ in
-                    NSApplication.shared.terminate(nil)
-                }
-            )
-        ))
 
         return stack
     }

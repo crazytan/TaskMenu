@@ -19,6 +19,10 @@ final class TaskListPane: Identifiable {
     var tasks: [TaskItem] = []
     var searchText: String = ""
     var collapsedTaskIDs: Set<String> = []
+    /// This pane's root-task ordering. Each pane sorts independently; subtasks
+    /// and the completed section always keep Google order. `AppState` is the
+    /// only mutation path (`setSortOrder(_:in:)`), which persists it.
+    var sortOrder: TaskSortOrder = .myOrder
     /// True while a task load for this pane is in flight; drives this pane's
     /// header spinner and empty-state spinner only.
     var isLoading = false

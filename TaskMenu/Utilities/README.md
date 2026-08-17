@@ -16,9 +16,10 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 - Keep Keychain service/key names stable unless you are intentionally migrating stored credentials or signed-in account display metadata.
 - Add new UserDefaults keys under `Constants.UserDefaults` and cover default behavior in `AppStateTests` or the nearest behavior suite.
 - Update-check defaults use `automaticUpdateChecksEnabledKey`, `lastUpdateCheckDateKey`, and `lastAlertedUpdateVersionKey`; keep Settings and launch-alert behavior in sync with any changes.
-- Preference defaults also use `dueDateNotificationsEnabledKey` and `taskSortOrderKey` (raw `TaskSortOrder` string, defaults to `myOrder`; unknown values fall back to it).
+- Preference defaults also use `dueDateNotificationsEnabledKey` and the per-pane sort keys `taskSortOrderKey` (primary, named without a prefix because it predates panes) and `secondaryTaskSortOrderKey` (raw `TaskSortOrder` string, defaults to `myOrder`; unknown values fall back to it).
 - `menuBarCounterModeKey` stores `MenuBarCounterMode.rawValue` (`off` / `openTasks` / `dueToday`); unknown values fall back to Off.
 - `sideBySideListsEnabledKey` backs the two-pane popover preference (`AppState.sideBySideListsEnabled`, off by default); covered in `SideBySidePanesTests`.
+- `primarySelectedListIdKey` and `secondarySelectedListIdKey` remember the list each pane showed. They are restored in `AppState.init` and validated by `reconcilePaneSelections()` once the account's lists load, so an id for a deleted list is dropped rather than shown.
 
 ## Date Formatting
 
