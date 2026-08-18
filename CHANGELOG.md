@@ -8,23 +8,21 @@
 
 ## Unreleased
 
+## v1.6.0 (2026-08-17)
+
+### Added
+- **Two lists side by side** — turn on "Show two lists side by side" in Settings (or in the popover's "…" menu) and the popover widens into two independent panes, each with its own list picker, filter, quick add, sort order, and task editor. Each pane reopens on the list it last showed. Edits made in one pane show up in the other when both show the same list, and moving a task to the other pane's list puts it there right away.
+- **Move a task to another list** — right-click a task and pick a list under "Move to", or change the List row in the task editor. The task takes its subtasks with it and lands at the top of the destination list. Works in demo mode too.
+- **Create a task list from the popover** — the list picker now ends with "New List…". Choose it, type a name in the header, and press Enter; the new list is created in Google Tasks and opened right away. Escape or an empty Enter puts the picker back. Works in demo mode too (the list lasts for the demo session).
+- **Pending-task count in the menu bar** — Settings → General → "Show in menu bar" can put the number of open tasks, or of tasks due today (overdue included), next to the menu bar icon. It counts every list in your account (or every demo list), drops as soon as you complete a task, and refreshes in the background every five minutes. Off by default.
+- **Sort by due date** — a sort button in the list header offers "My order" (Google's order, the default) and "Due date", which lists overdue tasks first, then today, tomorrow, and later, with undated tasks at the end. Subtasks stay under their parent in their usual order. Each pane sorts on its own, and drag-and-drop reordering pauses while sorted by due date, since the list no longer shows Google's positions.
+- **Add a subtask straight from the list** — right-click a task and choose "Add Subtask" to get an inline field under it. Enter creates the subtask and keeps the field open for the next one; an empty Enter or Escape closes it. New subtasks appear at the top, matching the Google Tasks website.
+
 ### Changed
-- **Sorting has its own button in the list header**, between refresh and the "…" menu, instead of a "Sort by" submenu inside "…".
-- **Each list pane sorts on its own** — with two lists side by side, changing the sort in one pane leaves the other alone. Each pane remembers its own order.
 - **Settings no longer has a Quit button.** Quit is still in the menu bar icon's menu, the popover's "…" menu, and ⌘Q.
 
 ### Fixed
 - **Deleting a list on the Google Tasks website left the app stuck on it** until you quit and reopened — the popover kept asking for a list that was gone. It now notices, re-reads your lists, and moves to another one.
-- **Both panes forgot which list they were showing** when the app restarted. Each pane now reopens on the list it last showed, falling back if that list is gone.
-- **A subtask added from the right-click menu could show up in the wrong slot** — it landed below an older subtask until the next refresh moved it to the top, where Google actually puts it. The list now shows it at the top right away, matching the order on the Google Tasks website.
-
-### Added
-- **Two lists side by side** — turn on "Show two lists side by side" in Settings (or in the popover's "…" menu) and the popover widens into two independent panes, each with its own list picker, filter, quick add, and task editor. The right pane starts on the list after the left one and remembers its choice; edits made in one pane show up in the other when both show the same list, and moving a task to the other pane's list puts it there right away.
-- **Move a task to another list** — right-click a task and pick a list under "Move to", or change the List row in the task editor. The task takes its subtasks with it and lands at the top of the destination list. Works in demo mode too.
-- **Create a task list from the popover** — the list picker now ends with "New List…". Choose it, type a name in the header, and press Enter; the new list is created in Google Tasks and opened right away. Escape or an empty Enter puts the picker back. Works in demo mode too (the list lasts for the demo session).
-- **Pending-task count in the menu bar** — Settings → General → "Show in menu bar" can put the number of open tasks, or of tasks due today (overdue included), next to the menu bar icon. It counts every list in your account (or every demo list), drops as soon as you complete a task, and refreshes in the background every five minutes. Off by default.
-- **Sort by due date** — the "…" menu has a "Sort by" submenu with "My order" (Google's order, the default) and "Due date", which lists overdue tasks first, then today, tomorrow, and later, with undated tasks at the end. Subtasks stay under their parent in their usual order. Drag-and-drop reordering pauses while sorted by due date, since the list no longer shows Google's positions.
-- **Add a subtask straight from the list** — right-click a task and choose "Add Subtask" to get an inline field under it. Enter creates the subtask and keeps the field open for the next one; an empty Enter or Escape closes it.
 
 ## v1.5.0 (2026-08-16)
 
