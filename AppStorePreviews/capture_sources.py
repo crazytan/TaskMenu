@@ -33,10 +33,15 @@ DESCRIPTOR = re.compile(
 
 
 def built_app() -> Path:
+    # Capture from the App Store configuration so the shots match the shipping
+    # Mac App Store build: APP_STORE_BUILD compiles the update checker and the
+    # donation section out of Settings, so a Debug capture would show controls
+    # the listing's build does not have (App Review rejects that under 2.3.3).
     settings = subprocess.run(
         [
-            "xcodebuild", "-project", "TaskMenu.xcodeproj", "-scheme", "TaskMenu",
-            "-configuration", "Debug", "-destination", "platform=macOS",
+            "xcodebuild", "-project", "TaskMenu.xcodeproj",
+            "-scheme", "TaskMenu (App Store)",
+            "-configuration", "AppStore", "-destination", "platform=macOS",
             "-showBuildSettings",
         ],
         capture_output=True,
@@ -46,7 +51,7 @@ def built_app() -> Path:
     for line in settings.splitlines():
         if " BUILT_PRODUCTS_DIR " in line:
             return Path(line.split(" = ", 1)[1].strip()) / "TaskMenu.app"
-    raise SystemExit("Could not resolve BUILT_PRODUCTS_DIR; build the Debug scheme first.")
+    raise SystemExit("Could not resolve BUILT_PRODUCTS_DIR; build the App Store scheme first.")
 
 
 def capture(app: Path, screen: str, destination: Path) -> None:

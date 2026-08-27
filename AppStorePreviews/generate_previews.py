@@ -91,6 +91,36 @@ def background() -> Image.Image:
     return Image.alpha_composite(img, pools)
 
 
+def status_glyph(diameter: int, colour: tuple[int, int, int, int]) -> Image.Image:
+    """Render the shipping menu bar icon: a solid disc with a checkmark cut out
+    (see ``TaskMenu/Resources/MenuBarIcon.svg``). The checkmark is negative
+    space, so it shows whatever sits behind the icon - the bar, or the blue
+    highlight while the popover is open - exactly like the template asset macOS
+    draws. Supersampled, then downscaled, for clean anti-aliased edges."""
+    ss = 8
+    box = diameter * ss
+    unit = box / 18.0  # the SVG is an 18x18 viewBox
+
+    mask = Image.new("L", (box, box), 0)
+    md = ImageDraw.Draw(mask)
+    md.ellipse((0.5 * unit, 0.5 * unit, 17.5 * unit, 17.5 * unit), fill=255)
+
+    check = [(4.5 * unit, 9 * unit), (7.5 * unit, 12.5 * unit), (13.5 * unit, 5 * unit)]
+    stroke = 2 * unit
+    md.line(check, fill=0, width=round(stroke), joint="curve")
+    radius = stroke / 2  # round the caps/joins the SVG asks for
+    for x, y in check:
+        md.ellipse((x - radius, y - radius, x + radius, y + radius), fill=0)
+
+    mask = mask.resize((diameter, diameter), Image.Resampling.LANCZOS)
+    if colour[3] != 255:
+        mask = mask.point(lambda v: v * colour[3] // 255)
+
+    glyph = Image.new("RGBA", (diameter, diameter), colour[:3] + (0,))
+    glyph.putalpha(mask)
+    return glyph
+
+
 def menu_bar(canvas: Image.Image, icon_x: int, active: bool) -> None:
     """Translucent menu bar; `active` highlights the status item as macOS does
     while its popover is open."""
@@ -112,20 +142,10 @@ def menu_bar(canvas: Image.Image, icon_x: int, active: bool) -> None:
             radius=14,
             fill=rgba("#2a6df4", 220),
         )
-    glyph = rgba("#ffffff") if active else rgba(INK, 200)
-    for row, filled in ((-11, True), (7, False)):
-        cy = centre_y + row
-        if filled:
-            draw.ellipse((icon_x - 22, cy - 8, icon_x - 6, cy + 8), fill=glyph)
-            draw.line(
-                (icon_x - 19, cy, icon_x - 15, cy + 4, icon_x - 9, cy - 4),
-                fill=rgba("#2a6df4") if active else rgba("#ffffff"),
-                width=3,
-                joint="curve",
-            )
-        else:
-            draw.ellipse((icon_x - 22, cy - 8, icon_x - 6, cy + 8), outline=glyph, width=3)
-        draw.line((icon_x - 1, cy, icon_x + 22, cy), fill=glyph, width=3)
+
+    diameter = 38
+    glyph = status_glyph(diameter, rgba("#ffffff") if active else rgba(INK, 205))
+    canvas.alpha_composite(glyph, (icon_x - diameter // 2, centre_y - diameter // 2))
 
 
 def rounded(image: Image.Image, radius: int) -> Image.Image:

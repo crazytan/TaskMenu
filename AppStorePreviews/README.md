@@ -7,11 +7,16 @@ frame the captures.
 ## 1. Capture the sources
 
 ```bash
-xcodebuild build -project TaskMenu.xcodeproj -scheme TaskMenu \
-  -configuration Debug -destination "platform=macOS"
+xcodebuild build -project TaskMenu.xcodeproj -scheme "TaskMenu (App Store)" \
+  -configuration AppStore -destination "platform=macOS"
 
 python3 AppStorePreviews/capture_sources.py
 ```
+
+The captures come from the **App Store** configuration on purpose: `APP_STORE_BUILD`
+compiles the update checker and the donation section out of Settings, so a Debug
+capture would show controls the shipping Mac App Store build does not have. App
+Review rejects screenshots that don't match the current build (guideline 2.3.3).
 
 This launches the app once per screen with `--testing-window --capture <screen>`
 and writes cropped, content-only PNGs to `sources/`:
