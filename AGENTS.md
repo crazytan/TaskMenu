@@ -36,6 +36,7 @@ Entry point for coding agents working on TaskMenu. Keep this file short and repo
 
 ### Workflows
 
+- Put temporary agent artifacts such as handoff specs, investigation notes, scratch scripts, and build logs under `scratch/`; it is gitignored and must not contain files intended to ship.
 - If you add, remove, rename, or retarget source files, update `project.yml` and run `xcodegen generate`.
 - When files are added or deleted, update the corresponding folder-local `README.md` in the same change so its file map and ownership notes stay current.
 - Keep `TaskMenu.xcodeproj` generated; do not hand-edit it.

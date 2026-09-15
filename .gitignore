@@ -74,3 +74,6 @@ AppStorePreviews/2560x1600/
 AppStorePreviews/1440x900/
 AppStorePreviews/1280x800/
 .wrangler/
+
+# Temporary agent artifacts, handoff specs, investigation notes, and logs
+scratch/
