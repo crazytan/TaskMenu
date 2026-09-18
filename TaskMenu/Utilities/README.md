@@ -4,7 +4,8 @@ Utilities are shared low-level helpers. Keep this folder dependency-light and av
 
 ## Files
 
-- `Constants.swift` - Google OAuth/API/userinfo URLs and scopes, GitHub release URL, Keychain keys, UserDefaults keys, notification identifier prefix, and plist-backed OAuth config.
+- `Constants.swift` - Google OAuth/API/userinfo URLs and scopes, GitHub release URL, Keychain keys, UserDefaults keys, notification identifier prefix, and plist-backed OAuth config. App-only (not in the `TaskMenuWidget` target); the members it shares with the widget forward to `SharedConstants`.
+- `SharedConstants.swift` - the extension-safe subset of the above: `googleClientId`, `googleTokenURL`, `googleTasksBaseURL`, `googleTasksScope`, the `Keychain` key names, and the resolved `appGroupIdentifier`/`keychainAccessGroup` (read from the `APP_GROUP_IDENTIFIER`/`KEYCHAIN_ACCESS_GROUP` Info.plist build settings, `nil` when unset/unsigned). Compiles into both `TaskMenu` and `TaskMenuWidget`; see `TaskMenu/WidgetSupport/README.md`. `Constants` forwards its matching members here rather than duplicating them, so existing call sites are unaffected.
 - `DateFormatting.swift` - RFC 3339 parsing, Google Tasks due-date formatting, display strings, and relative date labels.
 
 ## Constants

@@ -166,6 +166,51 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertNil(try keychain.read(key: Constants.Keychain.accountProfileKey))
     }
 
+    // MARK: - Legacy Keychain / Migration Integration
+
+    func testSignOutAlsoClearsInjectedLegacyKeychain() throws {
+        let legacy = InMemoryKeychainService()
+        try legacy.save(key: Constants.Keychain.accessTokenKey, string: "legacy-access")
+        try legacy.save(key: Constants.Keychain.refreshTokenKey, string: "legacy-refresh")
+        try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "shared-refresh")
+
+        let auth = GoogleAuthService(keychain: keychain, legacyKeychain: legacy)
+        XCTAssertTrue(auth.isSignedIn)
+
+        auth.signOut()
+
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
+        XCTAssertNil(try legacy.readString(key: Constants.Keychain.accessTokenKey))
+        XCTAssertNil(try legacy.readString(key: Constants.Keychain.refreshTokenKey))
+    }
+
+    func testInitInvokesProvidedMigrationCoordinator() {
+        final class SpyMigration: KeychainMigrationCoordinating, @unchecked Sendable {
+            private(set) var migrateCallCount = 0
+            func migrateIfNeeded() -> [String: KeychainItemMigrationState] {
+                migrateCallCount += 1
+                return [:]
+            }
+        }
+
+        let spy = SpyMigration()
+        _ = GoogleAuthService(keychain: keychain, migration: spy)
+
+        XCTAssertEqual(spy.migrateCallCount, 1)
+    }
+
+    func testConformsToAccessTokenProvidingProtocol() async throws {
+        try keychain.save(key: Constants.Keychain.accessTokenKey, string: "protocol-token")
+        let futureDate = Date().addingTimeInterval(3600)
+        try keychain.save(key: Constants.Keychain.expirationKey, string: String(futureDate.timeIntervalSince1970))
+
+        let auth = GoogleAuthService(keychain: keychain)
+        let provider: any AccessTokenProviding = auth
+
+        let token = try await provider.validAccessToken()
+        XCTAssertEqual(token, "protocol-token")
+    }
+
     // MARK: - validAccessToken
 
     func testValidAccessTokenThrowsWhenNoRefreshToken() async {

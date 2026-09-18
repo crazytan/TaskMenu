@@ -55,11 +55,69 @@ targets:
         COMBINE_HIDPI_IMAGES: YES
         PRODUCT_NAME: TaskMenu
         PROVISIONING_PROFILE_SPECIFIER: ""
+        # macOS requires the team prefix on App Group ids; $(DEVELOPMENT_TEAM)
+        # (not $(AppIdentifierPrefix)/$(TeamIdentifierPrefix), which only
+        # expand with a provisioning profile present) resolves it at build
+        # time. Runtime code treats an empty/unexpanded value as absent; see
+        # SharedConstants.appGroupIdentifier / .keychainAccessGroup.
+        APP_GROUP_IDENTIFIER: "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared"
+        KEYCHAIN_ACCESS_GROUP: "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared"
     entitlements:
       path: TaskMenu/Resources/TaskMenu.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared"
+        keychain-access-groups:
+          - "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared"
+    dependencies:
+      - target: TaskMenuWidget
+        embed: true
+        codeSign: true
+  TaskMenuWidget:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: TaskMenuWidget
+        excludes: ["README.md"]
+      - path: TaskMenu/WidgetSupport
+        excludes: ["README.md"]
+      - path: TaskMenu/Models/TaskItem.swift
+      - path: TaskMenu/Models/TaskList.swift
+      - path: TaskMenu/Models/TaskSortOrder.swift
+      - path: TaskMenu/Models/TaskOrdering.swift
+      - path: TaskMenu/Utilities/DateFormatting.swift
+      - path: TaskMenu/Utilities/SharedConstants.swift
+      - path: TaskMenu/Services/KeychainService.swift
+      - path: TaskMenu/Services/TasksAPIProtocol.swift
+      - path: TaskMenu/Services/GoogleTasksAPI.swift
+      - path: TaskMenu/Services/AccessTokenProviding.swift
+      - path: TaskMenu/Services/GoogleTokenRefresher.swift
+      - path: TaskMenu/Services/WidgetGoogleAccessTokenProvider.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.crazytan.TaskMenu.Widget
+        INFOPLIST_FILE: TaskMenuWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TaskMenuWidget/TaskMenuWidget.entitlements
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        CODE_SIGN_STYLE: Automatic
+        PRODUCT_NAME: TaskMenuWidget
+        PROVISIONING_PROFILE_SPECIFIER: ""
+        APP_GROUP_IDENTIFIER: "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared"
+        KEYCHAIN_ACCESS_GROUP: "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared"
+    entitlements:
+      path: TaskMenuWidget/TaskMenuWidget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared"
+        keychain-access-groups:
+          - "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared"
   TaskMenuTests:
     type: bundle.unit-test
     platform: macOS

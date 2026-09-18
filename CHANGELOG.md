@@ -2,11 +2,16 @@
 
 ## TODO
 
-- macOS widgets (WidgetKit)
 - Global keyboard shortcut (Cmd+Shift+T)
 - Multiple Google accounts
 
 ## Unreleased
+
+### Added
+- Add a configurable macOS desktop widget for viewing and completing Google Tasks, with live refresh and offline cached content.
+
+### Security
+- OAuth sign-in now also writes to a shared Keychain group so the desktop widget can refresh tasks without opening TaskMenu. Existing sign-ins migrate to it automatically on first launch after upgrading; nothing else about sign-in changes.
 
 ## v1.6.0 (2026-08-17)
 

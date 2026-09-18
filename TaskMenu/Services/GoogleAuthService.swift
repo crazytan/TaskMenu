@@ -162,9 +162,20 @@ final class ASWebAuthenticationSessionAuthenticator: WebAuthenticating {
 
 @MainActor
 final class GoogleAuthService: Sendable {
+    /// Current storage location: the shared Keychain access group when
+    /// `SharedConstants.keychainAccessGroup` resolves (signed builds), or
+    /// the same legacy location as `legacyKeychain` otherwise (unsigned
+    /// dev/CI builds) — see the `keychain` default below. All new token and
+    /// profile writes go here.
     private let keychain: any KeychainServiceProtocol
+    /// The app's pre-widget storage location, always the legacy default
+    /// (no explicit access group). Used as the migration source and,
+    /// defensively, cleared alongside `keychain` on sign-out so an old
+    /// token can never resurrect a session.
+    private let legacyKeychain: any KeychainServiceProtocol
     private let session: URLSession
     private let webAuthenticator: any WebAuthenticating
+    private let tokenRefresher: GoogleTokenRefresher
     private let presentationContextProvider = AuthenticationPresentationContextProvider()
 
     private(set) var accessToken: String?
@@ -182,14 +193,35 @@ final class GoogleAuthService: Sendable {
         return Date() >= expiration
     }
 
+    /// - Parameters:
+    ///   - keychain: Where tokens/profile are read from and written to. The
+    ///     default resolves to the shared access group in signed builds and
+    ///     falls back to the identical legacy behavior `KeychainService()`
+    ///     has always had when unsigned/no group is resolved.
+    ///   - legacyKeychain: The app's legacy (pre-widget) storage location,
+    ///     used as the one-time migration source and cleared on sign-out.
+    ///   - migration: Override for tests. Defaults to a real
+    ///     `KeychainMigration`, gated to a safe no-op whenever
+    ///     `SharedConstants.keychainAccessGroup` is unresolved.
     init(
-        keychain: any KeychainServiceProtocol = KeychainService(),
+        keychain: any KeychainServiceProtocol = KeychainService(accessGroup: SharedConstants.keychainAccessGroup),
+        legacyKeychain: any KeychainServiceProtocol = KeychainService(),
+        migration: (any KeychainMigrationCoordinating)? = nil,
         session: URLSession = .shared,
         webAuthenticator: (any WebAuthenticating)? = nil
     ) {
         self.keychain = keychain
+        self.legacyKeychain = legacyKeychain
         self.session = session
         self.webAuthenticator = webAuthenticator ?? ASWebAuthenticationSessionAuthenticator()
+        self.tokenRefresher = GoogleTokenRefresher(session: session)
+
+        let migrationCoordinator = migration ?? KeychainMigration(
+            legacyKeychain: legacyKeychain,
+            sharedKeychain: SharedConstants.keychainAccessGroup != nil ? keychain : nil
+        )
+        migrationCoordinator.migrateIfNeeded()
+
         loadTokens()
     }
 
@@ -262,7 +294,11 @@ final class GoogleAuthService: Sendable {
         refreshToken = nil
         tokenExpiration = nil
         accountProfile = nil
+        // Clear both locations so a legacy copy that migration has not yet
+        // reached (or a shared copy from a partially-signed-in state)
+        // cannot resurrect the session.
         try? keychain.deleteAll()
+        try? legacyKeychain.deleteAll()
     }
 
     // MARK: - Token Management
@@ -333,40 +369,21 @@ final class GoogleAuthService: Sendable {
     }
 
     private func refreshAccessToken(refreshToken: String) async throws {
-        var request = URLRequest(url: URL(string: Constants.googleTokenURL)!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
-        let params = [
-            "refresh_token": refreshToken,
-            "client_id": Constants.googleClientId,
-            "grant_type": "refresh_token",
-        ]
-        request.httpBody = params.urlEncodedString().data(using: .utf8)
-
-        let (data, response) = try await session.data(for: request)
-
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-            guard isDefinitiveRefreshRejection(statusCode: httpResponse.statusCode, data: data) else {
-                // Transient failures (5xx, 429, undecodable bodies) must not destroy the stored refresh token.
-                throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8))
-            }
+        do {
+            let result = try await tokenRefresher.refresh(refreshToken: refreshToken)
+            accessToken = result.accessToken
+            // Google omits the refresh token on most refreshes; keep the
+            // existing one stored in that case.
+            self.refreshToken = result.refreshToken ?? self.refreshToken
+            tokenExpiration = result.expiration
+            saveTokens()
+        } catch GoogleTokenRefresherError.definitiveRejection {
             signOut()
             throw APIError.unauthorized
+        } catch GoogleTokenRefresherError.transient(let apiError) {
+            // Transient failures (5xx, 429, undecodable bodies, network) must not destroy the stored refresh token.
+            throw apiError
         }
-
-        let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-        accessToken = tokenResponse.accessToken
-        tokenExpiration = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
-        saveTokens()
-    }
-
-    private func isDefinitiveRefreshRejection(statusCode: Int, data: Data) -> Bool {
-        guard statusCode == 400 || statusCode == 401 else { return false }
-        guard let tokenError = try? JSONDecoder().decode(TokenErrorResponse.self, from: data) else {
-            return false
-        }
-        return tokenError.error == "invalid_grant" || tokenError.error == "invalid_client"
     }
 
     private func revokeToken(_ token: String) async throws {
@@ -535,6 +552,21 @@ final class GoogleAuthService: Sendable {
             throw GoogleAuthError.secureRandomGenerationFailed(status)
         }
         return Data(bytes)
+    }
+}
+
+/// `GoogleTasksAPI` depends on this narrow protocol rather than the concrete
+/// type, so it works unmodified against `WidgetGoogleAccessTokenProvider` in
+/// the extension too.
+extension GoogleAuthService: AccessTokenProviding {}
+
+/// Convenience initializer for existing call sites (e.g. `AppState`)
+/// constructed with the concrete `GoogleAuthService`. Declared here rather
+/// than in `GoogleTasksAPI.swift` — which is shared with `TaskMenuWidget` —
+/// so that file never references the app-only `GoogleAuthService` type.
+extension GoogleTasksAPI {
+    init(authService: GoogleAuthService, session: URLSession = .shared, baseURL: String = SharedConstants.googleTasksBaseURL) {
+        self.init(tokenProvider: authService, session: session, baseURL: baseURL)
     }
 }
 

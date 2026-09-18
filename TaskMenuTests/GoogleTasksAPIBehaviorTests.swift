@@ -509,6 +509,151 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
 
         XCTAssertTrue(lists.isEmpty)
     }
+
+    // MARK: - setTaskCompleted
+
+    func testSetTaskCompletedSendsStatusOnlyPatchToTaskURL() async throws {
+        Self.capturedRequestBody = nil
+        MockURLProtocol.requestHandler = { request in
+            Self.capturedRequestBody = requestBodyData(from: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"id":"t1","title":"Buy milk","status":"completed"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        let task = try await api.setTaskCompleted(listId: "list1", taskId: "t1")
+
+        let request = try XCTUnwrap(MockURLProtocol.requestLog.last)
+        XCTAssertEqual(request.httpMethod, "PATCH")
+        let path = try XCTUnwrap(request.url?.path)
+        XCTAssertTrue(path.hasSuffix("/lists/list1/tasks/t1"), path)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+
+        let bodyData = try XCTUnwrap(Self.capturedRequestBody)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: bodyData) as? [String: String])
+        XCTAssertEqual(body, ["status": "completed"])
+
+        XCTAssertEqual(task.id, "t1")
+        XCTAssertTrue(task.isCompleted)
+    }
+
+    func testSetTaskCompletedWithRealisticGoogleIdsBuildsCorrectURL() async throws {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json = #"{"id":"MDEyMzQ1Njc4OTAxMjM0NTY3ODk","title":"Task","status":"completed"}"#
+            return (response, json.data(using: .utf8)!)
+        }
+
+        // Realistic Google Tasks list/task IDs: base64url-ish, long, mixed case.
+        let listId = "MDppMTIzNDU2Nzg5MDEyMzQ1Njc4OTow"
+        let taskId = "MDEyMzQ1Njc4OTAxMjM0NTY3ODk"
+        _ = try await api.setTaskCompleted(listId: listId, taskId: taskId)
+
+        let url = try XCTUnwrap(MockURLProtocol.requestLog.last?.url?.absoluteString)
+        XCTAssertTrue(url.contains("/lists/\(listId)/tasks/\(taskId)"), url)
+    }
+
+    func testSetTaskCompletedThrowsUnauthorizedOn401() async {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+
+        do {
+            _ = try await api.setTaskCompleted(listId: "list1", taskId: "t1")
+            XCTFail("Expected unauthorized error")
+        } catch APIError.unauthorized {
+            // expected
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testSetTaskCompletedThrowsServerErrorOn404() async {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!
+            return (response, Data("Not Found".utf8))
+        }
+
+        do {
+            _ = try await api.setTaskCompleted(listId: "list1", taskId: "missing")
+            XCTFail("Expected server error")
+        } catch APIError.serverError(let code, let message) {
+            XCTAssertEqual(code, 404)
+            XCTAssertEqual(message, "Not Found")
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testSetTaskCompletedThrowsServerErrorOn429() async {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 429, httpVersion: nil, headerFields: nil)!
+            return (response, Data("Too Many Requests".utf8))
+        }
+
+        do {
+            _ = try await api.setTaskCompleted(listId: "list1", taskId: "t1")
+            XCTFail("Expected server error")
+        } catch APIError.serverError(let code, _) {
+            XCTAssertEqual(code, 429)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testSetTaskCompletedThrowsServerErrorOn500() async {
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("Internal Server Error".utf8))
+        }
+
+        do {
+            _ = try await api.setTaskCompleted(listId: "list1", taskId: "t1")
+            XCTFail("Expected server error")
+        } catch APIError.serverError(let code, _) {
+            XCTAssertEqual(code, 500)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testSetTaskCompletedThrowsNetworkErrorOnURLError() async {
+        MockURLProtocol.requestHandler = { _ in
+            throw URLError(.notConnectedToInternet)
+        }
+
+        do {
+            _ = try await api.setTaskCompleted(listId: "list1", taskId: "t1")
+            XCTFail("Expected network error")
+        } catch APIError.networkError(let urlError) {
+            XCTAssertEqual(urlError.code, .notConnectedToInternet)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    // MARK: - AccessTokenProviding seam
+
+    func testGoogleTasksAPIWorksWithFakeAccessTokenProvider() async throws {
+        struct FakeAccessTokenProvider: AccessTokenProviding {
+            let token: String
+            func validAccessToken() async throws -> String { token }
+        }
+
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, #"{"items":[{"id":"t1","title":"Task 1","status":"needsAction"}]}"#.data(using: .utf8)!)
+        }
+
+        let session = MockURLProtocol.mockSession()
+        let fakeAPI = GoogleTasksAPI(tokenProvider: FakeAccessTokenProvider(token: "fake-token"), session: session)
+
+        let tasks = try await fakeAPI.listTasks(listId: "list1")
+
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(MockURLProtocol.requestLog.last?.value(forHTTPHeaderField: "Authorization"), "Bearer fake-token")
+    }
 }
 
 private func requestBodyData(from request: URLRequest) -> Data? {

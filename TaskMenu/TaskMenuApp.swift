@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 
 enum TaskMenuUIMode: Equatable {
     case menuBar
@@ -153,12 +154,24 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         userDefaults.removePersistentDomain(forName: suiteName)
 
         let isCapture = TaskMenuApp.captureScreen != nil
+        // A fresh temp directory per launch, never the production App Group:
+        // `--testing-window` runs fully in memory (seeded fake tasks, no
+        // Keychain, no network), and its widget snapshot must stay just as
+        // disposable. Real `TaskWidgetSnapshotStore` behavior (coordinated
+        // reads/writes, stale-write protection) still runs against it, so
+        // load/mutation/sign-out snapshots are provable end to end without
+        // ever touching the real container.
+        let widgetSnapshotDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TaskMenu.TestingWindow.WidgetSnapshot.\(UUID().uuidString)")
         let state = AppState(
             authService: GoogleAuthService(keychain: InMemoryKeychainService()),
             api: isCapture ? DemoTasksAPI() : TestingWindowTasksAPI(),
             userDefaults: userDefaults,
             dueDateNotificationService: NoOpDueDateNotificationService(),
-            updateChecker: DisabledUpdateChecker()
+            updateChecker: DisabledUpdateChecker(),
+            widgetSnapshotPublisher: TaskWidgetSnapshotPublisher(
+                store: TaskWidgetSnapshotStore(directoryURL: widgetSnapshotDirectory)
+            )
         )
         if CommandLine.arguments.contains("--sort-due-date") {
             state.taskSortOrder = .dueDate
@@ -216,6 +229,98 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
     #endif
     private let metricKitService = MetricKitService()
 
+    /// Buffers a widget deep link that arrives before `statusBarController`
+    /// exists (including one that cold-launched the process) until
+    /// `flushBufferedDeepLink()` runs.
+    private let deepLinkBuffer = DeepLinkColdStartBuffer()
+    private let widgetChangeSignal = TaskWidgetChangeSignal()
+    private var widgetChangeSignalToken: TaskWidgetChangeSignalToken?
+    /// Debounces a burst of widget-originated Darwin notifications (e.g. a
+    /// parent completion cascading through several open children) into one
+    /// refresh instead of one per notification.
+    private var widgetChangeCoalesceTask: Task<Void, Never>?
+
+    /// Registers for "Get URL" Apple Events as early as possible so a link
+    /// that cold-launches the app (delivered before
+    /// `applicationDidFinishLaunching` finishes standing up the status item)
+    /// is not missed. Gated the same way `configureUserInterface` is so
+    /// `--testing-window` (no `StatusBarController` to route into) and unit
+    /// test runs of `TaskMenuAppTests` (which run the real `NSApplication`
+    /// lifecycle in-process but never call `configureUserInterface`) never
+    /// register a handler.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        guard TaskMenuApp.currentUIMode == .menuBar, !TaskMenuApp.isUnitTesting else { return }
+
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
+
+    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString)
+        else { return }
+
+        if let urlToRoute = deepLinkBuffer.receive(url) {
+            routeDeepLink(urlToRoute)
+        }
+    }
+
+    /// Flushes exactly one buffered deep link (if any arrived before this
+    /// point) and marks the buffer ready so every later link routes
+    /// immediately. Call once `statusBarController` exists.
+    private func flushBufferedDeepLink() {
+        guard let url = deepLinkBuffer.markReady() else { return }
+        routeDeepLink(url)
+    }
+
+    private func routeDeepLink(_ url: URL) {
+        guard let statusBarController else { return }
+        let appState = appState
+        Task { @MainActor in
+            await TaskWidgetDeepLinkRouter.route(
+                url: url,
+                activate: { NSApp.activate(ignoringOtherApps: true) },
+                appState: appState,
+                popover: statusBarController
+            )
+        }
+    }
+
+    /// Observes the widget's Darwin notification (posted after
+    /// `CompleteTaskIntent` commits) and refreshes the visible list(s) so a
+    /// running TaskMenu reflects a completion made from the widget. Chosen
+    /// over reading a coalescing hint from the App Group because it needs no
+    /// new shared file/format: `AppState.refreshTasks()` already refreshes
+    /// every visible pane's list through the same per-request-start-time
+    /// stale-write-protected path the rest of the app uses, so this is both
+    /// cheaper (no extra I/O to design or parse) and race-safe by
+    /// construction. Never presents an error alert — a failed refresh here
+    /// is exactly like any other failed background refresh and only sets
+    /// `AppState.errorMessage`.
+    private func startObservingWidgetChangeSignal() {
+        widgetChangeSignalToken = widgetChangeSignal.startObserving { [weak self] in
+            Task { @MainActor in
+                self?.handleWidgetChangeSignal()
+            }
+        }
+    }
+
+    private func handleWidgetChangeSignal() {
+        widgetChangeCoalesceTask?.cancel()
+        widgetChangeCoalesceTask = Task { [weak self] in
+            // Coalesce a burst (e.g. a parent-plus-children cascade posting
+            // several times in quick succession) into one refresh.
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, let self else { return }
+            guard self.appState.isSignedIn else { return }
+            await self.appState.refreshTasks()
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Install before any UI. The main menu is what routes Cut/Copy/Paste/
         // Select All/Undo to the first responder, and every UI mode needs it:
@@ -239,6 +344,8 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
             #if !APP_STORE_BUILD
             startAutomaticUpdateCheck()
             #endif
+            flushBufferedDeepLink()
+            startObservingWidgetChangeSignal()
         case .testingWindow:
             _ = NSApp.setActivationPolicy(.regular)
             testingWindowController = TestingWindowController(appState: appState)

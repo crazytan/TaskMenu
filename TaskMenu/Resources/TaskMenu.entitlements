@@ -4,7 +4,15 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared</string>
+	</array>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared</string>
+	</array>
 </dict>
 </plist>

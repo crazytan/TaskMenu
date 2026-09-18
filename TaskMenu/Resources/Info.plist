@@ -24,6 +24,14 @@
 				<string>$(GOOGLE_REDIRECT_SCHEME)</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>TaskMenu Widget Deep Link</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>taskmenu</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
@@ -43,5 +51,9 @@
 	<string>$(GOOGLE_CLIENT_ID)</string>
 	<key>GOOGLE_REDIRECT_SCHEME</key>
 	<string>$(GOOGLE_REDIRECT_SCHEME)</string>
+	<key>APP_GROUP_IDENTIFIER</key>
+	<string>$(APP_GROUP_IDENTIFIER)</string>
+	<key>KEYCHAIN_ACCESS_GROUP</key>
+	<string>$(KEYCHAIN_ACCESS_GROUP)</string>
 </dict>
 </plist>

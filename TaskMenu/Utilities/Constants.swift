@@ -1,12 +1,10 @@
 import Foundation
 
 enum Constants {
-    static let googleClientId: String = {
-        guard let id = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_CLIENT_ID") as? String, !id.isEmpty else {
-            fatalError("GOOGLE_CLIENT_ID not set. Copy Config.xcconfig.example to Config.xcconfig and add your credentials.")
-        }
-        return id
-    }()
+    /// Forwards to `SharedConstants`, which is extension-safe and shared
+    /// with `TaskMenuWidget`. Kept here so existing call sites and tests
+    /// referencing `Constants.googleClientId` are unaffected.
+    static let googleClientId = SharedConstants.googleClientId
     static let googleRedirectScheme: String = {
         if let scheme = Bundle.main.object(forInfoDictionaryKey: "GOOGLE_REDIRECT_SCHEME") as? String,
            !scheme.isEmpty,
@@ -21,15 +19,15 @@ enum Constants {
         return "com.googleusercontent.apps.\(googleClientId.dropLast(suffix.count))"
     }()
     static let googleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
-    static let googleTokenURL = "https://oauth2.googleapis.com/token"
+    static let googleTokenURL = SharedConstants.googleTokenURL
     static let googleRevocationURL = "https://oauth2.googleapis.com/revoke"
     static let googleUserInfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
-    static let googleTasksBaseURL = "https://tasks.googleapis.com/tasks/v1"
+    static let googleTasksBaseURL = SharedConstants.googleTasksBaseURL
     // Guideline 2.4.5(vii): not compiled into Mac App Store builds.
     #if !APP_STORE_BUILD
     static let githubLatestReleaseURL = "https://api.github.com/repos/crazytan/TaskMenu/releases/latest"
     #endif
-    static let googleTasksScope = "https://www.googleapis.com/auth/tasks"
+    static let googleTasksScope = SharedConstants.googleTasksScope
     static let googleAuthScopes = [
         "openid",
         "email",
@@ -39,11 +37,11 @@ enum Constants {
     static let googleRedirectURI = "\(googleRedirectScheme):\(googleRedirectPath)"
 
     enum Keychain {
-        static let service = "dev.crazytan.TaskMenu.oauth"
-        static let accessTokenKey = "access_token"
-        static let refreshTokenKey = "refresh_token"
-        static let expirationKey = "token_expiration"
-        static let accountProfileKey = "account_profile"
+        static let service = SharedConstants.Keychain.service
+        static let accessTokenKey = SharedConstants.Keychain.accessTokenKey
+        static let refreshTokenKey = SharedConstants.Keychain.refreshTokenKey
+        static let expirationKey = SharedConstants.Keychain.expirationKey
+        static let accountProfileKey = SharedConstants.Keychain.accountProfileKey
     }
 
     enum UserDefaults {

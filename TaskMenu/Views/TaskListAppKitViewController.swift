@@ -263,8 +263,8 @@ final class TaskListAppKitViewController: NSViewController {
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             leading.animator().constant = 0
             listLeadingConstraint?.animator().constant = parallaxOffset
-        }, completionHandler: {
-            Task { @MainActor [weak self] in
+        }, completionHandler: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
                 self.listPageView.isHidden = true
                 self.isTransitioningDetail = false
@@ -291,8 +291,8 @@ final class TaskListAppKitViewController: NSViewController {
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             detailLeadingConstraint?.animator().constant = offscreenLeading
             listLeadingConstraint?.animator().constant = 0
-        }, completionHandler: {
-            Task { @MainActor [weak self] in
+        }, completionHandler: { [weak self] in
+            Task { @MainActor in
                 guard let self else { return }
                 self.removeDetail(detail)
                 self.isTransitioningDetail = false

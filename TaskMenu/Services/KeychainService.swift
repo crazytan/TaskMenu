@@ -59,20 +59,42 @@ private final class TestKeychainStore: @unchecked Sendable {
 
 struct KeychainService: KeychainServiceProtocol, Sendable {
     let service: String
+    /// Explicit shared Keychain access group (e.g. the App-Group-derived
+    /// value from `SharedConstants.keychainAccessGroup`), or `nil` for the
+    /// app's legacy default location. `kSecAttrAccessGroup` is included in
+    /// queries only when this is set — see `baseQuery`.
+    ///
+    /// An instance with an access group operates *only* on that shared,
+    /// data-protection-keychain location: no login-keychain fallback and no
+    /// dual-location delete, so an unqualified delete on a shared instance
+    /// can never accidentally remove the legacy record (and vice versa for
+    /// a legacy instance). `KeychainMigration` is the only thing that moves
+    /// data between the two.
+    let accessGroup: String?
     private let testStore: TestKeychainStore?
 
     init(
-        service: String = Constants.Keychain.service,
+        service: String = SharedConstants.Keychain.service,
+        accessGroup: String? = nil,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) {
         self.service = service
+        self.accessGroup = accessGroup
         // Hosted unit tests launch the app target, so avoid touching the login keychain entirely.
         self.testStore = environment["XCTestConfigurationFilePath"] == nil ? nil : .shared
     }
 
     func save(key: String, data: Data) throws {
         if let testStore {
-            testStore.save(service: service, key: key, data: data)
+            testStore.save(service: testStoreKey, key: key, data: data)
+            return
+        }
+
+        if accessGroup != nil {
+            // Shared items require the data-protection keychain; there is
+            // no legacy fallback or cross-location cleanup for this
+            // location — it did not exist before this feature.
+            try addItem(key: key, data: data, useDataProtection: true)
             return
         }
 
@@ -96,7 +118,13 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
 
     func read(key: String) throws -> Data? {
         if let testStore {
-            return testStore.read(service: service, key: key)
+            return testStore.read(service: testStoreKey, key: key)
+        }
+
+        if accessGroup != nil {
+            // Shared items live only in the data-protection keychain under
+            // this access group; no legacy-location fallback or migration.
+            return try copyItem(key: key, useDataProtection: true)
         }
 
         do {
@@ -129,7 +157,17 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
 
     func delete(key: String) throws {
         if let testStore {
-            testStore.delete(service: service, key: key)
+            testStore.delete(service: testStoreKey, key: key)
+            return
+        }
+
+        if accessGroup != nil {
+            let status = deleteItem(key: key, useDataProtection: true)
+            guard status == errSecSuccess
+                || status == errSecItemNotFound
+                || status == errSecMissingEntitlement else {
+                throw KeychainError.deleteFailed(status)
+            }
             return
         }
 
@@ -147,16 +185,16 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
 
     func deleteAll() throws {
         if let testStore {
-            testStore.deleteAll(service: service)
+            testStore.deleteAll(service: testStoreKey)
             return
         }
 
         // Delete known keys individually for reliability across macOS versions
         for key in [
-            Constants.Keychain.accessTokenKey,
-            Constants.Keychain.refreshTokenKey,
-            Constants.Keychain.expirationKey,
-            Constants.Keychain.accountProfileKey,
+            SharedConstants.Keychain.accessTokenKey,
+            SharedConstants.Keychain.refreshTokenKey,
+            SharedConstants.Keychain.expirationKey,
+            SharedConstants.Keychain.accountProfileKey,
         ] {
             try delete(key: key)
         }
@@ -164,9 +202,20 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
 
     // MARK: - SecItem Helpers
 
+    /// XCTest in-memory store key: composite of `service` and `accessGroup`
+    /// so a shared-group instance and a legacy (no-group) instance sharing
+    /// the same `service` string remain distinct stores under test, matching
+    /// real Keychain semantics where the access group is part of item
+    /// identity.
+    private var testStoreKey: String {
+        guard let accessGroup else { return service }
+        return "\(service)#\(accessGroup)"
+    }
+
     // `useDataProtection: false` is the legacy login-keychain location used before the
     // data-protection keychain migration; it also serves unsigned/dev builds that lack
-    // the entitlement (SecItem calls return errSecMissingEntitlement there).
+    // the entitlement (SecItem calls return errSecMissingEntitlement there). It is never
+    // used when `accessGroup` is set.
     private func baseQuery(key: String, useDataProtection: Bool) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -175,6 +224,9 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
         ]
         if useDataProtection {
             query[kSecUseDataProtectionKeychain as String] = true
+        }
+        if let accessGroup {
+            query[kSecAttrAccessGroup as String] = accessGroup
         }
         return query
     }

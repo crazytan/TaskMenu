@@ -1,23 +1,6 @@
 import Foundation
 import Observation
 
-func tasksSortedByGooglePosition(_ tasks: [TaskItem]) -> [TaskItem] {
-    tasks.enumerated()
-        .sorted { left, right in
-            switch (left.element.position, right.element.position) {
-            case let (leftPosition?, rightPosition?) where leftPosition != rightPosition:
-                return leftPosition < rightPosition
-            case (_?, nil):
-                return true
-            case (nil, _?):
-                return false
-            default:
-                return left.offset < right.offset
-            }
-        }
-        .map(\.element)
-}
-
 /// Recomputes local ordering after a drag-and-drop move, mirroring the Google
 /// Tasks move API: the moved task lands under `newParentID` (top level when
 /// nil) directly after sibling `previousTaskID` (first among siblings when
@@ -523,6 +506,13 @@ final class AppState {
     private let userDefaults: UserDefaults
     private let dueDateNotificationService: any DueDateNotificationServicing
     private let updateChecker: any UpdateChecking
+    /// Keeps the shared widget snapshot current. Every call site that
+    /// touches it goes through `publishCatalogToWidget()`,
+    /// `publishListToWidget(_:tasks:requestStartedAt:)`, or
+    /// `publishDefaultListIDToWidget(_:)`, which skip demo mode so sample
+    /// data never reaches a production publisher. See
+    /// `TaskMenu/WidgetSupport/TaskWidgetSnapshotPublisher.swift`.
+    private let widgetSnapshotPublisher: any TaskWidgetSnapshotPublishing
     /// Read by the app delegate's automatic-check loop to pace re-checks.
     let updateCheckInterval: TimeInterval = 24 * 60 * 60
 
@@ -569,6 +559,7 @@ final class AppState {
         userDefaults: UserDefaults = .standard,
         dueDateNotificationService: any DueDateNotificationServicing = DueDateNotificationService(),
         updateChecker: any UpdateChecking = defaultUpdateChecker(),
+        widgetSnapshotPublisher: any TaskWidgetSnapshotPublishing = TaskWidgetSnapshotPublisher(),
         menuBarCountRefreshInterval: Duration = .seconds(5 * 60),
         currentAppVersion: String = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
         currentBuildCommit: String? = Bundle.main.infoDictionary?["GITCommitHash"] as? String
@@ -580,6 +571,7 @@ final class AppState {
         self.userDefaults = userDefaults
         self.dueDateNotificationService = dueDateNotificationService
         self.updateChecker = updateChecker
+        self.widgetSnapshotPublisher = widgetSnapshotPublisher
         self.menuBarCountRefreshInterval = menuBarCountRefreshInterval
         self.currentAppVersion = currentAppVersion
         let trimmedBuildCommit = currentBuildCommit?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -736,6 +728,12 @@ final class AppState {
         taskCacheByListID = [:]
         partiallyCachedListIDs = []
         taskStateGeneration += 1
+        // Unconditional: sign-out, disconnect, and demo exit all funnel
+        // through this method, and `isDemoMode` is always false by the time
+        // this body runs (`exitDemoMode()` clears it before calling this),
+        // so this never has a chance to publish sample data — it only ever
+        // wipes real (or already-empty) shared state.
+        widgetSnapshotPublisher.clear()
         // Enqueue on the notification chain so the removal deterministically
         // runs after any sync already in flight; post-sign-out continuations
         // re-check `isSignedIn` before enqueueing new syncs.
@@ -767,6 +765,7 @@ final class AppState {
             guard isSignedIn else { return }
             taskLists = lists
             reconcilePaneSelections()
+            publishCatalogToWidget()
             await refreshTasks()
             // Spawned, not awaited: the visible load returns as fast as before
             // while the other lists fill in for the menu-bar count.
@@ -823,6 +822,9 @@ final class AppState {
         } else {
             userDefaults.removeObject(forKey: Self.selectedListIdKey(for: pane.id))
         }
+        if pane.id == .primary {
+            publishDefaultListIDToWidget(listId)
+        }
     }
 
     /// Shows what the app knows of `listId` in `pane` right away: the cached
@@ -857,6 +859,7 @@ final class AppState {
             guard isSignedIn else { return nil }
             taskLists.removeAll { $0.id == list.id }
             taskLists.append(list)
+            publishCatalogToWidget()
             // A secondary pane that had no list yet (the account had none)
             // now has one to show.
             ensureSecondaryPaneSelection()
@@ -943,6 +946,9 @@ final class AppState {
             if wasShown && !includingSelectedList { continue }
             let generation = taskStateGeneration
             let requestIDsByPane = showingPanes.map { ($0, $0.taskLoadRequestID) }
+            // Captured before the request for the same stale-write reason as
+            // `loadTasks(for:into:)`.
+            let requestStartedAt = Date()
             guard let fetched = try? await api.listTasks(listId: listID) else { continue }
             guard isSignedIn, menuBarCounterMode != .off,
                   taskStateGeneration == generation,
@@ -965,7 +971,7 @@ final class AppState {
                 // list switch already loaded it through the foreground path.
                 continue
             }
-            cacheFetchedTasks(fetched, for: listID)
+            cacheFetchedTasks(fetched, for: listID, requestStartedAt: requestStartedAt)
         }
     }
 
@@ -1028,6 +1034,10 @@ final class AppState {
     /// through its own load token, so each pane's stale-load protection and
     /// loading flag work independently.
     private func loadTasks(for listId: String, into targetPanes: [TaskListPane]) async {
+        // Captured before the request so the widget publisher can reject an
+        // older overlapping fetch that happens to finish later; see
+        // `cacheFetchedTasks(_:for:requestStartedAt:)`.
+        let requestStartedAt = Date()
         let tokens = targetPanes.map { beginTaskLoad(for: listId, in: $0) }
         defer { tokens.forEach(finishTaskLoad) }
         do {
@@ -1036,7 +1046,7 @@ final class AppState {
             // stale for the cache as well as the visible list; drop it. Every
             // token shares the generation captured before the request.
             guard tokens.first?.generation == taskStateGeneration else { return }
-            cacheFetchedTasks(allTasks, for: listId)
+            cacheFetchedTasks(allTasks, for: listId, requestStartedAt: requestStartedAt)
             for token in tokens {
                 applyLoadedTasks(allTasks, for: token)
             }
@@ -1525,6 +1535,7 @@ final class AppState {
             pane.tasks = updatedTasks
         }
         taskCacheByListID[listId] = updatedTasks
+        publishListToWidget(listId, tasks: updatedTasks)
     }
 
     /// Restores the pre-toggle completion status for one task, but only while
@@ -1582,14 +1593,62 @@ final class AppState {
 
     /// Stores a full server snapshot for `listId`, which also clears the
     /// partial mark left by a move into, or a pane pointed at, a list that
-    /// had never been fetched.
-    private func cacheFetchedTasks(_ fetchedTasks: [TaskItem], for listId: String) {
+    /// had never been fetched. `requestStartedAt` is the wall-clock time the
+    /// network request that produced `fetchedTasks` began — see
+    /// `publishListToWidget(_:tasks:requestStartedAt:)`.
+    private func cacheFetchedTasks(_ fetchedTasks: [TaskItem], for listId: String, requestStartedAt: Date) {
         taskCacheByListID[listId] = fetchedTasks
         partiallyCachedListIDs.remove(listId)
+        publishListToWidget(listId, tasks: fetchedTasks, requestStartedAt: requestStartedAt)
     }
 
     private func applyLoadedTasks(_ loadedTasks: [TaskItem], for token: TaskLoadToken) {
         guard isCurrentTaskLoad(token) else { return }
         token.pane.tasks = loadedTasks
+    }
+
+    // MARK: - Widget snapshot publishing
+
+    /// Publishes the current list catalog (titles, membership, default list,
+    /// sign-in state) to the shared widget snapshot. Called after
+    /// `loadTaskLists()` replaces `taskLists` — which covers sign-in/
+    /// bootstrap once lists are known, an explicit refresh, and the
+    /// missing-list 404 recovery's re-fetch — and after `createTaskList`
+    /// appends a new list. Demo mode never reaches the publisher, so sample
+    /// lists cannot leak into a production widget snapshot.
+    private func publishCatalogToWidget() {
+        guard !isDemoMode else { return }
+        widgetSnapshotPublisher.publishCatalog(
+            authentication: isSignedIn ? .signedIn : .signedOut,
+            lists: taskLists,
+            defaultListID: primaryPane.selectedListId
+        )
+    }
+
+    /// Publishes one list's current open-task content: every accepted
+    /// `cacheFetchedTasks` result (a foreground load or the account-wide/
+    /// menu-bar sweep) and every `commitTaskChange` result (a local
+    /// mutation, including a rollback). `requestStartedAt` defaults to now,
+    /// which is correct for a local commit; a network fetch passes the
+    /// wall-clock time its request began so
+    /// `TaskWidgetSnapshotStore.replaceList`'s stale-write protection can
+    /// reject an older in-flight response that completes later. No-ops in
+    /// demo mode, or when `listId` is not (yet) known in `taskLists` (its
+    /// title is unavailable — this can only happen for a
+    /// `moveTask(_:toList:)` destination cache seed before the account's
+    /// lists have ever loaded, which is not a state a signed-in session can
+    /// reach).
+    private func publishListToWidget(_ listId: String, tasks: [TaskItem], requestStartedAt: Date = Date()) {
+        guard !isDemoMode, let title = taskLists.first(where: { $0.id == listId })?.title else { return }
+        widgetSnapshotPublisher.publishList(id: listId, title: title, tasks: tasks, requestStartedAt: requestStartedAt)
+    }
+
+    /// Publishes a primary-pane selection change as the widget's default
+    /// list. Secondary-pane selection changes never call this — only the
+    /// primary pane's list stands in for "the" list the widget's default
+    /// configuration falls back to.
+    private func publishDefaultListIDToWidget(_ listId: String?) {
+        guard !isDemoMode else { return }
+        widgetSnapshotPublisher.setDefaultListID(listId)
     }
 }

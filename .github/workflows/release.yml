@@ -246,6 +246,45 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             OTHER_CODE_SIGN_FLAGS="--timestamp"
 
+      - name: Verify embedded widget extension
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # project.yml embeds TaskMenuWidget into TaskMenu via a build-time
+          # dependency; nothing here fails the archive step itself if that
+          # embed silently breaks (e.g. a project.yml regression), so check
+          # for it explicitly rather than relying only on the signature
+          # verification below, which validates whatever IS present but does
+          # not assert that the extension exists at all.
+          app_path="$ARCHIVE_PATH/Products/Applications/TaskMenu.app"
+          appex_path="$app_path/Contents/PlugIns/TaskMenuWidget.appex"
+
+          if [[ ! -d "$appex_path" ]]; then
+            echo "TaskMenuWidget.appex is missing from the archived app at $appex_path." >&2
+            echo "Check project.yml's TaskMenu target 'dependencies: [target: TaskMenuWidget, embed: true]' and the TaskMenuWidget target definition." >&2
+            exit 65
+          fi
+          echo "TaskMenuWidget.appex present in archive."
+
+          echo "--- TaskMenu.app entitlements ---"
+          codesign -d --entitlements :- "$app_path"
+          echo "--- TaskMenuWidget.appex entitlements ---"
+          codesign -d --entitlements :- "$appex_path"
+
+          # Both binaries must carry the shared App Group and Keychain
+          # Sharing entitlements the widget relies on; a missing one here
+          # means the Apple Developer portal registration described in
+          # docs/RELEASING.md is incomplete or project.yml regressed.
+          for entitlement in "com.apple.security.application-groups" "keychain-access-groups"; do
+            for target in "$app_path" "$appex_path"; do
+              if ! codesign -d --entitlements :- "$target" 2>/dev/null | grep -q "$entitlement"; then
+                echo "Missing expected entitlement '$entitlement' on $target." >&2
+                exit 65
+              fi
+            done
+          done
+
       - name: Build, sign, and notarize DMG
         shell: bash
         env:

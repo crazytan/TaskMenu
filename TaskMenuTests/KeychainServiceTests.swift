@@ -84,4 +84,50 @@ final class KeychainServiceTests: XCTestCase {
         XCTAssertEqual(try keychainA.readString(key: "token"), "value-a")
         XCTAssertNil(try keychainB.readString(key: "token"))
     }
+
+    // MARK: - Access Group
+
+    func testAccessGroupInstanceIsIsolatedFromLegacyInstanceUnderSameService() throws {
+        let service = "dev.crazytan.TaskMenu.test.accessgroup.\(UUID().uuidString)"
+        let legacy = KeychainService(service: service, environment: testEnvironment)
+        let shared = KeychainService(service: service, accessGroup: "test-shared-group", environment: testEnvironment)
+
+        try legacy.save(key: "token", string: "legacy-value")
+
+        // Same service string, different access group: must not see each other's data.
+        XCTAssertNil(try shared.readString(key: "token"))
+        XCTAssertEqual(try legacy.readString(key: "token"), "legacy-value")
+
+        try shared.save(key: "token", string: "shared-value")
+        XCTAssertEqual(try shared.readString(key: "token"), "shared-value")
+        XCTAssertEqual(try legacy.readString(key: "token"), "legacy-value")
+    }
+
+    func testAccessGroupInstanceDeleteDoesNotTouchLegacyInstance() throws {
+        let service = "dev.crazytan.TaskMenu.test.accessgroup.delete.\(UUID().uuidString)"
+        let legacy = KeychainService(service: service, environment: testEnvironment)
+        let shared = KeychainService(service: service, accessGroup: "test-shared-group", environment: testEnvironment)
+
+        try legacy.save(key: "token", string: "legacy-value")
+        try shared.save(key: "token", string: "shared-value")
+
+        try shared.delete(key: "token")
+
+        XCTAssertNil(try shared.readString(key: "token"))
+        XCTAssertEqual(try legacy.readString(key: "token"), "legacy-value")
+    }
+
+    func testAccessGroupInstanceRoundTripsData() throws {
+        let shared = KeychainService(
+            service: "dev.crazytan.TaskMenu.test.accessgroup.roundtrip.\(UUID().uuidString)",
+            accessGroup: "test-shared-group",
+            environment: testEnvironment
+        )
+
+        try shared.save(key: "token", string: "abc123")
+        XCTAssertEqual(try shared.readString(key: "token"), "abc123")
+
+        try shared.delete(key: "token")
+        XCTAssertNil(try shared.readString(key: "token"))
+    }
 }

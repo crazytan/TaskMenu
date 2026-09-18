@@ -19,6 +19,12 @@ protocol TasksAPIProtocol: Sendable {
         previousTaskId: String?,
         destinationListId: String?
     ) async throws -> TaskItem
+    /// Marks a task completed. `GoogleTasksAPI` sends a status-only PATCH so
+    /// the widget's completion intent does not need to carry an entire
+    /// `TaskItem`; the default implementation (below) routes through
+    /// `updateTask` with a completed copy so other conformers do not need to
+    /// know about completion specifically.
+    func setTaskCompleted(listId: String, taskId: String) async throws -> TaskItem
 }
 
 extension TasksAPIProtocol {
@@ -39,5 +45,21 @@ extension TasksAPIProtocol {
 
     func createTask(listId: String, title: String, notes: String? = nil, due: String? = nil, parentId: String? = nil) async throws -> TaskItem {
         try await createTask(listId: listId, title: title, notes: notes, due: due, parentId: parentId)
+    }
+
+    /// Default: fetches the task from `listId`, marks it completed, and
+    /// routes through `updateTask` so `DemoTasksAPI`, the `--testing-window`
+    /// fake, and test doubles keep compiling and behaving correctly without
+    /// any changes — they already implement `updateTask` by overwriting the
+    /// stored task with whatever is passed in, so this preserves every
+    /// other field. `GoogleTasksAPI` overrides this with a real,
+    /// status-only PATCH.
+    func setTaskCompleted(listId: String, taskId: String) async throws -> TaskItem {
+        let tasks = try await listTasks(listId: listId)
+        guard var task = tasks.first(where: { $0.id == taskId }) else {
+            throw APIError.serverError(404, "Task not found")
+        }
+        task.isCompleted = true
+        return try await updateTask(listId: listId, taskId: taskId, task: task)
     }
 }

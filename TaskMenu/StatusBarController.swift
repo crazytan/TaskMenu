@@ -125,10 +125,29 @@ final class StatusBarController: NSObject {
         if popover.isShown {
             closePopover()
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            setStatusItemHighlighted(true)
-            startOutsideClickMonitoring()
+            presentPopover(from: button)
         }
+    }
+
+    private func presentPopover(from button: NSStatusBarButton) {
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        setStatusItemHighlighted(true)
+        startOutsideClickMonitoring()
+    }
+
+    /// Idempotent: presents the popover if it is not already visible. Used by
+    /// widget deep-link routing (see `TaskWidgetDeepLinkRouter`), where a
+    /// second link arriving while the popover is already open must not
+    /// toggle it closed. Reuses `presentPopover(from:)` — the same outside-
+    /// click monitoring, highlighting, and `NSPopoverDelegate` behavior as a
+    /// normal status-item click. The idempotency guard itself is
+    /// `PopoverPresentationDecision.shouldPresent`, a pure predicate kept
+    /// separate so it is unit-testable without a live status item.
+    func showPopover() {
+        guard PopoverPresentationDecision.shouldPresent(isPopoverAlreadyShown: popover.isShown),
+              let button = statusItem.button
+        else { return }
+        presentPopover(from: button)
     }
 
     private func showContextMenu(from button: NSStatusBarButton) {
@@ -212,6 +231,8 @@ final class StatusBarController: NSObject {
     }
 }
 
+extension StatusBarController: DeepLinkPopoverPresenting {}
+
 extension StatusBarController: NSPopoverDelegate {
     func popoverDidShow(_ notification: Notification) {
         setStatusItemHighlighted(true)
@@ -243,6 +264,19 @@ final class MenuPresentationRefreshTrigger {
         Task { @MainActor in
             await refresh()
         }
+    }
+}
+
+/// The idempotency guard behind `StatusBarController.showPopover()`, pulled
+/// out as a pure predicate for the same reason as `StatusItemClickRouting`/
+/// `PopoverClickHandling` below: it is unit-testable without a live
+/// `NSStatusItem`/`NSPopover`.
+enum PopoverPresentationDecision {
+    /// Whether calling `showPopover()` should actually present the popover.
+    /// A popover already shown must never be toggled closed by a second call
+    /// — that is what makes `showPopover()` idempotent rather than a toggle.
+    static func shouldPresent(isPopoverAlreadyShown: Bool) -> Bool {
+        !isPopoverAlreadyShown
     }
 }
 

@@ -4,6 +4,48 @@ TaskMenu releases are published from GitHub Actions when a `vX.Y.Z` tag is pushe
 
 Homebrew cask distribution is maintained in the public [`crazytan/homebrew-tap`](https://github.com/crazytan/homebrew-tap) repository.
 
+TaskMenu ships an embedded macOS WidgetKit app extension, `TaskMenuWidget.appex`, nested inside `TaskMenu.app/Contents/PlugIns/`. The app and the extension are separately signed, sandboxed, and hardened-runtime, and are embedded by a build-time dependency in `project.yml` (`TaskMenu` target: `dependencies: [target: TaskMenuWidget, embed: true, codeSign: true]`). **Read "One-time Apple Developer portal setup" below before attempting any signed build** — it is a hard prerequisite that did not exist before this feature.
+
+## One-time Apple Developer portal setup (required before any signed build)
+
+The widget's App Group and shared Keychain access group entitlements make a provisioning profile mandatory. **Until the identifiers below are registered in the Apple Developer account, every signed build fails** — a local signed Debug build, the Developer ID `Release` archive, and the `AppStore` archive alike — with:
+
+```text
+No profiles for 'dev.crazytan.TaskMenu' were found
+```
+
+This is a one-time portal action **only the Apple Developer account owner can perform** (Certificates, Identifiers & Profiles at [developer.apple.com/account/resources](https://developer.apple.com/account/resources/identifiers/list)). No agent, script, or CI job in this repository registers portal identifiers or runs `xcodebuild -allowProvisioningUpdates`; see `scratch/issue-11-desktop-widget/OWNER-ACTIONS.md` for the full handoff. Register, in this order:
+
+1. **App Group**: `group.dev.crazytan.TaskMenu.shared` (Identifiers → App Groups).
+2. **App ID** `dev.crazytan.TaskMenu` (the main app): enable **App Groups** (assign the group above) and **Keychain Sharing**.
+3. **App ID** `dev.crazytan.TaskMenu.Widget` (the widget extension): enable the same two capabilities, assigned to the same App Group.
+4. Regenerate/download provisioning profiles for **both** distribution paths once the App IDs carry the new capabilities — the Developer ID profile (the `Release` configuration / DMG path below) and the Mac App Store profile (the `AppStore` configuration / Xcode Organizer path). Xcode regenerates automatic-signing profiles once the portal side is done; a manually managed profile needs a fresh download.
+
+The entitlement/runtime string is **not** the same as the portal registration string, by design — macOS requires the team prefix on App Group identifiers, so `project.yml` builds the runtime value as `$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared` (the portal registration itself stays unprefixed: `group.dev.crazytan.TaskMenu.shared`). The shared Keychain access group is `$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared`. Both expand through `$(DEVELOPMENT_TEAM)` (the team ID, e.g. `V82M9YX8BR` — see `APPLE_TEAM_ID` below), never `$(AppIdentifierPrefix)`/`$(TeamIdentifierPrefix)`, which only expand once a provisioning profile is already present — using them here would leak a literal unexpanded `$(...)` into the entitlement on exactly the builds that need it to resolve.
+
+An **unsigned** build — `CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=""`, the invocation CI uses — is unaffected by any of this: it still compiles, links, and embeds `TaskMenuWidget.appex` without a provisioning profile. Runtime code (`SharedConstants.appGroupIdentifier` / `.keychainAccessGroup`) treats an empty/unexpanded value as absent and degrades gracefully (no shared container, no shared Keychain group) rather than crashing, which is what makes CI's unsigned build meaningful despite never resolving real identifiers.
+
+### Verifying the embedded widget extension in a signed build
+
+Confirm these on every release archive, not only when widget code itself changes — a signing or `project.yml` regression can silently drop the embed step without failing an unsigned CI build:
+
+```bash
+APP="build/TaskMenu.xcarchive/Products/Applications/TaskMenu.app"
+
+# 1. The extension exists inside the archived app.
+test -d "$APP/Contents/PlugIns/TaskMenuWidget.appex" && echo "widget appex present"
+
+# 2. Both binaries carry the App Group and Keychain Sharing entitlements.
+codesign -d --entitlements :- "$APP"
+codesign -d --entitlements :- "$APP/Contents/PlugIns/TaskMenuWidget.appex"
+
+# 3. Deep, strict signature verification across the whole nested bundle,
+#    including the embedded extension.
+codesign --verify --deep --strict --verbose=2 "$APP"
+```
+
+`scripts/make_dmg.sh` already runs step 3 before packaging the DMG, so a broken or unsigned nested extension fails the release job outright. The GitHub Actions release workflow additionally runs steps 1 and 2 (job step "Verify embedded widget extension", right after archiving) because `codesign --verify` alone only validates whatever it finds inside the bundle — it does not assert that `TaskMenuWidget.appex` exists at all, so a silently-broken embed step would otherwise pass unnoticed.
+
 ## One-time GitHub setup
 
 Add these repository secrets in GitHub under **Settings -> Secrets and variables -> Actions -> Secrets**:
@@ -168,7 +210,7 @@ The Mac App Store gets a different binary from the DMG. Two App Review guideline
 - **2.4.5(vii)** - the Mac App Store delivers its own updates, so the app must not ship a second update path. The `AppStore` configuration compiles out `GitHubUpdateChecker`, `Constants.githubLatestReleaseURL`, the automatic check loop, and the update UI in Settings.
 - **3.1.1** - donations must go through In-App Purchase, so the "Buy Me a Coffee" link is compiled out too.
 
-Both are gated on the `APP_STORE_BUILD` compilation condition, which only the `AppStore` configuration defines. `Debug` and `Release` are unchanged, so the DMG and Homebrew builds keep the update checker and the tip link.
+Both are gated on the `APP_STORE_BUILD` compilation condition, which only the `AppStore` configuration defines. `Debug` and `Release` are unchanged, so the DMG and Homebrew builds keep the update checker and the tip link. `TaskMenuWidget` compiles unconditionally in all three configurations (`Debug`, `Release`, `AppStore`) and is unaffected by `APP_STORE_BUILD` — the widget ships to Mac App Store users exactly as it does in the DMG.
 
 Archive with the dedicated scheme:
 
@@ -176,7 +218,7 @@ Archive with the dedicated scheme:
 xcodebuild archive -project TaskMenu.xcodeproj -scheme "TaskMenu (App Store)" -configuration AppStore -destination "platform=macOS" -archivePath build/TaskMenu-AppStore.xcarchive
 ```
 
-Then upload the archive through Xcode's Organizer (Distribute App -> App Store Connect), which applies the Mac App Distribution signing and the App Store provisioning profile.
+Then upload the archive through Xcode's Organizer (Distribute App -> App Store Connect), which applies the Mac App Distribution signing and the App Store provisioning profile — the App Store provisioning profile from "One-time Apple Developer portal setup" above, which must carry the App Group and Keychain Sharing capabilities for both `dev.crazytan.TaskMenu` and `dev.crazytan.TaskMenu.Widget` or the archive step fails the same way the Developer ID path does. Before uploading, run the "Verifying the embedded widget extension" checks above against this archive's `.app` too.
 
 To confirm the gating held before uploading, check the built binary for the strings that should be absent:
 

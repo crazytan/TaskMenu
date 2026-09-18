@@ -8,12 +8,16 @@ enum APIError: Error, Sendable {
 }
 
 actor GoogleTasksAPI: TasksAPIProtocol {
-    private let authService: GoogleAuthService
+    private let tokenProvider: any AccessTokenProviding
     private let session: URLSession
     private let baseURL: String
 
-    init(authService: GoogleAuthService, session: URLSession = .shared, baseURL: String = Constants.googleTasksBaseURL) {
-        self.authService = authService
+    init(
+        tokenProvider: any AccessTokenProviding,
+        session: URLSession = .shared,
+        baseURL: String = SharedConstants.googleTasksBaseURL
+    ) {
+        self.tokenProvider = tokenProvider
         self.session = session
         self.baseURL = baseURL
     }
@@ -109,6 +113,17 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         return try decode(TaskItem.self, from: data)
     }
 
+    /// Status-only completion PATCH: sends only `{"status": "completed"}` so
+    /// the widget's completion intent does not need notes or a full
+    /// `TaskItem` in its snapshot. Overrides the protocol's default
+    /// (`updateTask`-based) implementation, which fakes/demo doubles keep
+    /// using unmodified.
+    func setTaskCompleted(listId: String, taskId: String) async throws -> TaskItem {
+        let bodyData = try JSONSerialization.data(withJSONObject: ["status": TaskItem.TaskStatus.completed.rawValue])
+        let data = try await request(path: "/lists/\(listId)/tasks/\(taskId)", method: "PATCH", body: bodyData)
+        return try decode(TaskItem.self, from: data)
+    }
+
     // MARK: - Private
 
     private func request(
@@ -117,7 +132,7 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         queryItems: [URLQueryItem] = [],
         body: Data? = nil
     ) async throws -> Data {
-        let token = try await authService.validAccessToken()
+        let token = try await tokenProvider.validAccessToken()
 
         var components = URLComponents(string: baseURL + path)!
         if !queryItems.isEmpty {

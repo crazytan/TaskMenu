@@ -7,44 +7,86 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01FB860663F8A58E5E49425E /* AppStateWidgetPublishingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5E9C8AE4C528271425E17D /* AppStateWidgetPublishingTests.swift */; };
 		021D8C6BC3C40E2DA406BE50 /* MetricKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220E8145372B626FB6D267C7 /* MetricKitService.swift */; };
+		049C10A8CE7256506352D430 /* TaskListWidgetEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9481D447F5849F9B6BD00D71 /* TaskListWidgetEntry.swift */; };
 		068F90845303418F7954D22E /* GoogleTasksAPIBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */; };
+		072773B104AEE9C3B7232979 /* GoogleTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */; };
 		0A9AE96BCBF5513327268CAD /* GoogleAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */; };
 		0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */; };
+		10248A48470E63432018E4D6 /* TaskWidgetConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE347DBB0D1AB0B7E19A9A7 /* TaskWidgetConstants.swift */; };
 		117EB87F2FE86EB848384CFE /* TaskMenuMainMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */; };
 		11E28771324DA02B74C9983F /* DateFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */; };
+		16D1C3510A627F383919E3EB /* TaskWidgetTimelineLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 162C736291D6F2F611C22845 /* TaskWidgetTimelineLoader.swift */; };
 		16F0CFB570B7684CE136B82E /* MenuBarIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = D898FA58565B1CBB9ED2695E /* MenuBarIcon.svg */; };
+		1788FF0F6BE7A7F03E2DD872 /* TaskSortOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51938C11184F7E47EE84FD76 /* TaskSortOrder.swift */; };
 		199755B8E809EBE89ADC94B0 /* SettingsVersionRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C5CAE54DF55AAAB094159CE /* SettingsVersionRowTests.swift */; };
+		1ED5650E0C996C130AEE239A /* TaskWidgetCompletionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200A0503C3DDE8946B69B6C2 /* TaskWidgetCompletionCoordinator.swift */; };
 		239945E06D77EFEE530A50DC /* SideBySidePanesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B43D453936E53D81D58BDCA /* SideBySidePanesTests.swift */; };
+		25E73106B5AC5641B2E04E60 /* TaskWidgetTimelineLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 162C736291D6F2F611C22845 /* TaskWidgetTimelineLoader.swift */; };
 		27A7DDF8EE882EE13FB18EF6 /* MetricKitPayloadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */; };
 		2869F2F8237B112F7767EFE6 /* TaskDetailAppKitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6BE8A6C21B3086FFB9D3D86 /* TaskDetailAppKitViewController.swift */; };
+		2E4111861B9E2E94E513E0F6 /* TaskWidgetDeepLinkRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56BCA81F24395E49EB81901 /* TaskWidgetDeepLinkRoutingTests.swift */; };
 		3059000A80728B12B6989398 /* KeychainServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */; };
+		375FDC0F76A0E47F49370100 /* WidgetGoogleAccessTokenProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF4A0FF30874121047212F7 /* WidgetGoogleAccessTokenProviderTests.swift */; };
+		3A46BD65E5545C9F62AA92F2 /* TaskWidgetEntryContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4100A41BD7EE53C62277D7BA /* TaskWidgetEntryContent.swift */; };
 		3B0DD83685CB78F3CE10E606 /* TaskMenuMainMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA1EC9057D88195605CE69B /* TaskMenuMainMenu.swift */; };
 		3BE650885BB92CC76E2A5B01 /* AppKitTaskUIHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85062E7D51749F3ED4FD688D /* AppKitTaskUIHelpers.swift */; };
+		3CEE51CC63D21DAD9FD0ED5D /* KeychainMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FC3E52EBD19AA5646843B8F /* KeychainMigration.swift */; };
+		3E56016EF3B89D8851613792 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7BCF6CD54266E26B32F6DD /* DateFormatting.swift */; };
 		423DB4F7DE968CBD6A6E805D /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BD10764723731B64E9E183 /* AppState.swift */; };
 		44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */; };
 		44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */; };
+		47240DF1A2672DDD4F9F72DE /* TaskWidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 972B748146757028469FF725 /* TaskWidgetSnapshotStore.swift */; };
 		47D5A568916BF8E1E6FC0347 /* TaskPopoverViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */; };
 		4AF3C3DD0165CD2CA413DEC9 /* MenuBarCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F09B9520D35BAA540C757A0 /* MenuBarCounter.swift */; };
+		4B9B2907BAA6331DC18D86D4 /* TaskWidgetCompletionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200A0503C3DDE8946B69B6C2 /* TaskWidgetCompletionCoordinator.swift */; };
 		4C4A40DBCD2948E2FC0F1F3A /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7BCF6CD54266E26B32F6DD /* DateFormatting.swift */; };
+		4F6D46DBC5FD4EB22F52620B /* WidgetGoogleAccessTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7C57FA76900953514022 /* WidgetGoogleAccessTokenProvider.swift */; };
+		53831CD188853B7869EA75D3 /* AccessTokenProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D189F26DD8929B879358953 /* AccessTokenProviding.swift */; };
+		59D7747F76AD6D9D76A1D349 /* TaskOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A65E0D7C63FDBB47C0DD4EB2 /* TaskOrdering.swift */; };
+		5A63B1BC1A703F771877916F /* StatusBarControllerPopoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC5BF1F682D8F6C4B6537C0 /* StatusBarControllerPopoverTests.swift */; };
 		623F012CBAB02C9AF0FC97F7 /* GoogleTasksAPILiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B78C41E6DC45EAC0F639FAD9 /* GoogleTasksAPILiveTests.swift */; };
+		63FC7DECFB8CF48E0911F567 /* CompleteTaskIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40FDBFFD077C9CAF3E389C14 /* CompleteTaskIntent.swift */; };
+		69235CC470A76EFE9FD777E1 /* TaskWidgetEntryContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4100A41BD7EE53C62277D7BA /* TaskWidgetEntryContent.swift */; };
 		69765D5311C642C2DFADB0A0 /* GoogleTasksAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */; };
+		6C43E884E52F06223CEDE922 /* TaskListWidgetConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2765685914B023529FB83A6 /* TaskListWidgetConfiguration.swift */; };
+		7122B10902D22E57F40A39C3 /* SharedConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC92EC50CF96DA6C9A71995 /* SharedConstants.swift */; };
 		769F9F3B097D5D7C678CEE7F /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4F099FA85A0476A96ED002 /* StatusBarController.swift */; };
 		76E308FD16F5E910DE7D81E6 /* GoogleTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */; };
 		78E76881CED717FBB2187185 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C3377E75BA19027E464EAEB8 /* Assets.xcassets */; };
 		7A424E7FDBAFD974B955448D /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD51E43AB6E5559C98303A3 /* TaskItem.swift */; };
+		7B64EDA6A6683728D179CEE8 /* TaskWidgetConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FE347DBB0D1AB0B7E19A9A7 /* TaskWidgetConstants.swift */; };
+		7BBD7A164B6C27F1477CE71F /* TaskWidgetListCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D689F65E445F3A06253EF5 /* TaskWidgetListCatalog.swift */; };
+		7E81F1B7CEBC24D6276E080F /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD51E43AB6E5559C98303A3 /* TaskItem.swift */; };
+		828971A15AE46882BBA7AB0A /* TaskWidgetListCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D689F65E445F3A06253EF5 /* TaskWidgetListCatalog.swift */; };
+		8CF2F6DF249859A41D3C7044 /* AccessTokenProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D189F26DD8929B879358953 /* AccessTokenProviding.swift */; };
+		8DFD4C65C85B9185B0CD924D /* TaskWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2367918D77BB0CE69D823DD /* TaskWidgetSnapshot.swift */; };
+		8F1D31086D538644FDE06947 /* TaskWidgetSnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A858318B7D833E317C2EE8B9 /* TaskWidgetSnapshotStoreTests.swift */; };
 		8F3D1A4FC0600A0D85BA22E8 /* SearchFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */; };
+		929CD4188BE65710E72ED080 /* GoogleTokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5963B6FA2ECEAE2AC87C21F1 /* GoogleTokenRefresher.swift */; };
+		92E9C7868F011F924CBD6F83 /* TaskWidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA29CC9DF525A8AC91F65FBD /* TaskWidgetSnapshotPublisher.swift */; };
 		939FC3A4B4EB2424F77B577C /* TasksAPIProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = C351DB97FAAF55B3B516EAD9 /* TasksAPIProtocol.swift */; };
+		9458D603BEF5B2848A5E2EA4 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */; };
+		958E5285A4259A28542B0248 /* TaskWidgetProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF14CFBA4646DF1DA25665A4 /* TaskWidgetProviderTests.swift */; };
 		986954B711E286DA6CDC3353 /* GoogleAuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */; };
 		997DD37B229BE0ABD2C1287D /* TaskListPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = A85375BADD8AFA2A90600F7F /* TaskListPane.swift */; };
 		9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12212B7B62ECCDD28979CA54 /* Constants.swift */; };
+		9CC50A3268D38AFA971ADE53 /* CompleteTaskIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 177301811E15E2AD10B84575 /* CompleteTaskIntentTests.swift */; };
+		9EC7F3D6EFD907D4D1B9AC75 /* WidgetKeychainMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0116C80FFA1B8946B6813B1A /* WidgetKeychainMigrationTests.swift */; };
+		A01BCB4FE1B9E7FF66BBD8BE /* TaskListWidgetProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87354D975B9AB64FEF4EA44 /* TaskListWidgetProvider.swift */; };
+		A4331DA6E3DBE85A4C8D1CAC /* TaskWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2367918D77BB0CE69D823DD /* TaskWidgetSnapshot.swift */; };
 		A4BCA782CFF3DA69020CF385 /* MenuBarWindowChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */; };
+		AFE65795BC44C511391695A3 /* TaskWidgetDeepLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCCC180B56433F0D3785804 /* TaskWidgetDeepLinkTests.swift */; };
 		B0420689B1657699950213A7 /* InMemoryKeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */; };
 		B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2191A69341B04C760925B55 /* TaskListViewTests.swift */; };
 		B2813E69A80D80BC147837FA /* MenuBarCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2B442830A1D3D6E4E9250F /* MenuBarCounterTests.swift */; };
+		B32A3A7CDC535B1C6FC58149 /* TaskWidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 972B748146757028469FF725 /* TaskWidgetSnapshotStore.swift */; };
 		B4227F8E90C484F324C235C1 /* GitHubUpdateCheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C007468F67DCAC110FDF650 /* GitHubUpdateCheckerTests.swift */; };
 		B433C658377AD3F4763FED0A /* TaskListControlsAppKitViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C84C4C64E2BF982920144CA /* TaskListControlsAppKitViews.swift */; };
+		B636825FACD63A70509045DB /* TaskWidgetDeepLinkRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC464570BA97DC8CE3D2A292 /* TaskWidgetDeepLinkRouting.swift */; };
 		B8593A4B6220752FE803BAF3 /* DueDateNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39705E088F29F844C149617 /* DueDateNotificationService.swift */; };
+		BEB78EC57B89159FC12FFA55 /* GoogleTokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5963B6FA2ECEAE2AC87C21F1 /* GoogleTokenRefresher.swift */; };
 		BED65A492A123D4A434FA95A /* TaskListContentAppKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 246C75CF9B4CE92C49A9A967 /* TaskListContentAppKitView.swift */; };
 		C169507407838BDD4C665CF1 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */; };
 		C1AE79D6748EFE551C7E8F1B /* TaskMenuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF69FFA11009E78484C090A /* TaskMenuApp.swift */; };
@@ -52,19 +94,36 @@
 		C3C41DC18427B14CEA020FD6 /* SettingsLaunchAtLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */; };
 		C4D74AEE4D4E0555EA0336A2 /* GitHubUpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */; };
 		CE62B34C489FAB410B59EF62 /* TaskMenuActionButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */; };
+		CF3DF1980FBF680CC7D47566 /* TaskOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = A65E0D7C63FDBB47C0DD4EB2 /* TaskOrdering.swift */; };
 		D321CE95DA3DC0D6090CD619 /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */; };
+		D7565CA25134A9178B7DB4A1 /* TaskListWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 313C2855AA139BE69AAD3943 /* TaskListWidget.swift */; };
 		D75722B06B77536D032C2FCD /* DueDateNotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */; };
 		D97593DA719D2F2D6FDEEDE5 /* DemoTasksAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */; };
 		DA25E72399919D98DA85845D /* DemoModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31219315F608ED2061A3365 /* DemoModeTests.swift */; };
+		DA3D495F39BD7C729F391E7E /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633899C51990EF71D24F5C89 /* TaskList.swift */; };
+		DA7477C67F35C68109B53031 /* TaskWidgetChangeSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CB4065F3608E0DFEEBFDE3 /* TaskWidgetChangeSignal.swift */; };
+		DC4B43F7478BBF0361234D1B /* TaskWidgetProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C038BE2ADB5AE6EF6E8BE6E /* TaskWidgetProjection.swift */; };
+		DC9FDE99C2807B3CD5497FE0 /* TaskWidgetProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C038BE2ADB5AE6EF6E8BE6E /* TaskWidgetProjection.swift */; };
+		DD7E9A395C44C427ABFB5809 /* TaskWidgetProjectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644416672951087180F856BC /* TaskWidgetProjectionTests.swift */; };
 		DE51E84794E46D07C1401DE6 /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633899C51990EF71D24F5C89 /* TaskList.swift */; };
 		DF3A87C317BF2F2C9E2BE8E2 /* TaskSortOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51938C11184F7E47EE84FD76 /* TaskSortOrder.swift */; };
 		DFD21FE92BBBBD402B0B05A1 /* AppStateBehaviorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */; };
+		E0CA80A4BFBCE161323B3E05 /* TasksAPIProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = C351DB97FAAF55B3B516EAD9 /* TasksAPIProtocol.swift */; };
+		E28B43D0381E1CBC5B7B4BAE /* TaskWidgetDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0761B62545FDCF3111F7125 /* TaskWidgetDeepLink.swift */; };
+		E293A600D3C9F16615F332D2 /* WidgetGoogleAccessTokenProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009C7C57FA76900953514022 /* WidgetGoogleAccessTokenProvider.swift */; };
+		E2AEB9E884D316308C36159B /* TaskMenuWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B896B3A8B8BF69E2B38454 /* TaskMenuWidgetBundle.swift */; };
 		E54169E513191306010635A7 /* AppIcon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */; };
+		E87E08B140B1E9C5A1642AC2 /* TaskWidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA29CC9DF525A8AC91F65FBD /* TaskWidgetSnapshotPublisher.swift */; };
+		E89EF94271018DB48D7EA45B /* TaskWidgetDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0761B62545FDCF3111F7125 /* TaskWidgetDeepLink.swift */; };
 		E9F151927F17F397115553E7 /* MenuBarWindowGlassSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */; };
 		EABCBC75EA9C7B078B487F50 /* SettingsSideBySideRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DADC2AF38E482364302872A6 /* SettingsSideBySideRowTests.swift */; };
+		ECE14B710570032B029A2B8F /* TaskWidgetChangeSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CB4065F3608E0DFEEBFDE3 /* TaskWidgetChangeSignal.swift */; };
 		EE436D813BF5EE0AD6057949 /* TaskListAppKitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2667803C667BBD21DCCCD029 /* TaskListAppKitViewController.swift */; };
+		F2D9124131764B376C3696DF /* TaskMenuWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 66A053549F4CCE3FE7DE7F55 /* TaskMenuWidget.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */; };
+		F8F71860E6F87BB1ABD2AFD5 /* SharedConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC92EC50CF96DA6C9A71995 /* SharedConstants.swift */; };
 		FC3B57327B2B0E0E23CAECD0 /* TaskPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E62AEDAB2E61D986C97C60D1 /* TaskPresentation.swift */; };
+		FC7153F4B2A66D6CF7B63FD9 /* TaskListWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A46B10CA98AF461A5D40012 /* TaskListWidgetView.swift */; };
 		FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3614C7335BB0200D28F074 /* AppStateTests.swift */; };
 		FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
@@ -77,86 +136,136 @@
 			remoteGlobalIDString = 54F3465CB5E85F801680719A;
 			remoteInfo = TaskMenu;
 		};
+		8CB2E772AA679BE4C1BB51B5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E6415FE6D54A18079324D516 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FCC8DC80B20F803A3F30B3DB;
+			remoteInfo = TaskMenuWidget;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		9A5B082C4844377F5FB6B6DB /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F2D9124131764B376C3696DF /* TaskMenuWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		009C7C57FA76900953514022 /* WidgetGoogleAccessTokenProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetGoogleAccessTokenProvider.swift; sourceTree = "<group>"; };
+		0116C80FFA1B8946B6813B1A /* WidgetKeychainMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetKeychainMigrationTests.swift; sourceTree = "<group>"; };
 		058C00FB539FD9B1D05BCBFD /* KeychainServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainServiceTests.swift; sourceTree = "<group>"; };
 		0BB887AE76D5ACD713E065CE /* TaskMenuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TaskMenuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0C7BCF6CD54266E26B32F6DD /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
 		12212B7B62ECCDD28979CA54 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		162C736291D6F2F611C22845 /* TaskWidgetTimelineLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetTimelineLoader.swift; sourceTree = "<group>"; };
+		177301811E15E2AD10B84575 /* CompleteTaskIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompleteTaskIntentTests.swift; sourceTree = "<group>"; };
+		1AC5BF1F682D8F6C4B6537C0 /* StatusBarControllerPopoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarControllerPopoverTests.swift; sourceTree = "<group>"; };
 		1B43D453936E53D81D58BDCA /* SideBySidePanesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideBySidePanesTests.swift; sourceTree = "<group>"; };
 		1C007468F67DCAC110FDF650 /* GitHubUpdateCheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubUpdateCheckerTests.swift; sourceTree = "<group>"; };
+		1C038BE2ADB5AE6EF6E8BE6E /* TaskWidgetProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetProjection.swift; sourceTree = "<group>"; };
 		1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBehaviorTests.swift; sourceTree = "<group>"; };
 		1CD51E43AB6E5559C98303A3 /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
+		1FC3E52EBD19AA5646843B8F /* KeychainMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainMigration.swift; sourceTree = "<group>"; };
+		200A0503C3DDE8946B69B6C2 /* TaskWidgetCompletionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetCompletionCoordinator.swift; sourceTree = "<group>"; };
 		2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuMainMenuTests.swift; sourceTree = "<group>"; };
 		220E8145372B626FB6D267C7 /* MetricKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitService.swift; sourceTree = "<group>"; };
-		22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuildConfig.xcconfig; sourceTree = "<group>"; };
 		246C75CF9B4CE92C49A9A967 /* TaskListContentAppKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListContentAppKitView.swift; sourceTree = "<group>"; };
 		2667803C667BBD21DCCCD029 /* TaskListAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListAppKitViewController.swift; sourceTree = "<group>"; };
+		28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuildConfig.xcconfig; sourceTree = "<group>"; };
 		2C5CAE54DF55AAAB094159CE /* SettingsVersionRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsVersionRowTests.swift; sourceTree = "<group>"; };
 		2C84C4C64E2BF982920144CA /* TaskListControlsAppKitViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListControlsAppKitViews.swift; sourceTree = "<group>"; };
+		2EC92EC50CF96DA6C9A71995 /* SharedConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConstants.swift; sourceTree = "<group>"; };
+		313C2855AA139BE69AAD3943 /* TaskListWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListWidget.swift; sourceTree = "<group>"; };
 		33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuActionButtonTests.swift; sourceTree = "<group>"; };
+		35B896B3A8B8BF69E2B38454 /* TaskMenuWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuWidgetBundle.swift; sourceTree = "<group>"; };
+		3D189F26DD8929B879358953 /* AccessTokenProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessTokenProviding.swift; sourceTree = "<group>"; };
 		3E2B442830A1D3D6E4E9250F /* MenuBarCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCounterTests.swift; sourceTree = "<group>"; };
+		3F1787B986D7AC05F9AEA6C8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3F2D65032E1F2A015F67B6D0 /* TaskPopoverViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPopoverViewController.swift; sourceTree = "<group>"; };
 		3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubUpdateChecker.swift; sourceTree = "<group>"; };
 		4041A68FD32907E3B89B8F8B /* MenuBarWindowGlassSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowGlassSupport.swift; sourceTree = "<group>"; };
+		40FDBFFD077C9CAF3E389C14 /* CompleteTaskIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompleteTaskIntent.swift; sourceTree = "<group>"; };
+		4100A41BD7EE53C62277D7BA /* TaskWidgetEntryContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetEntryContent.swift; sourceTree = "<group>"; };
 		4AC00155161191D4DBBDA015 /* SearchFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFilterTests.swift; sourceTree = "<group>"; };
+		4D5E9C8AE4C528271425E17D /* AppStateWidgetPublishingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateWidgetPublishingTests.swift; sourceTree = "<group>"; };
 		4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPI.swift; sourceTree = "<group>"; };
 		4E2E315C1C8E04FD083F0AEA /* TaskMenu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaskMenu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F09B9520D35BAA540C757A0 /* MenuBarCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCounter.swift; sourceTree = "<group>"; };
 		500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormattingTests.swift; sourceTree = "<group>"; };
 		51938C11184F7E47EE84FD76 /* TaskSortOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSortOrder.swift; sourceTree = "<group>"; };
+		5963B6FA2ECEAE2AC87C21F1 /* GoogleTokenRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTokenRefresher.swift; sourceTree = "<group>"; };
 		5AF69FFA11009E78484C090A /* TaskMenuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuApp.swift; sourceTree = "<group>"; };
+		5BCCC180B56433F0D3785804 /* TaskWidgetDeepLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetDeepLinkTests.swift; sourceTree = "<group>"; };
 		5D04BFBB6F10A824FCFD02C9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailViewTests.swift; sourceTree = "<group>"; };
 		633899C51990EF71D24F5C89 /* TaskList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskList.swift; sourceTree = "<group>"; };
 		63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
+		644416672951087180F856BC /* TaskWidgetProjectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetProjectionTests.swift; sourceTree = "<group>"; };
+		66A053549F4CCE3FE7DE7F55 /* TaskMenuWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TaskMenuWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		68060F2FA94B23E37273F003 /* MenuBarWindowChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarWindowChromeTests.swift; sourceTree = "<group>"; };
 		68CD93FC69779BFB08340F08 /* TaskMenu.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenu.entitlements; sourceTree = "<group>"; };
 		6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItemModelTests.swift; sourceTree = "<group>"; };
+		763632A4A96846D7AEA72C55 /* TaskMenuWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TaskMenuWidget.entitlements; sourceTree = "<group>"; };
 		77DBAAB7CC102C6006686981 /* MetricKitPayloadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitPayloadStoreTests.swift; sourceTree = "<group>"; };
 		7DF81FBE51E0B1CC80B1A5FD /* SettingsLaunchAtLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLaunchAtLoginTests.swift; sourceTree = "<group>"; };
 		85062E7D51749F3ED4FD688D /* AppKitTaskUIHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKitTaskUIHelpers.swift; sourceTree = "<group>"; };
 		8C8C52C19BDA6F8F2D3C638F /* AppIcon.svg */ = {isa = PBXFileReference; path = AppIcon.svg; sourceTree = "<group>"; };
 		8F3614C7335BB0200D28F074 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
 		8FE1F31A1E2F87FD9042F1B4 /* GoogleTasksAPIBehaviorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPIBehaviorTests.swift; sourceTree = "<group>"; };
+		8FE347DBB0D1AB0B7E19A9A7 /* TaskWidgetConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetConstants.swift; sourceTree = "<group>"; };
 		9141316E1D908A6C099CF691 /* TestingWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestingWindowController.swift; sourceTree = "<group>"; };
+		92D689F65E445F3A06253EF5 /* TaskWidgetListCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetListCatalog.swift; sourceTree = "<group>"; };
+		9481D447F5849F9B6BD00D71 /* TaskListWidgetEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListWidgetEntry.swift; sourceTree = "<group>"; };
+		972B748146757028469FF725 /* TaskWidgetSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetSnapshotStore.swift; sourceTree = "<group>"; };
+		9A46B10CA98AF461A5D40012 /* TaskListWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListWidgetView.swift; sourceTree = "<group>"; };
 		9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuAppTests.swift; sourceTree = "<group>"; };
 		9FA1EC9057D88195605CE69B /* TaskMenuMainMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuMainMenu.swift; sourceTree = "<group>"; };
 		9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationServiceTests.swift; sourceTree = "<group>"; };
 		A2191A69341B04C760925B55 /* TaskListViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListViewTests.swift; sourceTree = "<group>"; };
+		A65E0D7C63FDBB47C0DD4EB2 /* TaskOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskOrdering.swift; sourceTree = "<group>"; };
 		A85375BADD8AFA2A90600F7F /* TaskListPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListPane.swift; sourceTree = "<group>"; };
+		A858318B7D833E317C2EE8B9 /* TaskWidgetSnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetSnapshotStoreTests.swift; sourceTree = "<group>"; };
 		ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDueDateNotificationService.swift; sourceTree = "<group>"; };
 		AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoTasksAPI.swift; sourceTree = "<group>"; };
 		B39705E088F29F844C149617 /* DueDateNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DueDateNotificationService.swift; sourceTree = "<group>"; };
 		B6BE8A6C21B3086FFB9D3D86 /* TaskDetailAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskDetailAppKitViewController.swift; sourceTree = "<group>"; };
 		B78C41E6DC45EAC0F639FAD9 /* GoogleTasksAPILiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPILiveTests.swift; sourceTree = "<group>"; };
+		B87354D975B9AB64FEF4EA44 /* TaskListWidgetProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListWidgetProvider.swift; sourceTree = "<group>"; };
 		BB4F099FA85A0476A96ED002 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		BB598B8D34C0A014D7826A63 /* MockURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLProtocol.swift; sourceTree = "<group>"; };
+		BBF4A0FF30874121047212F7 /* WidgetGoogleAccessTokenProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetGoogleAccessTokenProviderTests.swift; sourceTree = "<group>"; };
+		BC464570BA97DC8CE3D2A292 /* TaskWidgetDeepLinkRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetDeepLinkRouting.swift; sourceTree = "<group>"; };
+		BF14CFBA4646DF1DA25665A4 /* TaskWidgetProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetProviderTests.swift; sourceTree = "<group>"; };
 		BFE9F6BF8DFE197A82CE6A11 /* InMemoryKeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryKeychainService.swift; sourceTree = "<group>"; };
 		C3377E75BA19027E464EAEB8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C351DB97FAAF55B3B516EAD9 /* TasksAPIProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksAPIProtocol.swift; sourceTree = "<group>"; };
 		C5360741190B5DF2436BE448 /* GoogleAuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthServiceTests.swift; sourceTree = "<group>"; };
 		C79B44669D075555352A0BB4 /* GoogleTasksAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleTasksAPITests.swift; sourceTree = "<group>"; };
+		CA29CC9DF525A8AC91F65FBD /* TaskWidgetSnapshotPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetSnapshotPublisher.swift; sourceTree = "<group>"; };
+		D1CB4065F3608E0DFEEBFDE3 /* TaskWidgetChangeSignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetChangeSignal.swift; sourceTree = "<group>"; };
+		D2765685914B023529FB83A6 /* TaskListWidgetConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListWidgetConfiguration.swift; sourceTree = "<group>"; };
 		D898FA58565B1CBB9ED2695E /* MenuBarIcon.svg */ = {isa = PBXFileReference; path = MenuBarIcon.svg; sourceTree = "<group>"; };
 		D9592A4B7C25B7B328D1CAE3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		DADC2AF38E482364302872A6 /* SettingsSideBySideRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSideBySideRowTests.swift; sourceTree = "<group>"; };
+		E2367918D77BB0CE69D823DD /* TaskWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetSnapshot.swift; sourceTree = "<group>"; };
 		E31219315F608ED2061A3365 /* DemoModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoModeTests.swift; sourceTree = "<group>"; };
 		E62AEDAB2E61D986C97C60D1 /* TaskPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPresentation.swift; sourceTree = "<group>"; };
 		EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		F0761B62545FDCF3111F7125 /* TaskWidgetDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetDeepLink.swift; sourceTree = "<group>"; };
 		F4BD10764723731B64E9E183 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		F56BCA81F24395E49EB81901 /* TaskWidgetDeepLinkRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetDeepLinkRoutingTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		02C7954B6F0AE7D4B33301DC /* TaskMenu */ = {
-			isa = PBXGroup;
-			children = (
-				22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */,
-			);
-			name = TaskMenu;
-			path = .;
-			sourceTree = "<group>";
-		};
 		141A484087CC4923B5F2371C /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -169,11 +278,30 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		1A7D1A8FED9D94E362F5F928 /* WidgetSupport */ = {
+			isa = PBXGroup;
+			children = (
+				D1CB4065F3608E0DFEEBFDE3 /* TaskWidgetChangeSignal.swift */,
+				200A0503C3DDE8946B69B6C2 /* TaskWidgetCompletionCoordinator.swift */,
+				8FE347DBB0D1AB0B7E19A9A7 /* TaskWidgetConstants.swift */,
+				F0761B62545FDCF3111F7125 /* TaskWidgetDeepLink.swift */,
+				4100A41BD7EE53C62277D7BA /* TaskWidgetEntryContent.swift */,
+				92D689F65E445F3A06253EF5 /* TaskWidgetListCatalog.swift */,
+				1C038BE2ADB5AE6EF6E8BE6E /* TaskWidgetProjection.swift */,
+				E2367918D77BB0CE69D823DD /* TaskWidgetSnapshot.swift */,
+				CA29CC9DF525A8AC91F65FBD /* TaskWidgetSnapshotPublisher.swift */,
+				972B748146757028469FF725 /* TaskWidgetSnapshotStore.swift */,
+				162C736291D6F2F611C22845 /* TaskWidgetTimelineLoader.swift */,
+			);
+			path = WidgetSupport;
+			sourceTree = "<group>";
+		};
 		1E011DB940E268BD3223C95C /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				4E2E315C1C8E04FD083F0AEA /* TaskMenu.app */,
 				0BB887AE76D5ACD713E065CE /* TaskMenuTests.xctest */,
+				66A053549F4CCE3FE7DE7F55 /* TaskMenuWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -181,14 +309,18 @@
 		2A93E24654445FC8029C75F7 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				3D189F26DD8929B879358953 /* AccessTokenProviding.swift */,
 				AF63E40796A8FC75FE2DFE46 /* DemoTasksAPI.swift */,
 				B39705E088F29F844C149617 /* DueDateNotificationService.swift */,
 				3FC8DA7EF5FEF032B81469A3 /* GitHubUpdateChecker.swift */,
 				63E868E0B0520F6ABD40D350 /* GoogleAuthService.swift */,
 				4DC959FBC4EF3DD0EF5D14D6 /* GoogleTasksAPI.swift */,
+				5963B6FA2ECEAE2AC87C21F1 /* GoogleTokenRefresher.swift */,
+				1FC3E52EBD19AA5646843B8F /* KeychainMigration.swift */,
 				EAFA7FEDB3F9559D6C71C2C4 /* KeychainService.swift */,
 				220E8145372B626FB6D267C7 /* MetricKitService.swift */,
 				C351DB97FAAF55B3B516EAD9 /* TasksAPIProtocol.swift */,
+				009C7C57FA76900953514022 /* WidgetGoogleAccessTokenProvider.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -201,6 +333,7 @@
 				1CD51E43AB6E5559C98303A3 /* TaskItem.swift */,
 				633899C51990EF71D24F5C89 /* TaskList.swift */,
 				A85375BADD8AFA2A90600F7F /* TaskListPane.swift */,
+				A65E0D7C63FDBB47C0DD4EB2 /* TaskOrdering.swift */,
 				51938C11184F7E47EE84FD76 /* TaskSortOrder.swift */,
 			);
 			path = Models;
@@ -212,13 +345,31 @@
 				BB4F099FA85A0476A96ED002 /* StatusBarController.swift */,
 				5AF69FFA11009E78484C090A /* TaskMenuApp.swift */,
 				9FA1EC9057D88195605CE69B /* TaskMenuMainMenu.swift */,
+				BC464570BA97DC8CE3D2A292 /* TaskWidgetDeepLinkRouting.swift */,
 				7CA4A7AB59308D29BDE9DFD5 /* Models */,
 				141A484087CC4923B5F2371C /* Resources */,
 				2A93E24654445FC8029C75F7 /* Services */,
 				B4C856BF7116CA682A7B7851 /* Utilities */,
 				A8BA91B3D84B2B2CA95FA78A /* Views */,
+				1A7D1A8FED9D94E362F5F928 /* WidgetSupport */,
 			);
 			path = TaskMenu;
+			sourceTree = "<group>";
+		};
+		A640BC2830586BB9BAFCEA7B /* TaskMenuWidget */ = {
+			isa = PBXGroup;
+			children = (
+				40FDBFFD077C9CAF3E389C14 /* CompleteTaskIntent.swift */,
+				3F1787B986D7AC05F9AEA6C8 /* Info.plist */,
+				313C2855AA139BE69AAD3943 /* TaskListWidget.swift */,
+				D2765685914B023529FB83A6 /* TaskListWidgetConfiguration.swift */,
+				9481D447F5849F9B6BD00D71 /* TaskListWidgetEntry.swift */,
+				B87354D975B9AB64FEF4EA44 /* TaskListWidgetProvider.swift */,
+				9A46B10CA98AF461A5D40012 /* TaskListWidgetView.swift */,
+				763632A4A96846D7AEA72C55 /* TaskMenuWidget.entitlements */,
+				35B896B3A8B8BF69E2B38454 /* TaskMenuWidgetBundle.swift */,
+			);
+			path = TaskMenuWidget;
 			sourceTree = "<group>";
 		};
 		A8BA91B3D84B2B2CA95FA78A /* Views */ = {
@@ -243,6 +394,7 @@
 			children = (
 				12212B7B62ECCDD28979CA54 /* Constants.swift */,
 				0C7BCF6CD54266E26B32F6DD /* DateFormatting.swift */,
+				2EC92EC50CF96DA6C9A71995 /* SharedConstants.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -252,6 +404,8 @@
 			children = (
 				1C0C7E5843F31C5163A17D3D /* AppStateBehaviorTests.swift */,
 				8F3614C7335BB0200D28F074 /* AppStateTests.swift */,
+				4D5E9C8AE4C528271425E17D /* AppStateWidgetPublishingTests.swift */,
+				177301811E15E2AD10B84575 /* CompleteTaskIntentTests.swift */,
 				500B536CAEBC7F3B0AF40519 /* DateFormattingTests.swift */,
 				E31219315F608ED2061A3365 /* DemoModeTests.swift */,
 				9FE4010667E3A28546894589 /* DueDateNotificationServiceTests.swift */,
@@ -271,23 +425,41 @@
 				DADC2AF38E482364302872A6 /* SettingsSideBySideRowTests.swift */,
 				2C5CAE54DF55AAAB094159CE /* SettingsVersionRowTests.swift */,
 				1B43D453936E53D81D58BDCA /* SideBySidePanesTests.swift */,
+				1AC5BF1F682D8F6C4B6537C0 /* StatusBarControllerPopoverTests.swift */,
 				62C9B2D2EE1B7668B9245DBE /* TaskDetailViewTests.swift */,
 				6E4CD6808B2587AD2F8F9563 /* TaskItemModelTests.swift */,
 				A2191A69341B04C760925B55 /* TaskListViewTests.swift */,
 				33B8E5D270E820D7C6070D4D /* TaskMenuActionButtonTests.swift */,
 				9C0DB3189CC6045A5C0A230F /* TaskMenuAppTests.swift */,
 				2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */,
+				F56BCA81F24395E49EB81901 /* TaskWidgetDeepLinkRoutingTests.swift */,
+				5BCCC180B56433F0D3785804 /* TaskWidgetDeepLinkTests.swift */,
+				644416672951087180F856BC /* TaskWidgetProjectionTests.swift */,
+				BF14CFBA4646DF1DA25665A4 /* TaskWidgetProviderTests.swift */,
+				A858318B7D833E317C2EE8B9 /* TaskWidgetSnapshotStoreTests.swift */,
 				ADED99C71B9C470D7D37974C /* TestDueDateNotificationService.swift */,
+				BBF4A0FF30874121047212F7 /* WidgetGoogleAccessTokenProviderTests.swift */,
+				0116C80FFA1B8946B6813B1A /* WidgetKeychainMigrationTests.swift */,
 			);
 			path = TaskMenuTests;
+			sourceTree = "<group>";
+		};
+		D5BA059B9BE3B27DEBDF591F /* task-details-open-animation-9d6f85 */ = {
+			isa = PBXGroup;
+			children = (
+				28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */,
+			);
+			name = "task-details-open-animation-9d6f85";
+			path = .;
 			sourceTree = "<group>";
 		};
 		E7776CF5C61A2557700CB1FE = {
 			isa = PBXGroup;
 			children = (
+				D5BA059B9BE3B27DEBDF591F /* task-details-open-animation-9d6f85 */,
 				A34BA795C75683448AFABACA /* TaskMenu */,
-				02C7954B6F0AE7D4B33301DC /* TaskMenu */,
 				C53DB1319E1111ADB350C841 /* TaskMenuTests */,
+				A640BC2830586BB9BAFCEA7B /* TaskMenuWidget */,
 				1E011DB940E268BD3223C95C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -319,10 +491,12 @@
 			buildPhases = (
 				050305DC79D0D96BCB364B3C /* Sources */,
 				F64C026980643FD3BEFBC8CF /* Resources */,
+				9A5B082C4844377F5FB6B6DB /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F0430CF203858696EFB61970 /* PBXTargetDependency */,
 			);
 			name = TaskMenu;
 			packageProductDependencies = (
@@ -330,6 +504,23 @@
 			productName = TaskMenu;
 			productReference = 4E2E315C1C8E04FD083F0AEA /* TaskMenu.app */;
 			productType = "com.apple.product-type.application";
+		};
+		FCC8DC80B20F803A3F30B3DB /* TaskMenuWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D20C847449BB293CBA4F1477 /* Build configuration list for PBXNativeTarget "TaskMenuWidget" */;
+			buildPhases = (
+				D343C9EB1C303541AA6B1AD4 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TaskMenuWidget;
+			packageProductDependencies = (
+			);
+			productName = TaskMenuWidget;
+			productReference = 66A053549F4CCE3FE7DE7F55 /* TaskMenuWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -341,6 +532,9 @@
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					54F3465CB5E85F801680719A = {
+						ProvisioningStyle = Automatic;
+					};
+					FCC8DC80B20F803A3F30B3DB = {
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -360,6 +554,7 @@
 			projectRoot = "";
 			targets = (
 				54F3465CB5E85F801680719A /* TaskMenu */,
+				FCC8DC80B20F803A3F30B3DB /* TaskMenuWidget */,
 				2499498786EF41DCFC6BE7F6 /* TaskMenuTests */,
 			);
 		};
@@ -383,6 +578,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8CF2F6DF249859A41D3C7044 /* AccessTokenProviding.swift in Sources */,
 				3BE650885BB92CC76E2A5B01 /* AppKitTaskUIHelpers.swift in Sources */,
 				423DB4F7DE968CBD6A6E805D /* AppState.swift in Sources */,
 				9ADC495EEB87994A08F73AB8 /* Constants.swift in Sources */,
@@ -392,11 +588,14 @@
 				C4D74AEE4D4E0555EA0336A2 /* GitHubUpdateChecker.swift in Sources */,
 				0A9AE96BCBF5513327268CAD /* GoogleAuthService.swift in Sources */,
 				76E308FD16F5E910DE7D81E6 /* GoogleTasksAPI.swift in Sources */,
+				BEB78EC57B89159FC12FFA55 /* GoogleTokenRefresher.swift in Sources */,
+				3CEE51CC63D21DAD9FD0ED5D /* KeychainMigration.swift in Sources */,
 				C169507407838BDD4C665CF1 /* KeychainService.swift in Sources */,
 				4AF3C3DD0165CD2CA413DEC9 /* MenuBarCounter.swift in Sources */,
 				E9F151927F17F397115553E7 /* MenuBarWindowGlassSupport.swift in Sources */,
 				021D8C6BC3C40E2DA406BE50 /* MetricKitService.swift in Sources */,
 				FF5F630937F736E64BD3C1FD /* SettingsView.swift in Sources */,
+				7122B10902D22E57F40A39C3 /* SharedConstants.swift in Sources */,
 				769F9F3B097D5D7C678CEE7F /* StatusBarController.swift in Sources */,
 				2869F2F8237B112F7767EFE6 /* TaskDetailAppKitViewController.swift in Sources */,
 				7A424E7FDBAFD974B955448D /* TaskItem.swift in Sources */,
@@ -407,11 +606,25 @@
 				997DD37B229BE0ABD2C1287D /* TaskListPane.swift in Sources */,
 				C1AE79D6748EFE551C7E8F1B /* TaskMenuApp.swift in Sources */,
 				3B0DD83685CB78F3CE10E606 /* TaskMenuMainMenu.swift in Sources */,
+				CF3DF1980FBF680CC7D47566 /* TaskOrdering.swift in Sources */,
 				47D5A568916BF8E1E6FC0347 /* TaskPopoverViewController.swift in Sources */,
 				FC3B57327B2B0E0E23CAECD0 /* TaskPresentation.swift in Sources */,
 				DF3A87C317BF2F2C9E2BE8E2 /* TaskSortOrder.swift in Sources */,
+				DA7477C67F35C68109B53031 /* TaskWidgetChangeSignal.swift in Sources */,
+				1ED5650E0C996C130AEE239A /* TaskWidgetCompletionCoordinator.swift in Sources */,
+				7B64EDA6A6683728D179CEE8 /* TaskWidgetConstants.swift in Sources */,
+				E28B43D0381E1CBC5B7B4BAE /* TaskWidgetDeepLink.swift in Sources */,
+				B636825FACD63A70509045DB /* TaskWidgetDeepLinkRouting.swift in Sources */,
+				3A46BD65E5545C9F62AA92F2 /* TaskWidgetEntryContent.swift in Sources */,
+				828971A15AE46882BBA7AB0A /* TaskWidgetListCatalog.swift in Sources */,
+				DC4B43F7478BBF0361234D1B /* TaskWidgetProjection.swift in Sources */,
+				8DFD4C65C85B9185B0CD924D /* TaskWidgetSnapshot.swift in Sources */,
+				E87E08B140B1E9C5A1642AC2 /* TaskWidgetSnapshotPublisher.swift in Sources */,
+				47240DF1A2672DDD4F9F72DE /* TaskWidgetSnapshotStore.swift in Sources */,
+				25E73106B5AC5641B2E04E60 /* TaskWidgetTimelineLoader.swift in Sources */,
 				939FC3A4B4EB2424F77B577C /* TasksAPIProtocol.swift in Sources */,
 				C1EA9BDD5C59238997F833F1 /* TestingWindowController.swift in Sources */,
+				4F6D46DBC5FD4EB22F52620B /* WidgetGoogleAccessTokenProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -421,6 +634,8 @@
 			files = (
 				DFD21FE92BBBBD402B0B05A1 /* AppStateBehaviorTests.swift in Sources */,
 				FEBB3BC550B3CC63B620ED8F /* AppStateTests.swift in Sources */,
+				01FB860663F8A58E5E49425E /* AppStateWidgetPublishingTests.swift in Sources */,
+				9CC50A3268D38AFA971ADE53 /* CompleteTaskIntentTests.swift in Sources */,
 				11E28771324DA02B74C9983F /* DateFormattingTests.swift in Sources */,
 				DA25E72399919D98DA85845D /* DemoModeTests.swift in Sources */,
 				D75722B06B77536D032C2FCD /* DueDateNotificationServiceTests.swift in Sources */,
@@ -440,13 +655,58 @@
 				EABCBC75EA9C7B078B487F50 /* SettingsSideBySideRowTests.swift in Sources */,
 				199755B8E809EBE89ADC94B0 /* SettingsVersionRowTests.swift in Sources */,
 				239945E06D77EFEE530A50DC /* SideBySidePanesTests.swift in Sources */,
+				5A63B1BC1A703F771877916F /* StatusBarControllerPopoverTests.swift in Sources */,
 				F583510B7875405F768BADD3 /* TaskDetailViewTests.swift in Sources */,
 				0FD718B29CF8183561A6F550 /* TaskItemModelTests.swift in Sources */,
 				B1E9E90C4184BDD3DED97A2B /* TaskListViewTests.swift in Sources */,
 				CE62B34C489FAB410B59EF62 /* TaskMenuActionButtonTests.swift in Sources */,
 				44D8CA5D6D124CF97A57EF1D /* TaskMenuAppTests.swift in Sources */,
 				117EB87F2FE86EB848384CFE /* TaskMenuMainMenuTests.swift in Sources */,
+				2E4111861B9E2E94E513E0F6 /* TaskWidgetDeepLinkRoutingTests.swift in Sources */,
+				AFE65795BC44C511391695A3 /* TaskWidgetDeepLinkTests.swift in Sources */,
+				DD7E9A395C44C427ABFB5809 /* TaskWidgetProjectionTests.swift in Sources */,
+				958E5285A4259A28542B0248 /* TaskWidgetProviderTests.swift in Sources */,
+				8F1D31086D538644FDE06947 /* TaskWidgetSnapshotStoreTests.swift in Sources */,
 				44A6F4A2E806FF1D44F0E19B /* TestDueDateNotificationService.swift in Sources */,
+				375FDC0F76A0E47F49370100 /* WidgetGoogleAccessTokenProviderTests.swift in Sources */,
+				9EC7F3D6EFD907D4D1B9AC75 /* WidgetKeychainMigrationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D343C9EB1C303541AA6B1AD4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53831CD188853B7869EA75D3 /* AccessTokenProviding.swift in Sources */,
+				63FC7DECFB8CF48E0911F567 /* CompleteTaskIntent.swift in Sources */,
+				3E56016EF3B89D8851613792 /* DateFormatting.swift in Sources */,
+				072773B104AEE9C3B7232979 /* GoogleTasksAPI.swift in Sources */,
+				929CD4188BE65710E72ED080 /* GoogleTokenRefresher.swift in Sources */,
+				9458D603BEF5B2848A5E2EA4 /* KeychainService.swift in Sources */,
+				F8F71860E6F87BB1ABD2AFD5 /* SharedConstants.swift in Sources */,
+				7E81F1B7CEBC24D6276E080F /* TaskItem.swift in Sources */,
+				DA3D495F39BD7C729F391E7E /* TaskList.swift in Sources */,
+				D7565CA25134A9178B7DB4A1 /* TaskListWidget.swift in Sources */,
+				6C43E884E52F06223CEDE922 /* TaskListWidgetConfiguration.swift in Sources */,
+				049C10A8CE7256506352D430 /* TaskListWidgetEntry.swift in Sources */,
+				A01BCB4FE1B9E7FF66BBD8BE /* TaskListWidgetProvider.swift in Sources */,
+				FC7153F4B2A66D6CF7B63FD9 /* TaskListWidgetView.swift in Sources */,
+				E2AEB9E884D316308C36159B /* TaskMenuWidgetBundle.swift in Sources */,
+				59D7747F76AD6D9D76A1D349 /* TaskOrdering.swift in Sources */,
+				1788FF0F6BE7A7F03E2DD872 /* TaskSortOrder.swift in Sources */,
+				ECE14B710570032B029A2B8F /* TaskWidgetChangeSignal.swift in Sources */,
+				4B9B2907BAA6331DC18D86D4 /* TaskWidgetCompletionCoordinator.swift in Sources */,
+				10248A48470E63432018E4D6 /* TaskWidgetConstants.swift in Sources */,
+				E89EF94271018DB48D7EA45B /* TaskWidgetDeepLink.swift in Sources */,
+				69235CC470A76EFE9FD777E1 /* TaskWidgetEntryContent.swift in Sources */,
+				7BBD7A164B6C27F1477CE71F /* TaskWidgetListCatalog.swift in Sources */,
+				DC9FDE99C2807B3CD5497FE0 /* TaskWidgetProjection.swift in Sources */,
+				A4331DA6E3DBE85A4C8D1CAC /* TaskWidgetSnapshot.swift in Sources */,
+				92E9C7868F011F924CBD6F83 /* TaskWidgetSnapshotPublisher.swift in Sources */,
+				B32A3A7CDC535B1C6FC58149 /* TaskWidgetSnapshotStore.swift in Sources */,
+				16D1C3510A627F383919E3EB /* TaskWidgetTimelineLoader.swift in Sources */,
+				E0CA80A4BFBCE161323B3E05 /* TasksAPIProtocol.swift in Sources */,
+				E293A600D3C9F16615F332D2 /* WidgetGoogleAccessTokenProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -458,12 +718,43 @@
 			target = 54F3465CB5E85F801680719A /* TaskMenu */;
 			targetProxy = 0CB22A41B832FE7621882395 /* PBXContainerItemProxy */;
 		};
+		F0430CF203858696EFB61970 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FCC8DC80B20F803A3F30B3DB /* TaskMenuWidget */;
+			targetProxy = 8CB2E772AA679BE4C1BB51B5 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0514794B28FE57A828A7D137 /* AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				APP_GROUP_IDENTIFIER = "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared";
+				CODE_SIGN_ENTITLEMENTS = TaskMenuWidget/TaskMenuWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = TaskMenuWidget/Info.plist;
+				KEYCHAIN_ACCESS_GROUP = "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
+				PRODUCT_NAME = TaskMenuWidget;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = AppStore;
+		};
 		07674A1A7F4DD02169D4DFFE /* AppStore */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_IDENTIFIER = "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -471,6 +762,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
+				KEYCHAIN_ACCESS_GROUP = "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -485,6 +777,7 @@
 		1A680E4096FD1C5A49BDDB32 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_IDENTIFIER = "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -492,6 +785,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
+				KEYCHAIN_ACCESS_GROUP = "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -522,7 +816,7 @@
 		};
 		3CFA4C8FD23F975093D810C6 /* AppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -585,9 +879,34 @@
 			};
 			name = AppStore;
 		};
+		4DDB1CBFDEFE432B86934680 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				APP_GROUP_IDENTIFIER = "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared";
+				CODE_SIGN_ENTITLEMENTS = TaskMenuWidget/TaskMenuWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = TaskMenuWidget/Info.plist;
+				KEYCHAIN_ACCESS_GROUP = "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
+				PRODUCT_NAME = TaskMenuWidget;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 		6EF47391B5EF770AC931DC3F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -673,9 +992,34 @@
 			};
 			name = Release;
 		};
+		9B9FCDE9441E70DE88AF8CC2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				APP_GROUP_IDENTIFIER = "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared";
+				CODE_SIGN_ENTITLEMENTS = TaskMenuWidget/TaskMenuWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = TaskMenuWidget/Info.plist;
+				KEYCHAIN_ACCESS_GROUP = "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
+				PRODUCT_NAME = TaskMenuWidget;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
 		A734F39AA9B691088E02AEFF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -740,6 +1084,7 @@
 		BF67089ADD023E75C9E7E517 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APP_GROUP_IDENTIFIER = "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = TaskMenu/Resources/TaskMenu.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -747,6 +1092,7 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = TaskMenu/Resources/Info.plist;
+				KEYCHAIN_ACCESS_GROUP = "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -794,6 +1140,16 @@
 				07674A1A7F4DD02169D4DFFE /* AppStore */,
 				BF67089ADD023E75C9E7E517 /* Debug */,
 				1A680E4096FD1C5A49BDDB32 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = AppStore;
+		};
+		D20C847449BB293CBA4F1477 /* Build configuration list for PBXNativeTarget "TaskMenuWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0514794B28FE57A828A7D137 /* AppStore */,
+				9B9FCDE9441E70DE88AF8CC2 /* Debug */,
+				4DDB1CBFDEFE432B86934680 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = AppStore;
