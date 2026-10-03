@@ -85,6 +85,12 @@ base64 -i DeveloperIDApplication.p12 | tr -d '\n' | pbcopy
 
 Paste the clipboard into `BUILD_CERTIFICATE_BASE64`. Put the export password in `BUILD_CERTIFICATE_PASSWORD`.
 
+### Replacing a Developer ID certificate
+
+Use a **G2 Sub-CA** Developer ID Application certificate. Certificates from the previous Sub-CA stop working on February 1, 2027. Replace both `BUILD_CERTIFICATE_BASE64` and `BUILD_CERTIFICATE_PASSWORD` together, using a `.p12` that contains the new certificate and its matching private key.
+
+After updating the secrets, run the **Check signing certificate** workflow with the new certificate's 40-character SHA-1 fingerprint. It checks the actual GitHub secrets, G2 issuer, at least 30 days of validity, private-key access, and timestamped signing on a macOS runner without publishing a release. Existing notarized, securely timestamped DMGs do not need to be replaced for this authority transition.
+
 ## Create the App Store Connect API key
 
 Create an App Store Connect API key in **App Store Connect -> Users and Access -> Integrations -> App Store Connect API**. A key with Developer access is enough for notarization.

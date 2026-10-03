@@ -1,0 +1,54 @@
+name: Check signing certificate
+
+on:
+  workflow_dispatch:
+    inputs:
+      certificate_sha1:
+        description: Expected Developer ID Application certificate SHA-1 (40 hex characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  check-signing:
+    runs-on: macos-26
+    steps:
+      - name: Import certificate and verify timestamped signing
+        shell: bash
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          BUILD_CERTIFICATE_PASSWORD: ${{ secrets.BUILD_CERTIFICATE_PASSWORD }}
+          EXPECTED_CERTIFICATE_SHA1: ${{ inputs.certificate_sha1 }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_CERTIFICATE_SHA1" =~ ^[0-9A-Fa-f]{40}$ ]]
+          test -n "$BUILD_CERTIFICATE_BASE64"
+          test -n "$BUILD_CERTIFICATE_PASSWORD"
+
+          certificate_path="$RUNNER_TEMP/signing-check.p12"
+          keychain_path="$RUNNER_TEMP/signing-check.keychain-db"
+          keychain_password="$(openssl rand -base64 32)"
+          echo "::add-mask::$keychain_password"
+          trap 'security delete-keychain "$keychain_path" 2>/dev/null || true; rm -f "$certificate_path"' EXIT
+
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$BUILD_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path" >/dev/null
+          security find-identity -v -p codesigning "$keychain_path" | tee "$RUNNER_TEMP/signing-identities.txt"
+          grep -qi "$EXPECTED_CERTIFICATE_SHA1" "$RUNNER_TEMP/signing-identities.txt"
+
+          security find-certificate -c 'Developer ID Application' -p "$keychain_path" > "$RUNNER_TEMP/signing-certificate.pem"
+          openssl x509 -in "$RUNNER_TEMP/signing-certificate.pem" -noout -subject -issuer -dates
+          openssl x509 -in "$RUNNER_TEMP/signing-certificate.pem" -noout -issuer | grep -Eq 'OU[[:space:]]*=[[:space:]]*G2([, /]|$)'
+          openssl x509 -in "$RUNNER_TEMP/signing-certificate.pem" -noout -checkend 2592000
+
+          cp /usr/bin/true "$RUNNER_TEMP/signing-check"
+          codesign --force --sign "$EXPECTED_CERTIFICATE_SHA1" --keychain "$keychain_path" --timestamp --options runtime "$RUNNER_TEMP/signing-check"
+          codesign --verify --strict --verbose=2 "$RUNNER_TEMP/signing-check"
+          codesign -dv --verbose=4 "$RUNNER_TEMP/signing-check" 2>&1 | tee "$RUNNER_TEMP/signing-details.txt"
+          grep -q '^Timestamp=' "$RUNNER_TEMP/signing-details.txt"
