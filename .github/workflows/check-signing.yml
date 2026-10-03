@@ -38,6 +38,8 @@ jobs:
           security set-keychain-settings -lut 21600 "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
           security import "$certificate_path" -P "$BUILD_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security default-keychain -s "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path" >/dev/null
           security find-identity -v -p codesigning "$keychain_path" | tee "$RUNNER_TEMP/signing-identities.txt"
           grep -qi "$EXPECTED_CERTIFICATE_SHA1" "$RUNNER_TEMP/signing-identities.txt"
