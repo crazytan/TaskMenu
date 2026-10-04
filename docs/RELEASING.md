@@ -54,6 +54,8 @@ Add these repository secrets in GitHub under **Settings -> Secrets and variables
 | --- | --- |
 | `BUILD_CERTIFICATE_BASE64` | Base64-encoded `.p12` export of your Developer ID Application certificate |
 | `BUILD_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` file |
+| `DEVELOPER_ID_APP_PROFILE_BASE64` | Base64-encoded Developer ID profile for `dev.crazytan.TaskMenu` |
+| `DEVELOPER_ID_WIDGET_PROFILE_BASE64` | Base64-encoded Developer ID profile for `dev.crazytan.TaskMenu.Widget` |
 | `APP_STORE_CONNECT_API_KEY_BASE64` | Base64-encoded App Store Connect API private key (`.p8`) |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID used by release builds |
 | `APP_STORE_CONNECT_KEY_ID` | App Store Connect API key ID |
@@ -89,7 +91,9 @@ Paste the clipboard into `BUILD_CERTIFICATE_BASE64`. Put the export password in 
 
 Use a **G2 Sub-CA** Developer ID Application certificate. Certificates from the previous Sub-CA stop working on February 1, 2027. Replace both `BUILD_CERTIFICATE_BASE64` and `BUILD_CERTIFICATE_PASSWORD` together, using a `.p12` that contains the new certificate and its matching private key.
 
-After updating the secrets, run the **Check signing certificate** workflow with the new certificate's 40-character SHA-1 fingerprint. It checks the actual GitHub secrets, G2 issuer, at least 30 days of validity, private-key access, and timestamped signing on a macOS runner without publishing a release. Existing notarized, securely timestamped DMGs do not need to be replaced for this authority transition.
+After replacing the certificate, create Developer ID profiles for both the app and widget that authorize the new certificate and retain their App Group and Keychain Sharing capabilities. Update `DEVELOPER_ID_APP_PROFILE_BASE64` and `DEVELOPER_ID_WIDGET_PROFILE_BASE64` with their base64-encoded `.provisionprofile` files. The release workflow validates and installs these profiles, then selects each target's profile separately during manual signing.
+
+Run the **Check signing certificate** workflow with the new certificate's 40-character SHA-1 fingerprint. It checks the actual GitHub secrets, G2 issuer, at least 30 days of validity, private-key access, profile authorization, and timestamped signing. It also archives the real app and widget and verifies both signatures without publishing a release. Existing notarized, securely timestamped DMGs do not need to be replaced for this authority transition.
 
 ## Create the App Store Connect API key
 

@@ -133,6 +133,13 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
           security find-identity -v -p codesigning "$keychain_path"
 
+      - name: Install Developer ID provisioning profiles
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
+          DEVELOPER_ID_APP_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_APP_PROFILE_BASE64 }}
+          DEVELOPER_ID_WIDGET_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_WIDGET_PROFILE_BASE64 }}
+        run: python3 scripts/install_developer_id_profiles.py
+
       - name: Install App Store Connect API key
         shell: bash
         env:
@@ -242,8 +249,10 @@ jobs:
             -destination "generic/platform=macOS" \
             -archivePath "$ARCHIVE_PATH" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CODE_SIGN_IDENTITY="$DEVELOPER_ID_CERTIFICATE_SHA1" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            TASKMENU_DEVELOPER_ID_PROFILE="$TASKMENU_DEVELOPER_ID_PROFILE" \
+            TASKMENU_WIDGET_DEVELOPER_ID_PROFILE="$TASKMENU_WIDGET_DEVELOPER_ID_PROFILE" \
             OTHER_CODE_SIGN_FLAGS="--timestamp"
 
       - name: Verify embedded widget extension

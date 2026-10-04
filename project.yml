@@ -62,6 +62,9 @@ targets:
         # SharedConstants.appGroupIdentifier / .keychainAccessGroup.
         APP_GROUP_IDENTIFIER: "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared"
         KEYCHAIN_ACCESS_GROUP: "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared"
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: "$(TASKMENU_DEVELOPER_ID_PROFILE)"
     entitlements:
       path: TaskMenu/Resources/TaskMenu.entitlements
       properties:
@@ -109,6 +112,9 @@ targets:
         PROVISIONING_PROFILE_SPECIFIER: ""
         APP_GROUP_IDENTIFIER: "$(DEVELOPMENT_TEAM).group.dev.crazytan.TaskMenu.shared"
         KEYCHAIN_ACCESS_GROUP: "$(DEVELOPMENT_TEAM).dev.crazytan.TaskMenu.shared"
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: "$(TASKMENU_WIDGET_DEVELOPER_ID_PROFILE)"
     entitlements:
       path: TaskMenuWidget/TaskMenuWidget.entitlements
       properties:

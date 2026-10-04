@@ -15,6 +15,9 @@ jobs:
   check-signing:
     runs-on: macos-26
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Import certificate and verify timestamped signing
         shell: bash
         env:
@@ -31,7 +34,7 @@ jobs:
           keychain_path="$RUNNER_TEMP/signing-check.keychain-db"
           keychain_password="$(openssl rand -base64 32)"
           echo "::add-mask::$keychain_password"
-          trap 'security delete-keychain "$keychain_path" 2>/dev/null || true; rm -f "$certificate_path"' EXIT
+          trap 'rm -f "$certificate_path"' EXIT
 
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
           security create-keychain -p "$keychain_password" "$keychain_path"
@@ -54,3 +57,61 @@ jobs:
           codesign --verify --strict --verbose=2 "$RUNNER_TEMP/signing-check"
           codesign -dv --verbose=4 "$RUNNER_TEMP/signing-check" 2>&1 | tee "$RUNNER_TEMP/signing-details.txt"
           grep -q '^Timestamp=' "$RUNNER_TEMP/signing-details.txt"
+          echo "EXPECTED_CERTIFICATE_SHA1=$EXPECTED_CERTIFICATE_SHA1" >> "$GITHUB_ENV"
+
+      - name: Install Developer ID provisioning profiles
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
+          DEVELOPER_ID_APP_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_APP_PROFILE_BASE64 }}
+          DEVELOPER_ID_WIDGET_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_WIDGET_PROFILE_BASE64 }}
+        run: python3 scripts/install_developer_id_profiles.py
+
+      - name: Configure signed build
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_REDIRECT_SCHEME: ${{ vars.GOOGLE_REDIRECT_SCHEME || secrets.GOOGLE_REDIRECT_SCHEME }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_CLIENT_ID"
+          test -n "$GOOGLE_REDIRECT_SCHEME"
+          test -n "$APPLE_TEAM_ID"
+          printf 'GOOGLE_CLIENT_ID = %s\nGOOGLE_REDIRECT_SCHEME = %s\nDEVELOPMENT_TEAM = %s\n' "$GOOGLE_CLIENT_ID" "$GOOGLE_REDIRECT_SCHEME" "$APPLE_TEAM_ID" > Config.xcconfig
+          ./scripts/stamp_build_metadata.sh .
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Archive app and widget without publishing
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild archive -project TaskMenu.xcodeproj -scheme TaskMenu \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/TaskMenu.xcarchive" \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$DEVELOPER_ID_CERTIFICATE_SHA1" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            TASKMENU_DEVELOPER_ID_PROFILE="$TASKMENU_DEVELOPER_ID_PROFILE" \
+            TASKMENU_WIDGET_DEVELOPER_ID_PROFILE="$TASKMENU_WIDGET_DEVELOPER_ID_PROFILE" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp"
+          app="$RUNNER_TEMP/TaskMenu.xcarchive/Products/Applications/TaskMenu.app"
+          widget="$app/Contents/PlugIns/TaskMenuWidget.appex"
+          test -d "$widget"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          for bundle in "$app" "$widget"; do
+            codesign -d --extract-certificates="$RUNNER_TEMP/verified-" "$bundle"
+            actual_sha1="$(openssl x509 -inform DER -in "$RUNNER_TEMP/verified-0" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d ':')"
+            test "$actual_sha1" = "$DEVELOPER_ID_CERTIFICATE_SHA1"
+            codesign -dv --verbose=4 "$bundle" 2>&1 | grep '^Timestamp='
+            security cms -D -i "$bundle/Contents/embedded.provisionprofile" > "$RUNNER_TEMP/embedded-profile.plist"
+            uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/embedded-profile.plist")"
+            if [[ "$bundle" = "$app" ]]; then
+              test "$uuid" = "$TASKMENU_DEVELOPER_ID_PROFILE"
+            else
+              test "$uuid" = "$TASKMENU_WIDGET_DEVELOPER_ID_PROFILE"
+            fi
+          done
+
+      - name: Clean up signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing-check.keychain-db" 2>/dev/null || true

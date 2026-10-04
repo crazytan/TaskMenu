@@ -178,9 +178,9 @@
 		200A0503C3DDE8946B69B6C2 /* TaskWidgetCompletionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskWidgetCompletionCoordinator.swift; sourceTree = "<group>"; };
 		2132C0C9C496BC887ACF1D16 /* TaskMenuMainMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMenuMainMenuTests.swift; sourceTree = "<group>"; };
 		220E8145372B626FB6D267C7 /* MetricKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricKitService.swift; sourceTree = "<group>"; };
+		22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuildConfig.xcconfig; sourceTree = "<group>"; };
 		246C75CF9B4CE92C49A9A967 /* TaskListContentAppKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListContentAppKitView.swift; sourceTree = "<group>"; };
 		2667803C667BBD21DCCCD029 /* TaskListAppKitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListAppKitViewController.swift; sourceTree = "<group>"; };
-		28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = BuildConfig.xcconfig; sourceTree = "<group>"; };
 		2C5CAE54DF55AAAB094159CE /* SettingsVersionRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsVersionRowTests.swift; sourceTree = "<group>"; };
 		2C84C4C64E2BF982920144CA /* TaskListControlsAppKitViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskListControlsAppKitViews.swift; sourceTree = "<group>"; };
 		2EC92EC50CF96DA6C9A71995 /* SharedConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedConstants.swift; sourceTree = "<group>"; };
@@ -266,6 +266,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		02C7954B6F0AE7D4B33301DC /* TaskMenu */ = {
+			isa = PBXGroup;
+			children = (
+				22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */,
+			);
+			name = TaskMenu;
+			path = .;
+			sourceTree = "<group>";
+		};
 		141A484087CC4923B5F2371C /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -444,20 +453,11 @@
 			path = TaskMenuTests;
 			sourceTree = "<group>";
 		};
-		D5BA059B9BE3B27DEBDF591F /* task-details-open-animation-9d6f85 */ = {
-			isa = PBXGroup;
-			children = (
-				28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */,
-			);
-			name = "task-details-open-animation-9d6f85";
-			path = .;
-			sourceTree = "<group>";
-		};
 		E7776CF5C61A2557700CB1FE = {
 			isa = PBXGroup;
 			children = (
-				D5BA059B9BE3B27DEBDF591F /* task-details-open-animation-9d6f85 */,
 				A34BA795C75683448AFABACA /* TaskMenu */,
+				02C7954B6F0AE7D4B33301DC /* TaskMenu */,
 				C53DB1319E1111ADB350C841 /* TaskMenuTests */,
 				A640BC2830586BB9BAFCEA7B /* TaskMenuWidget */,
 				1E011DB940E268BD3223C95C /* Products */,
@@ -792,7 +792,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu;
 				PRODUCT_NAME = TaskMenu;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(TASKMENU_DEVELOPER_ID_PROFILE)";
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -816,7 +816,7 @@
 		};
 		3CFA4C8FD23F975093D810C6 /* AppStore */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -898,7 +898,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
 				PRODUCT_NAME = TaskMenuWidget;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PROVISIONING_PROFILE_SPECIFIER = "$(TASKMENU_WIDGET_DEVELOPER_ID_PROFILE)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -906,7 +906,7 @@
 		};
 		6EF47391B5EF770AC931DC3F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1019,7 +1019,7 @@
 		};
 		A734F39AA9B691088E02AEFF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 28171BD5E28DFFC8003F88E5 /* BuildConfig.xcconfig */;
+			baseConfigurationReference = 22C2FBA14B47F88C34A91663 /* BuildConfig.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
