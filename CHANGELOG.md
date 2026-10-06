@@ -15,6 +15,7 @@
 
 ### Fixed
 - Direct-download releases now install and select Developer ID provisioning profiles for both the app and widget, including after certificate replacement.
+- Allow the widget publisher isolation regression test to run against a signed host with a valid App Group identifier.
 
 ## v1.6.0 (2026-08-17)
 

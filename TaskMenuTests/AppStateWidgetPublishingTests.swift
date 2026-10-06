@@ -551,9 +551,8 @@ final class AppStateWidgetPublishingTests: XCTestCase {
     func testDefaultProductionPublisherNeverReachesRealContainerUnderXCTest() {
         XCTAssertNil(TaskWidgetSnapshotPublisher().store.directoryURL)
 
-        // Secondary, build-configuration-dependent fact, kept as a sanity
-        // check on *this* run rather than the guarantee itself.
-        XCTAssertNil(SharedConstants.appGroupIdentifier)
+        // The identifier itself may resolve in signed builds; isolation must
+        // come from the publisher's XCTest guard, not missing entitlements.
     }
 }
 
