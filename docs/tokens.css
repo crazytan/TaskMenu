@@ -1,0 +1,40 @@
+/* Hallmark · pre-emit critique: P4 H5 E4 S5 R5 V4 */
+:root {
+  --color-paper: oklch(98.4% 0.003 250);
+  --color-surface: oklch(96.3% 0.004 250);
+  --color-stage: oklch(94.5% 0.015 250);
+  --color-ink: oklch(25% 0.014 250);
+  --color-muted: oklch(46% 0.014 250);
+  --color-rule: oklch(86% 0.009 250);
+  --color-accent: oklch(49% 0.18 255);
+  --color-accent-hover: oklch(42% 0.17 255);
+  --color-accent-ink: oklch(99% 0.002 250);
+  --color-focus: oklch(49% 0.18 255);
+  --color-dark: oklch(25% 0.018 250);
+  --color-dark-muted: oklch(80% 0.012 250);
+  --color-dark-rule: oklch(46% 0.012 250);
+  --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", monospace;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+  --space-5xl: 8rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-heading: clamp(2rem, 3vw + 0.5rem, 3rem);
+  --text-display: clamp(2.75rem, 4.8vw + 0.5rem, 4.75rem);
+  --radius-button: 0.75rem;
+  --radius-stage: 1.5rem;
+  --rule-width: 1px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+}

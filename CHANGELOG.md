@@ -7,6 +7,9 @@
 
 ## Unreleased
 
+### Changed
+- Redesign the website homepage with real app screenshots, a light native-Mac style, updated feature copy, and clearer download and installation instructions.
+
 ### Added
 - Add a configurable macOS desktop widget for viewing and completing Google Tasks, with live refresh and offline cached content.
 

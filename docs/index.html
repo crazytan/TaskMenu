@@ -1,283 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskMenu — Google Tasks in your Mac menu bar</title>
-    <style>
-        :root {
-            --bg: #0d1117;
-            --surface: #161b22;
-            --border: #30363d;
-            --text: #e6edf3;
-            --text-muted: #8b949e;
-            --accent: #58a6ff;
-            --accent-hover: #79c0ff;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        a:hover {
-            color: var(--accent-hover);
-            text-decoration: underline;
-        }
-
-        .container {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        header {
-            padding: 80px 0 48px;
-            text-align: center;
-        }
-
-        header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 12px;
-        }
-
-        header .tagline {
-            font-size: 1.2rem;
-            color: var(--text-muted);
-            max-width: 480px;
-            margin: 0 auto;
-        }
-
-        .cta {
-            margin-top: 32px;
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .cta a {
-            display: inline-block;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: background 0.2s;
-        }
-
-        .cta .primary {
-            background: var(--accent);
-            color: var(--bg);
-        }
-
-        .cta .primary:hover {
-            background: var(--accent-hover);
-            text-decoration: none;
-        }
-
-        .cta .secondary {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-
-        .cta .secondary:hover {
-            border-color: var(--text-muted);
-            text-decoration: none;
-        }
-
-        .screenshot {
-            margin: 48px 0;
-            text-align: center;
-        }
-
-        .screenshot .placeholder {
-            background: var(--surface);
-            border: 1px dashed var(--border);
-            border-radius: 12px;
-            padding: 80px 24px;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-
-        section {
-            padding: 48px 0;
-        }
-
-        section h2 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-        }
-
-        .features {
-            list-style: none;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .features li {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            font-size: 0.95rem;
-        }
-
-        .features li strong {
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .features li span {
-            color: var(--text-muted);
-            font-size: 0.88rem;
-        }
-
-        .build-steps {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 24px;
-        }
-
-        .build-steps ol {
-            padding-left: 20px;
-        }
-
-        .build-steps li {
-            margin-bottom: 8px;
-        }
-
-        .build-steps code {
-            background: var(--bg);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.88rem;
-        }
-
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 32px 0;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-
-        footer a {
-            color: var(--text-muted);
-        }
-
-        footer a:hover {
-            color: var(--accent);
-        }
-
-        @media (max-width: 600px) {
-            header {
-                padding: 48px 0 32px;
-            }
-
-            header h1 {
-                font-size: 1.8rem;
-            }
-
-            .features {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafbfc">
+  <meta name="description" content="Google Tasks, one click away in your Mac menu bar. Capture tasks, organize lists, and keep track of due dates with TaskMenu. Free and open source.">
+  <meta property="og:title" content="TaskMenu — Your tasks. One click away.">
+  <meta property="og:description" content="A small, native Mac app for Google Tasks. Free, open source, and right in your menu bar.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://taskmenu.crazytan.dev/">
+  <meta property="og:image" content="https://taskmenu.crazytan.dev/assets/app-icon.png">
+  <title>TaskMenu — Google Tasks in your Mac menu bar</title>
+  <link rel="canonical" href="https://taskmenu.crazytan.dev/">
+  <link rel="icon" href="assets/app-icon.png" type="image/png">
+  <link rel="preload" href="assets/fonts/bricolage-700.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="assets/fonts/geist-400.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>TaskMenu</h1>
-            <p class="tagline">A lightweight, native macOS menu bar app for Google Tasks. Signed, notarized, and built to stay out of your way.</p>
-            <div class="cta">
-                <a href="https://github.com/crazytan/TaskMenu/releases/latest" class="primary">Download Latest Release</a>
-                <a href="https://github.com/crazytan/TaskMenu" class="secondary">View Source</a>
-            </div>
-        </header>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="nav wrap">
+    <a class="brand" href="./" aria-label="TaskMenu home">
+      <img src="assets/app-icon.png" width="128" height="128" alt="">
+      TaskMenu
+    </a>
+    <a class="nav-link" href="#download">Download <span aria-hidden="true">↗</span></a>
+  </header>
 
-        <section>
-            <h2>Features</h2>
-            <ul class="features">
-                <li>
-                    <strong>Menu bar native</strong>
-                    <span>Lives in the menu bar with no Dock icon or main window. Always one click away.</span>
-                </li>
-                <li>
-                    <strong>Google Tasks sync</strong>
-                    <span>Sign in with Google OAuth 2.0. Create, edit, complete, and delete tasks.</span>
-                </li>
-                <li>
-                    <strong>Quick add</strong>
-                    <span>Capture tasks inline without leaving what you're doing.</span>
-                </li>
-                <li>
-                    <strong>Multiple lists</strong>
-                    <span>Switch between your Google Task lists with a single click.</span>
-                </li>
-                <li>
-                    <strong>Due dates</strong>
-                    <span>Set and view due dates on your tasks.</span>
-                </li>
-                <li>
-                    <strong>Secure</strong>
-                    <span>OAuth tokens stored in the macOS Keychain. No data leaves your device.</span>
-                </li>
-                <li>
-                    <strong>Zero dependencies</strong>
-                    <span>Built with Swift 6 and SwiftUI. Apple frameworks only.</span>
-                </li>
-                <li>
-                    <strong>Open source</strong>
-                    <span>Free and open source under the GNU GPLv3 license.</span>
-                </li>
-            </ul>
-        </section>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Your tasks.<span>One click away.</span></h1>
+        <p class="lede">Google Tasks, right in your Mac’s menu bar. Capture a thought, check what’s next, and get back to what you were doing.</p>
+        <div>
+          <div class="actions">
+            <a class="button" href="https://github.com/crazytan/TaskMenu/releases/latest">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/></svg>
+              Download for Mac
+            </a>
+            <a class="text-link" href="https://github.com/crazytan/TaskMenu">View source <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="meta">Free &amp; open source · macOS 14.4 or later</p>
+        </div>
+      </div>
+      <figure class="product-figure">
+        <div class="product-stage">
+          <img src="assets/task-list.png" width="640" height="960" alt="TaskMenu’s Today list with due dates, nested subtasks, a completed section, and an inline Add a task field." fetchpriority="high">
+        </div>
+        <figcaption>A little space for everything on your list.</figcaption>
+      </figure>
+    </section>
 
-        <section>
-            <h2>Get Started</h2>
-            <div class="build-steps">
-                <ol>
-                    <li>Download the latest signed DMG from <a href="https://github.com/crazytan/TaskMenu/releases/latest">GitHub Releases</a>.</li>
-                    <li>Open the DMG and drag TaskMenu into Applications.</li>
-                    <li>Launch TaskMenu and sign in with Google.</li>
-                    <li>TaskMenu will appear in the macOS menu bar.</li>
-                </ol>
-                <p style="margin-top: 12px; font-size: 0.9rem; color: var(--text-muted);">
-                    Requires macOS 14.4 or later. Developers can also <a href="https://github.com/crazytan/TaskMenu#installation">build from source</a>.
-                </p>
-            </div>
-        </section>
+    <section class="overview wrap" aria-labelledby="overview-title">
+      <h2 class="overview-heading" id="overview-title">Fits into your day.<br>Stays out of your way.</h2>
+      <dl class="capabilities">
+        <div>
+          <dt>Catch the thought while it’s fresh.</dt>
+          <dd>Add a task right in the popover. Use <kbd>⌘ N</kbd> to jump to quick add and <kbd>⌘ F</kbd> to find something in your list.</dd>
+        </div>
+        <div>
+          <dt>Your Google Tasks, at home on Mac.</dt>
+          <dd>Sign in with Google and work with the lists you already use. Create, edit, and complete tasks from a native AppKit interface.</dd>
+        </div>
+        <div>
+          <dt>Room for work and everything else.</dt>
+          <dd>Switch lists, create a new one, or put two lists side by side. Move tasks between them as your plans change.</dd>
+        </div>
+        <div>
+          <dt>Just a click in the menu bar.</dt>
+          <dd>A compact popover, an optional pending-task count, and launch at login. Your Dock stays clear.</dd>
+        </div>
+      </dl>
+    </section>
 
-        <footer>
-            <p>
-                <a href="https://github.com/crazytan/TaskMenu">GitHub</a>
-                &nbsp;&middot;&nbsp;
-                <a href="support">Support</a>
-                &nbsp;&middot;&nbsp;
-                <a href="privacy">Privacy Policy</a>
-            </p>
-            <p style="margin-top: 8px;">TaskMenu is licensed under the <a href="https://github.com/crazytan/TaskMenu/blob/main/LICENSE">GNU GPLv3</a>.</p>
-        </footer>
+    <section class="detail-section" aria-labelledby="detail-title">
+      <div class="detail-grid wrap">
+        <div class="detail-copy">
+          <h2 id="detail-title">A task can hold<br>the whole plan.</h2>
+          <p>Keep the next step and the useful details together. Open any task to make it a little more actionable.</p>
+          <ul class="detail-points">
+            <li><strong>Break it into smaller steps.</strong><span>Add subtasks and check them off as you go.</span></li>
+            <li><strong>Give it a day.</strong><span>Pick a due date, sort by what’s due, and turn on local Mac reminders.</span></li>
+            <li><strong>Keep the context close.</strong><span>Write notes and move the task to the list where it belongs.</span></li>
+          </ul>
+        </div>
+        <figure class="product-figure">
+          <div class="product-stage detail-stage">
+            <img src="assets/task-detail.png" width="640" height="960" loading="lazy" alt="TaskMenu’s task editor with notes, a due-date picker, list selection, and subtasks.">
+          </div>
+          <figcaption>The details, without a bigger app to manage.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="privacy-note wrap" aria-labelledby="privacy-title">
+      <h2 id="privacy-title">Your Google account.<br>Your Mac’s Keychain.</h2>
+      <div class="privacy-copy">
+        <p>TaskMenu connects directly to Google for sign-in and task sync. Your sign-in tokens are stored in the macOS Keychain. There’s no TaskMenu account to create.</p>
+        <p>The app is free and open source under the GNU GPLv3. You can inspect the code, build it yourself, or help make it better.</p>
+        <a class="text-link" href="privacy.html">Read the privacy policy <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+
+    <section class="download" id="download" aria-labelledby="download-title">
+      <div class="wrap">
+        <div class="download-heading">
+          <div>
+            <h2 id="download-title">Make room for a little focus.</h2>
+            <p>Your next task is closer than another browser tab.</p>
+          </div>
+          <a class="button" href="https://github.com/crazytan/TaskMenu/releases/latest">Download TaskMenu <span aria-hidden="true">↗</span></a>
+        </div>
+        <ol class="steps">
+          <li>Download the latest DMG from GitHub Releases.</li>
+          <li>Open it and drag TaskMenu into Applications.</li>
+          <li>Launch, sign in with Google, and find it in your menu bar.</li>
+        </ol>
+        <div class="download-notes">
+          <p>Signed and notarized for macOS 14.4 or later. Want to try it first? Choose “Explore the Demo” in the app before signing in.</p>
+          <details>
+            <summary>Prefer Homebrew?</summary>
+            <pre><code>brew trust --cask crazytan/tap/taskmenu
+brew install --cask crazytan/tap/taskmenu</code></pre>
+            <p>Or follow the <a href="https://github.com/crazytan/TaskMenu#build-from-source">build instructions</a> on GitHub.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer wrap">
+    <div>
+      <a class="brand" href="./">TaskMenu</a>
+      <p>A small app for the things you want to do.</p>
     </div>
+    <nav aria-label="Footer">
+      <a href="https://github.com/crazytan/TaskMenu">GitHub</a>
+      <a href="support.html">Support</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </nav>
+  </footer>
 </body>
 </html>

@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-05",
+  "scope": "homepage",
+  "framework": "static HTML",
+  "source": "docs/index.html",
+  "existingFonts": "Apple system sans",
+  "existingPalette": "dark GitHub-like neutrals with blue accent",
+  "existingSpacing": "inline CSS without named scale",
+  "motion": "none",
+  "preserve": ["static hosting", "public routes", "TaskMenu blue identity", "GitHub download destination"],
+  "introduce": ["light canvas", "real app captures", "self-hosted type pairing", "named tokens", "responsive visual tour"]
+}
