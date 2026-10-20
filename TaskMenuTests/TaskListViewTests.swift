@@ -660,8 +660,7 @@ final class TaskListViewTests: XCTestCase {
         XCTAssertEqual(sortMenu.items.map(\.state), [.off, .on])
     }
 
-    /// Sorting moved out of "…" onto its own header button, so the overflow
-    /// menu must not offer it in two places.
+    /// Sorting and layout have dedicated header buttons.
     @MainActor
     func testOverflowMenuNoLongerCarriesSortBy() throws {
         let header = TaskListHeaderView()
@@ -670,29 +669,41 @@ final class TaskListViewTests: XCTestCase {
         let menu = header.overflowMenu()
         XCTAssertEqual(
             menu.items.map(\.title),
-            ["Show two lists side by side", "", "Settings…", "Sign out", "Quit"]
+            ["Settings…", "Sign out", "Quit"]
         )
-        XCTAssertTrue(menu.items[1].isSeparatorItem)
 
         header.isDemoMode = true
-        XCTAssertEqual(header.overflowMenu().items[3].title, "Exit demo")
+        XCTAssertEqual(header.overflowMenu().items[1].title, "Exit demo")
     }
 
     @MainActor
-    func testOverflowMenuSideBySideItemShowsStateAndToggles() throws {
+    func testHeaderLayoutButtonShowsStateAndToggles() throws {
         let header = TaskListHeaderView()
         header.render(listTitle: "Tasks", taskLists: [], selectedListID: nil, sortOrder: .myOrder, isLoading: false)
         var toggleCount = 0
-        header.onToggleSideBySide = { toggleCount += 1 }
+        header.onToggleSideBySide = {
+            toggleCount += 1
+            header.isSideBySideEnabled.toggle()
+        }
 
-        XCTAssertEqual(header.overflowMenu().items[0].state, .off)
+        let button = try XCTUnwrap(buttons(in: header).first {
+            $0.accessibilityLabel() == "Two lists side by side"
+        })
+        XCTAssertNotNil(button.image)
+        XCTAssertEqual(button.state, .off)
+        XCTAssertEqual(button.toolTip, "Show two lists side by side")
         header.isSideBySideEnabled = true
-        let item = header.overflowMenu().items[0]
-        XCTAssertEqual(item.state, .on)
+        XCTAssertEqual(button.state, .on)
+        XCTAssertEqual(button.toolTip, "Show one list")
 
-        let action = try XCTUnwrap(item.action)
-        _ = item.target?.perform(action, with: item)
+        button.performClick(nil)
         XCTAssertEqual(toggleCount, 1)
+        XCTAssertFalse(header.isSideBySideEnabled)
+        XCTAssertEqual(button.state, .off)
+        button.performClick(nil)
+        XCTAssertEqual(toggleCount, 2)
+        XCTAssertTrue(header.isSideBySideEnabled)
+        XCTAssertEqual(button.state, .on)
     }
 
     @MainActor

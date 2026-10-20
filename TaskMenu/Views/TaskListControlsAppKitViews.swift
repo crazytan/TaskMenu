@@ -15,9 +15,11 @@ final class TaskListHeaderView: NSView {
     var onCancelNewList: (() -> Void)?
     /// Retitles the sign-out item, which leaves the demo instead.
     var isDemoMode = false
-    /// Checkmark state of the "Show two lists side by side" overflow item.
-    var isSideBySideEnabled = false
-    /// The "Show two lists side by side" overflow item was chosen.
+    /// Selected state of the two-column layout button.
+    var isSideBySideEnabled = false {
+        didSet { updateLayoutButton() }
+    }
+    /// The two-column layout button was pressed.
     var onToggleSideBySide: (() -> Void)?
     /// Current sort, reflected as the checkmark in the sort button's menu.
     private var sortOrder: TaskSortOrder = .myOrder
@@ -51,6 +53,12 @@ final class TaskListHeaderView: NSView {
         pointSize: 13,
         weight: .medium,
         accessibilityDescription: "Sort tasks"
+    )
+    private let layoutButton = TaskMenuActionButton(
+        symbolName: "rectangle.split.2x1",
+        pointSize: 14,
+        weight: .medium,
+        accessibilityDescription: "Two lists side by side"
     )
     private let overflowButton = TaskMenuActionButton(
         symbolName: "ellipsis",
@@ -143,6 +151,7 @@ final class TaskListHeaderView: NSView {
 
         stack.addArrangedSubview(TaskMenuAppKit.spacer())
         stack.addArrangedSubview(refreshControlContainer())
+        stack.addArrangedSubview(headerIconContainer(layoutButton))
         stack.addArrangedSubview(headerIconContainer(sortButton))
         stack.addArrangedSubview(headerIconContainer(overflowButton))
 
@@ -150,12 +159,30 @@ final class TaskListHeaderView: NSView {
             self?.showRefreshSpinner()
             self?.onRefresh?()
         }
+        layoutButton.setButtonType(.pushOnPushOff)
+        layoutButton.setAccessibilityLabel("Two lists side by side")
+        updateLayoutButton()
+        layoutButton.onPress = { [weak self] in
+            self?.onToggleSideBySide?()
+        }
         sortButton.onPress = { [weak self] in
             self?.showSortMenu()
         }
         overflowButton.onPress = { [weak self] in
             self?.showOverflowMenu()
         }
+    }
+
+    private func updateLayoutButton() {
+        layoutButton.state = isSideBySideEnabled ? .on : .off
+        layoutButton.image = TaskMenuAppKit.symbol(
+            isSideBySideEnabled ? "rectangle.split.2x1.fill" : "rectangle.split.2x1",
+            pointSize: 14,
+            weight: .medium,
+            accessibilityDescription: "Two lists side by side"
+        )
+        layoutButton.contentTintColor = isSideBySideEnabled ? .controlAccentColor : .secondaryLabelColor
+        layoutButton.toolTip = isSideBySideEnabled ? "Show one list" : "Show two lists side by side"
     }
 
     /// The inline field that replaces the picker while a list is being named.
@@ -352,13 +379,6 @@ final class TaskListHeaderView: NSView {
     func overflowMenu() -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
-
-        let sideBySideItem = ClosureMenuItem(title: "Show two lists side by side") { [weak self] in
-            self?.onToggleSideBySide?()
-        }
-        sideBySideItem.state = isSideBySideEnabled ? .on : .off
-        menu.addItem(sideBySideItem)
-        menu.addItem(.separator())
 
         menu.addItem(ClosureMenuItem(title: "Settings…") { [weak self] in
             self?.onOpenSettings?()
