@@ -128,7 +128,7 @@ final class TaskListHeaderView: NSView {
         )
 
         listPopup.isBordered = false
-        listPopup.font = .systemFont(ofSize: 15)
+        listPopup.font = .systemFont(ofSize: 14)
         listPopup.controlSize = .regular
         listPopup.target = self
         listPopup.action = #selector(listSelectionChanged(_:))
@@ -295,7 +295,7 @@ final class TaskListHeaderView: NSView {
         NSAttributedString(
             string: listTitle,
             attributes: [
-                .font: NSFont.systemFont(ofSize: 15),
+                .font: NSFont.systemFont(ofSize: 14),
                 .foregroundColor: NSColor.labelColor
             ]
         )

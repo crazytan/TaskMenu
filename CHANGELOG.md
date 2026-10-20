@@ -8,6 +8,7 @@
 ## Unreleased
 
 ### Changed
+- Reduce task-list headings from 15 pt to 14 pt for a more balanced appearance.
 - Replace the long side-by-side overflow option with a two-column toggle button beside Refresh, highlighted when enabled.
 - Redesign the website homepage with real app screenshots, a light native-Mac style, updated feature copy, and clearer download and installation instructions.
 
