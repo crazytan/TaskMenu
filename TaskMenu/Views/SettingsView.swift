@@ -101,6 +101,7 @@ private final class SettingsViewController: NSViewController {
             _ = appState.dueDateNotificationsEnabled
             _ = appState.menuBarCounterMode
             _ = appState.sideBySideListsEnabled
+            _ = appState.reduceTransparency
             #if !APP_STORE_BUILD
             _ = appState.automaticUpdateChecksEnabled
             _ = appState.isCheckingForUpdates
@@ -213,6 +214,13 @@ private final class SettingsViewController: NSViewController {
                 onChange: { [appState] index in
                     guard MenuBarCounterMode.allCases.indices.contains(index) else { return }
                     appState.menuBarCounterMode = MenuBarCounterMode.allCases[index]
+                }
+            ),
+            switchRow(
+                title: "Reduce transparency",
+                isOn: appState.reduceTransparency,
+                onChange: { [appState] isOn in
+                    appState.reduceTransparency = isOn
                 }
             ),
             switchRow(

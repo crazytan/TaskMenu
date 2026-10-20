@@ -54,6 +54,7 @@ enum Constants {
         static let taskSortOrderKey = "taskSortOrder"
         static let secondaryTaskSortOrderKey = "secondaryTaskSortOrder"
         static let menuBarCounterModeKey = "menuBarCounterMode"
+        static let reduceTransparencyKey = "reduceTransparency"
         static let sideBySideListsEnabledKey = "sideBySideListsEnabled"
         /// Last list each pane showed, restored on launch when it still exists.
         static let primarySelectedListIdKey = "primarySelectedListId"

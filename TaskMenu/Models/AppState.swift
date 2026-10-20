@@ -191,6 +191,13 @@ final class AppState {
         sideBySideListsEnabled ? [primaryPane, secondaryPane] : [primaryPane]
     }
 
+    /// Uses a solid popover surface for easier reading over other windows.
+    var reduceTransparency: Bool {
+        didSet {
+            userDefaults.set(reduceTransparency, forKey: Constants.UserDefaults.reduceTransparencyKey)
+        }
+    }
+
     /// Two-pane popover preference. Persisted; off by default. Turning it on
     /// while signed in gives the secondary pane a list and loads it; turning
     /// it off tears nothing down, so the secondary remembers its selection.
@@ -600,6 +607,7 @@ final class AppState {
         self.sideBySideListsEnabled = userDefaults.object(
             forKey: Constants.UserDefaults.sideBySideListsEnabledKey
         ) as? Bool ?? false
+        self.reduceTransparency = userDefaults.bool(forKey: Constants.UserDefaults.reduceTransparencyKey)
         self.isSignedIn = authService.isSignedIn
         self.googleAccountProfile = authService.accountProfile
     }

@@ -4,6 +4,56 @@ import XCTest
 
 @MainActor
 final class MenuBarWindowChromeTests: XCTestCase {
+    func testReduceTransparencySettingPersistsAndUpdatesPopoverInPlace() async throws {
+        let suiteName = "dev.crazytan.TaskMenu.tests.transparency.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        func makeState() -> AppState {
+            AppState(
+                authService: GoogleAuthService(keychain: InMemoryKeychainService()),
+                userDefaults: defaults,
+                dueDateNotificationService: TestDueDateNotificationService()
+            )
+        }
+        let state = makeState()
+        XCTAssertFalse(state.reduceTransparency)
+        let popover = TaskPopoverViewController(appState: state, onRequestClose: {})
+        let surface = try XCTUnwrap(popover.view.subviews.compactMap { $0 as? NSBox }.first)
+        let signInButton = try XCTUnwrap(findButton(withTitle: "Sign in with Google", in: popover.view))
+        XCTAssertTrue(surface.isHidden)
+
+        let settings = SettingsWindowController(appState: state)
+        defer { settings.window?.close() }
+        let settingsView = try XCTUnwrap(settings.window?.contentViewController?.view)
+        let toggle = try XCTUnwrap(transparencySwitch(in: settingsView))
+        XCTAssertEqual(toggle.state, .off)
+        toggle.state = .on
+        XCTAssertTrue(toggle.sendAction(toggle.action, to: toggle.target))
+        await drainMainActorTasks()
+
+        XCTAssertTrue(state.reduceTransparency)
+        XCTAssertTrue(makeState().reduceTransparency)
+        XCTAssertFalse(surface.isHidden)
+        XCTAssertEqual(surface.fillColor, .windowBackgroundColor)
+        XCTAssertTrue(findButton(withTitle: "Sign in with Google", in: popover.view) === signInButton)
+
+        state.reduceTransparency = false
+        await drainMainActorTasks()
+        XCTAssertTrue(surface.isHidden)
+        XCTAssertFalse(makeState().reduceTransparency)
+        XCTAssertEqual(try XCTUnwrap(transparencySwitch(in: settingsView)).state, .off)
+    }
+
+    private func transparencySwitch(in view: NSView) -> NSSwitch? {
+        if let toggle = view as? NSSwitch, toggle.accessibilityLabel() == "Reduce transparency" {
+            return toggle
+        }
+        for subview in view.subviews {
+            if let found = transparencySwitch(in: subview) { return found }
+        }
+        return nil
+    }
+
     func testLiquidGlassAvailabilityMatchesPlatformAvailability() {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {

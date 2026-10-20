@@ -14,6 +14,7 @@ final class TaskPopoverViewController: NSViewController {
     private let onRequestClose: () -> Void
     private let onContentSizeChanged: (NSSize) -> Void
     private let backgroundView = NSVisualEffectView()
+    private let opaqueBackgroundView = NSBox()
     private let rootStack = NSStackView()
     private var widthConstraint: NSLayoutConstraint?
     private var currentMode: Mode?
@@ -47,6 +48,17 @@ final class TaskPopoverViewController: NSViewController {
         backgroundView.translatesAutoresizingMaskIntoConstraints = false
         view = backgroundView
 
+        // A native color keeps light/dark appearance changes automatic. This
+        // surface covers the visual effect without rebuilding task editors.
+        opaqueBackgroundView.boxType = .custom
+        opaqueBackgroundView.borderWidth = 0
+        opaqueBackgroundView.titlePosition = .noTitle
+        opaqueBackgroundView.cornerRadius = 0
+        opaqueBackgroundView.fillColor = .windowBackgroundColor
+        opaqueBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        backgroundView.addSubview(opaqueBackgroundView)
+        TaskMenuAppKit.pin(opaqueBackgroundView, to: backgroundView)
+
         rootStack.orientation = .vertical
         rootStack.alignment = .width
         rootStack.spacing = 0
@@ -79,6 +91,7 @@ final class TaskPopoverViewController: NSViewController {
     }
 
     private func renderIfNeeded(force: Bool = false) {
+        opaqueBackgroundView.isHidden = !appState.reduceTransparency
         let mode = desiredMode
         if force || currentMode != mode {
             render(mode)
@@ -435,6 +448,7 @@ final class TaskPopoverViewController: NSViewController {
             _ = appState.isSignedIn
             _ = appState.isDemoMode
             _ = appState.sideBySideListsEnabled
+            _ = appState.reduceTransparency
             _ = appState.isLoading
             _ = appState.errorMessage
         } onChange: { [weak self] in
