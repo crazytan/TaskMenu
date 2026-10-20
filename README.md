@@ -7,7 +7,7 @@
 <p align="center">
   A free, open-source Google Tasks app for the Mac menu bar.
   <br />
-  Native AppKit, quick add, subtasks, due-date reminders, and two lists side by side.
+  TaskMenu lets you quickly add tasks, manage subtasks, set due-date reminders, and view two lists side by side.
 </p>
 
 <p align="center">
@@ -29,22 +29,27 @@
 TaskMenu keeps your Google Tasks a click away while you work. Open a compact popover from the menu bar, add a task, check off a subtask, or compare two lists side by side. It stays out of the Dock and syncs changes directly with your Google account.
 
 <p align="center">
-  <img src="screenshots/task-list.png" alt="TaskMenu task list popover with quick add and filtering" width="360" />
-  <img src="screenshots/task-detail.png" alt="TaskMenu edit task view with due date and subtasks" width="360" />
+  <img src="screenshots/task-list.png" alt="TaskMenu task list popover with quick add and filtering" width="320" />
+  <img src="screenshots/task-detail.png" alt="TaskMenu edit task view with due date and subtasks" width="320" />
 </p>
 
-## Highlights
+## Features
 
-| Area | What TaskMenu Does |
-| --- | --- |
-| **Menu bar access** | Opens in a compact popover with no Dock icon or main window. Optionally shows a count of open tasks or tasks due today, including overdue tasks. |
-| **Task editing** | Create, edit, complete, and delete tasks, with notes, due dates, and subtasks. Add tasks and subtasks inline. |
-| **Lists and ordering** | Create lists, switch between them, move tasks with their subtasks to another list, and drag to reorder or nest tasks. Sort by Google's order or due date. |
-| **Side-by-side lists** | Show two lists at once, each with its own picker, filter, quick add, sort order, and editor. |
-| **Reminders** | Optional local macOS notifications for due dates. Reminders use the date exposed by Google's API. |
-| **Keyboard access** | Use ⌘N to add a task, ⌘F to filter, and ⌘, to open Settings. Optionally launch at login. |
-| **Demo mode** | Choose “Explore the Demo” before signing in to try sample lists. Demo edits stay in memory and are discarded when you leave. |
-| **Desktop widget (unreleased)** | Source builds include a configurable widget for viewing and completing tasks, with live refresh and cached content when offline. |
+- Menu bar-first design with no Dock icon or main window in normal launches
+- Google sign-in with OAuth 2.0 and PKCE
+- Quick add, inline filtering, list switching, and refresh from the popover
+- Create, edit, complete, and delete Google Tasks
+- Due dates, subtasks, and local due-date reminders
+- Secure token storage in the macOS Keychain
+- Optional launch at login
+- Native Settings window with update checks, support links, and account controls
+- Two lists side by side, each with its own picker, filter, quick add, sort order, and editor
+- Create task lists and move tasks with their subtasks between lists
+- Drag-and-drop task reordering and nesting, plus sorting by due date
+- Optional menu bar count of open tasks or tasks due today, including overdue tasks
+- Keyboard shortcuts: ⌘N to add a task, ⌘F to filter, and ⌘, to open Settings
+- Demo mode with sample lists, available before signing in
+- Configurable desktop widget for viewing and completing tasks, with live refresh and offline cached content (unreleased; available in source builds)
 
 ## Installation
 
@@ -160,24 +165,6 @@ See Google's [starred tasks help](https://support.google.com/tasks/answer/127187
 Google's web apps can create tasks from other Workspace products. The Tasks API exposes some of that context as read-only links or assignment metadata, and assigned tasks from Docs or Chat are not returned by default unless an API client explicitly requests them. TaskMenu currently focuses on regular Google Tasks lists and does not request assigned tasks, so some source links, assignment details, and shared-task behaviors may be unavailable or read-only.
 
 See the [`tasks.list` reference](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list) and [Tasks API usage limits](https://developers.google.com/workspace/tasks/limits).
-
-## Project Map
-
-```text
-TaskMenu/
-├── Models/           # App state, Google Tasks models, ordering, and search
-├── Services/         # OAuth, Google Tasks API, Keychain, reminders, metrics, updates
-├── Views/            # AppKit popover, task editor, settings, and shared controls
-├── Utilities/        # Constants and date formatting
-├── Resources/        # Plist, entitlements, icons, and asset catalog
-├── WidgetSupport/    # Shared widget snapshots, refresh, completion, and deep links
-TaskMenuWidget/       # WidgetKit desktop and Notification Center extension
-TaskMenuTests/        # Unit tests and test doubles
-AppStorePreviews/     # Marketing and App Store preview sources
-scripts/             # Build metadata and release tooling
-docs/                # Public website, policies, support, and release guide
-project.yml          # XcodeGen build graph; edit this instead of the Xcode project
-```
 
 ## Docs
 
