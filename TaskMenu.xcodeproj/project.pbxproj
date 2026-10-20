@@ -746,6 +746,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
 				PRODUCT_NAME = TaskMenuWidget;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -770,6 +771,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu;
 				PRODUCT_NAME = TaskMenu;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 			};
 			name = AppStore;
@@ -793,6 +795,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu;
 				PRODUCT_NAME = TaskMenu;
 				PROVISIONING_PROFILE_SPECIFIER = "$(TASKMENU_DEVELOPER_ID_PROFILE)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -899,6 +902,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
 				PRODUCT_NAME = TaskMenuWidget;
 				PROVISIONING_PROFILE_SPECIFIER = "$(TASKMENU_WIDGET_DEVELOPER_ID_PROFILE)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -1012,6 +1016,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu.Widget;
 				PRODUCT_NAME = TaskMenuWidget;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -1100,6 +1105,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = dev.crazytan.TaskMenu;
 				PRODUCT_NAME = TaskMenu;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 			};
 			name = Debug;
