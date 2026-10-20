@@ -186,6 +186,7 @@ kbd {
 .download { background: var(--color-dark); color: var(--color-paper); padding-block: var(--space-3xl); }
 .download-heading { display: grid; gap: var(--space-lg); align-items: center; }
 .download-heading p { margin-top: var(--space-md); color: var(--color-dark-muted); }
+.download-actions { display: grid; gap: var(--space-sm); justify-items: start; }
 .download .button { background: var(--color-paper); color: var(--color-ink); }
 .download .button:hover { background: var(--color-stage); color: var(--color-ink); }
 .download a:hover { color: var(--color-paper); }

@@ -19,4 +19,5 @@ and open `http://localhost:8765/`. Check 320, 375, 414, 768, and desktop widths,
 keyboard focus, installation disclosure, and asset loading after changes.
 
 The homepage uses no JavaScript, analytics, or third-party font requests. The
-download links point to the latest GitHub release; do not hardcode a version.
+direct-download links point to the latest GitHub release; do not hardcode a
+version. Both download areas also link to TaskMenu on the Mac App Store.
