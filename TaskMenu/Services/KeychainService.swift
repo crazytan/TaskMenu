@@ -59,17 +59,10 @@ private final class TestKeychainStore: @unchecked Sendable {
 
 struct KeychainService: KeychainServiceProtocol, Sendable {
     let service: String
-    /// Explicit shared Keychain access group (e.g. the App-Group-derived
-    /// value from `SharedConstants.keychainAccessGroup`), or `nil` for the
-    /// app's legacy default location. `kSecAttrAccessGroup` is included in
-    /// queries only when this is set — see `baseQuery`.
-    ///
-    /// An instance with an access group operates *only* on that shared,
-    /// data-protection-keychain location: no login-keychain fallback and no
-    /// dual-location delete, so an unqualified delete on a shared instance
-    /// can never accidentally remove the legacy record (and vice versa for
-    /// a legacy instance). `KeychainMigration` is the only thing that moves
-    /// data between the two.
+    /// An explicit group uses only that group's data-protection keychain.
+    /// With no group, use only the legacy file-based login keychain. Never
+    /// issue an unqualified data-protection query: it can match the shared
+    /// credentials and let migration cleanup delete the current sign-in.
     let accessGroup: String?
     private let testStore: TestKeychainStore?
 
@@ -90,23 +83,7 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
             return
         }
 
-        if accessGroup != nil {
-            // Shared items require the data-protection keychain; there is
-            // no legacy fallback or cross-location cleanup for this
-            // location — it did not exist before this feature.
-            try addItem(key: key, data: data, useDataProtection: true)
-            return
-        }
-
-        do {
-            try addItem(key: key, data: data, useDataProtection: true)
-        } catch KeychainError.saveFailed(let status) where status == errSecMissingEntitlement {
-            // Unsigned/dev builds cannot use the data-protection keychain; keep legacy behavior.
-            try addItem(key: key, data: data, useDataProtection: false)
-            return
-        }
-        // Remove any stale legacy copy so it cannot shadow the migrated value later.
-        _ = deleteItem(key: key, useDataProtection: false)
+        try addItem(key: key, data: data, useDataProtection: accessGroup != nil)
     }
 
     func save(key: String, string: String) throws {
@@ -121,33 +98,7 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
             return testStore.read(service: testStoreKey, key: key)
         }
 
-        if accessGroup != nil {
-            // Shared items live only in the data-protection keychain under
-            // this access group; no legacy-location fallback or migration.
-            return try copyItem(key: key, useDataProtection: true)
-        }
-
-        do {
-            if let data = try copyItem(key: key, useDataProtection: true) {
-                return data
-            }
-        } catch KeychainError.readFailed(let status) where status == errSecMissingEntitlement {
-            // Unsigned/dev builds cannot use the data-protection keychain; keep legacy behavior.
-            return try copyItem(key: key, useDataProtection: false)
-        }
-
-        guard let legacyData = try copyItem(key: key, useDataProtection: false) else {
-            return nil
-        }
-
-        // Transparent migration: move the legacy login-keychain item to the data-protection keychain.
-        do {
-            try addItem(key: key, data: legacyData, useDataProtection: true)
-            _ = deleteItem(key: key, useDataProtection: false)
-        } catch {
-            // Leave the legacy item in place so the value survives when migration cannot complete.
-        }
-        return legacyData
+        return try copyItem(key: key, useDataProtection: accessGroup != nil)
     }
 
     func readString(key: String) throws -> String? {
@@ -161,25 +112,11 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
             return
         }
 
-        if accessGroup != nil {
-            let status = deleteItem(key: key, useDataProtection: true)
-            guard status == errSecSuccess
-                || status == errSecItemNotFound
-                || status == errSecMissingEntitlement else {
-                throw KeychainError.deleteFailed(status)
-            }
-            return
-        }
-
-        for status in [
-            deleteItem(key: key, useDataProtection: true),
-            deleteItem(key: key, useDataProtection: false),
-        ] {
-            guard status == errSecSuccess
-                || status == errSecItemNotFound
-                || status == errSecMissingEntitlement else {
-                throw KeychainError.deleteFailed(status)
-            }
+        let status = deleteItem(key: key, useDataProtection: accessGroup != nil)
+        guard status == errSecSuccess
+            || status == errSecItemNotFound
+            || status == errSecMissingEntitlement else {
+            throw KeychainError.deleteFailed(status)
         }
     }
 
@@ -205,26 +142,22 @@ struct KeychainService: KeychainServiceProtocol, Sendable {
     /// XCTest in-memory store key: composite of `service` and `accessGroup`
     /// so a shared-group instance and a legacy (no-group) instance sharing
     /// the same `service` string remain distinct stores under test, matching
-    /// real Keychain semantics where the access group is part of item
-    /// identity.
+    /// the two production locations (legacy login vs shared data protection).
     private var testStoreKey: String {
         guard let accessGroup else { return service }
         return "\(service)#\(accessGroup)"
     }
 
-    // `useDataProtection: false` is the legacy login-keychain location used before the
-    // data-protection keychain migration; it also serves unsigned/dev builds that lack
-    // the entitlement (SecItem calls return errSecMissingEntitlement there). It is never
-    // used when `accessGroup` is set.
+    // The released pre-widget app lacked an application-identifier entitlement
+    // and saved to the login keychain. Keep that migration source disjoint
+    // from all shared data-protection items, including on subsequent launches.
     private func baseQuery(key: String, useDataProtection: Bool) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
         ]
-        if useDataProtection {
-            query[kSecUseDataProtectionKeychain as String] = true
-        }
+        query[kSecUseDataProtectionKeychain as String] = useDataProtection
         if let accessGroup {
             query[kSecAttrAccessGroup as String] = accessGroup
         }

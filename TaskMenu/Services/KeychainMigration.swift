@@ -46,13 +46,10 @@ protocol KeychainMigrationCoordinating: Sendable {
 /// storage to the shared Keychain access group that lets `TaskMenuWidget`
 /// read tokens without the containing app running.
 ///
-/// "Legacy" here is exactly today's `KeychainService()` default — the
-/// data-protection keychain with no explicit access group, falling back to
-/// the file-based login keychain — per
-/// `scratch/issue-11-desktop-widget/CONTRACT.md` ("Verified environment
-/// facts"): the shipped app has no `application-identifier` entitlement, so
-/// every existing install's tokens already live exactly there. There is no
-/// "old team-prefixed access group" to reason about.
+/// The released pre-widget app lacked an application-identifier entitlement,
+/// so its tokens fell back to the file-based login keychain. `KeychainService()`
+/// now targets only that legacy location. An unqualified data-protection
+/// query would also see shared items and make cleanup delete the sign-in.
 ///
 /// The extension never runs this type; migration is exclusively the
 /// containing app's responsibility (CONTRACT.md "Target membership" — this
@@ -71,9 +68,8 @@ struct KeychainMigration: KeychainMigrationCoordinating {
 
     /// - Parameters:
     ///   - legacyKeychain: The app's pre-widget storage location — today's
-    ///     `KeychainService()` (data-protection keychain with no explicit
-    ///     access group, falling back to the login keychain for unsigned
-    ///     builds).
+    ///     `KeychainService()` (file-based login keychain only, never an
+    ///     unqualified query across data-protection access groups).
     ///   - sharedKeychain: The shared access-group location, or `nil` when
     ///     `SharedConstants.keychainAccessGroup` did not resolve (unsigned
     ///     dev/CI build). `nil` makes `migrateIfNeeded()` a safe no-op that

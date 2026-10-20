@@ -171,8 +171,8 @@ final class GoogleAuthService: Sendable {
     /// dev/CI builds) — see the `keychain` default below. All new token and
     /// profile writes go here.
     private let keychain: any KeychainServiceProtocol
-    /// The app's pre-widget storage location, always the legacy default
-    /// (no explicit access group). Used as the migration source and,
+    /// The app's pre-widget storage location, only the file-based login
+    /// keychain (no data-protection queries). Used as the migration source and,
     /// defensively, cleared alongside `keychain` on sign-out so an old
     /// token can never resurrect a session.
     private let legacyKeychain: any KeychainServiceProtocol
@@ -201,8 +201,7 @@ final class GoogleAuthService: Sendable {
     /// - Parameters:
     ///   - keychain: Where tokens/profile are read from and written to. The
     ///     default resolves to the shared access group in signed builds and
-    ///     falls back to the identical legacy behavior `KeychainService()`
-    ///     has always had when unsigned/no group is resolved.
+    ///     uses the file-based login keychain when no group is resolved.
     ///   - legacyKeychain: The app's legacy (pre-widget) storage location,
     ///     used as the one-time migration source and cleared on sign-out.
     ///   - migration: Override for tests. Defaults to a real

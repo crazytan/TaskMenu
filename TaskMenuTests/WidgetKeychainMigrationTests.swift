@@ -1,16 +1,79 @@
+import Security
 import XCTest
 @testable import TaskMenu
 
 /// Tests `KeychainMigration` — the coordinator that copies OAuth Keychain
 /// items from the app's legacy (pre-widget) location to the shared
 /// Keychain access group so `TaskMenuWidget` can read them. Every test
-/// constructs the coordinator directly with `InMemoryKeychainService`
-/// doubles so it is exercised without the real Keychain and without relying
-/// on `SharedConstants.keychainAccessGroup` resolving (it never does in
-/// this unsigned test environment — see `CONTRACT.md`).
+/// primarily uses in-memory doubles. The signed-host regression cases use
+/// unique disposable services to verify real Security framework query
+/// scoping, and skip when the host lacks shared Keychain entitlements.
 @MainActor
 final class WidgetKeychainMigrationTests: XCTestCase {
     private let allKeys = KeychainMigration.knownKeys
+
+    // These regression tests deliberately bypass the XCTest in-memory store.
+    // Only a real signed host models an omitted access group's wildcard
+    // matching. Each run uses its own disposable service, never OAuth items.
+    private func signedKeychains() throws -> (legacy: KeychainService, shared: KeychainService) {
+        guard let group = SharedConstants.keychainAccessGroup else {
+            throw XCTSkip("Requires a signed host with the shared Keychain group")
+        }
+        let service = "dev.crazytan.TaskMenu.migration-test.\(UUID().uuidString)"
+        let legacy = KeychainService(service: service, environment: [:])
+        let shared = KeychainService(service: service, accessGroup: group, environment: [:])
+        do {
+            try shared.save(key: allKeys[0], string: "disposable-test-value")
+            try shared.delete(key: allKeys[0])
+        } catch KeychainError.saveFailed(let status) where status == errSecMissingEntitlement {
+            throw XCTSkip("Host has no shared Keychain entitlement")
+        }
+        return (legacy, shared)
+    }
+
+    func testSignedSharedCredentialsSurviveRepeatedAppStartup() throws {
+        let (legacy, shared) = try signedKeychains()
+        defer { try? legacy.deleteAll(); try? shared.deleteAll() }
+        try shared.save(key: SharedConstants.Keychain.accessTokenKey, string: "test-access")
+        try shared.save(key: SharedConstants.Keychain.refreshTokenKey, string: "test-refresh")
+        let migration = KeychainMigration(legacyKeychain: legacy, sharedKeychain: shared)
+
+        for _ in 0..<3 {
+            let auth = GoogleAuthService(keychain: shared, legacyKeychain: legacy, migration: migration)
+            XCTAssertTrue(auth.isSignedIn)
+            XCTAssertEqual(auth.refreshToken, "test-refresh")
+            XCTAssertEqual(try shared.readString(key: SharedConstants.Keychain.refreshTokenKey), "test-refresh")
+            XCTAssertNil(try legacy.readString(key: SharedConstants.Keychain.refreshTokenKey))
+        }
+    }
+
+    func testSignedLegacyUpgradePreservesEveryCredentialAcrossRelaunch() throws {
+        let (legacy, shared) = try signedKeychains()
+        defer { try? legacy.deleteAll(); try? shared.deleteAll() }
+        for key in allKeys {
+            try legacy.save(key: key, string: "test-\(key)")
+        }
+        let migration = KeychainMigration(legacyKeychain: legacy, sharedKeychain: shared)
+        XCTAssertEqual(Set(migration.migrateIfNeeded().values), [.migrated])
+        XCTAssertEqual(Set(migration.migrateIfNeeded().values), [.alreadyShared])
+        for key in allKeys {
+            XCTAssertEqual(try shared.readString(key: key), "test-\(key)")
+            XCTAssertNil(try legacy.read(key: key))
+        }
+    }
+
+    func testSignedLegacyCleanupKeepsNewerSharedCredential() throws {
+        let (legacy, shared) = try signedKeychains()
+        defer { try? legacy.deleteAll(); try? shared.deleteAll() }
+        let key = SharedConstants.Keychain.refreshTokenKey
+        try legacy.save(key: key, string: "stale-test-refresh")
+        try shared.save(key: key, string: "current-test-refresh")
+        let migration = KeychainMigration(legacyKeychain: legacy, sharedKeychain: shared)
+
+        XCTAssertEqual(migration.migrateIfNeeded()[key], .alreadyShared)
+        XCTAssertNil(try legacy.read(key: key))
+        XCTAssertEqual(try shared.readString(key: key), "current-test-refresh")
+    }
 
     // MARK: - No shared group resolved
 
