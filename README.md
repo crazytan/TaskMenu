@@ -1,45 +1,54 @@
-# TaskMenu
-
-> A lightweight, native macOS menu bar app for Google Tasks.
-
-TaskMenu brings Google Tasks to the macOS menu bar with a fast, native AppKit interface. It stays out of the Dock, opens as a compact popover, and keeps everyday task management close without pulling you out of your work.
-
 <p align="center">
-  <img src="screenshots/task-list.png" alt="TaskMenu task list popover with quick add and filtering" width="360">
-  <img src="screenshots/task-detail.png" alt="TaskMenu edit task view with due date and subtasks" width="360">
+  <img src="docs/assets/app-icon.png" alt="TaskMenu app icon" width="128" />
 </p>
 
-## Links
+<h1 align="center">TaskMenu</h1>
 
-- Website: [taskmenu.crazytan.dev](https://taskmenu.crazytan.dev/)
-- Privacy Policy: [taskmenu.crazytan.dev/privacy](https://taskmenu.crazytan.dev/privacy)
-- Support: [taskmenu.crazytan.dev/support](https://taskmenu.crazytan.dev/support)
+<p align="center">
+  A free, open-source Google Tasks app for the Mac menu bar.
+  <br />
+  Native AppKit, quick add, subtasks, due-date reminders, and two lists side by side.
+</p>
 
-## Features
+<p align="center">
+  <a href="https://github.com/crazytan/TaskMenu/releases/latest">
+    <img alt="Download TaskMenu directly for Mac" src="https://img.shields.io/badge/Mac-Direct%20Download-24292F?style=for-the-badge&amp;logo=apple&amp;logoColor=white" />
+  </a>
+  <a href="#installation">
+    <img alt="Install TaskMenu with Homebrew" src="https://img.shields.io/badge/Homebrew-Install-FBB040?style=for-the-badge&amp;logo=homebrew&amp;logoColor=white" />
+  </a>
+  <img alt="Requires macOS 14.4 or later" src="https://img.shields.io/badge/macOS-14.4%2B-000000?style=for-the-badge&amp;logo=apple&amp;logoColor=white" />
+  <img alt="Swift LoC" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Ftokei.kojix2.net%2Fapi%2Fgithub%2Fcrazytan%2FTaskMenu%2Flanguages&amp;query=%24.data.languages.Swift.code&amp;label=swift%20loc&amp;color=orange&amp;style=for-the-badge" />
+  <a href="LICENSE">
+    <img alt="License: GPLv3" src="https://img.shields.io/badge/license-GPLv3-blue?style=for-the-badge" />
+  </a>
+</p>
 
-- Menu bar-first design with no Dock icon or main window in normal launches
-- Google sign-in with OAuth 2.0 and PKCE
-- Quick add, inline filtering, list switching, and refresh from the popover
-- Create, edit, complete, and delete Google Tasks
-- Due dates, subtasks, and local due-date reminders
-- Secure token storage in the macOS Keychain
-- Optional launch at login
-- Native Settings window with update checks, support links, and account controls
+## Why TaskMenu?
 
-## Requirements
+TaskMenu keeps your Google Tasks a click away while you work. Open a compact popover from the menu bar, add a task, check off a subtask, or compare two lists side by side. It stays out of the Dock and syncs changes directly with your Google account.
 
-To run TaskMenu:
+<p align="center">
+  <img src="screenshots/task-list.png" alt="TaskMenu task list popover with quick add and filtering" width="360" />
+  <img src="screenshots/task-detail.png" alt="TaskMenu edit task view with due date and subtasks" width="360" />
+</p>
 
-- macOS 14.4 or later (Sonoma)
+## Highlights
 
-To build from source:
-
-- Xcode 26.4 or later
-- XcodeGen
-- A Google Cloud project with the Google Tasks API enabled
-- Google OAuth iOS credentials for the app bundle ID
+| Area | What TaskMenu Does |
+| --- | --- |
+| **Menu bar access** | Opens in a compact popover with no Dock icon or main window. Optionally shows a count of open tasks or tasks due today, including overdue tasks. |
+| **Task editing** | Create, edit, complete, and delete tasks, with notes, due dates, and subtasks. Add tasks and subtasks inline. |
+| **Lists and ordering** | Create lists, switch between them, move tasks with their subtasks to another list, and drag to reorder or nest tasks. Sort by Google's order or due date. |
+| **Side-by-side lists** | Show two lists at once, each with its own picker, filter, quick add, sort order, and editor. |
+| **Reminders** | Optional local macOS notifications for due dates. Reminders use the date exposed by Google's API. |
+| **Keyboard access** | Use ⌘N to add a task, ⌘F to filter, and ⌘, to open Settings. Optionally launch at login. |
+| **Demo mode** | Choose “Explore the Demo” before signing in to try sample lists. Demo edits stay in memory and are discarded when you leave. |
+| **Desktop widget (unreleased)** | Source builds include a configurable widget for viewing and completing tasks, with live refresh and cached content when offline. |
 
 ## Installation
+
+Requires **macOS 14.4 (Sonoma) or later**.
 
 Install with Homebrew by trusting the cask first:
 
@@ -48,9 +57,21 @@ brew trust --cask crazytan/tap/taskmenu
 brew install --cask crazytan/tap/taskmenu
 ```
 
-Or download the signed and notarized DMG from the [latest GitHub release](https://github.com/crazytan/TaskMenu/releases).
+Or download the signed and notarized DMG from the [latest GitHub release](https://github.com/crazytan/TaskMenu/releases/latest).
+
+After opening TaskMenu, sign in with Google or choose **Explore the Demo** to try it without an account.
+
+## Privacy
+
+TaskMenu connects directly to Google for OAuth 2.0 sign-in with PKCE and task sync. Sign-in tokens are stored in the macOS Keychain. There is no TaskMenu account or TaskMenu-operated server storing your tasks, and no third-party analytics SDK.
+
+Due-date reminders are local macOS notifications. Apple's MetricKit diagnostics are saved locally and are not uploaded. Direct-download builds also contact GitHub for release update checks; App Store builds leave out that update path. Source builds with the desktop widget keep a minimized task snapshot locally in the shared App Group so the widget can display cached content.
+
+Read the [privacy policy](https://taskmenu.crazytan.dev/privacy).
 
 ## Build From Source
+
+Requires **Xcode 26.4 or later**, **XcodeGen**, and a Google Cloud project with the Google Tasks API enabled.
 
 1. Clone the repository:
 
@@ -70,7 +91,7 @@ Or download the signed and notarized DMG from the [latest GitHub release](https:
    cp Config.xcconfig.example Config.xcconfig
    ```
 
-   Fill in `GOOGLE_CLIENT_ID` and `GOOGLE_REDIRECT_SCHEME` in `Config.xcconfig`.
+   Fill in `GOOGLE_CLIENT_ID`, `GOOGLE_REDIRECT_SCHEME`, and your signing `DEVELOPMENT_TEAM` in `Config.xcconfig`. Keep this file private; it is excluded from Git. See [the release guide](docs/RELEASING.md#one-time-apple-developer-portal-setup-required-before-any-signed-build) for the App Group and Keychain Sharing capabilities needed by the app and widget.
 
 4. Generate the Xcode project:
 
@@ -140,14 +161,48 @@ Google's web apps can create tasks from other Workspace products. The Tasks API 
 
 See the [`tasks.list` reference](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/list) and [Tasks API usage limits](https://developers.google.com/workspace/tasks/limits).
 
+## Project Map
+
+```text
+TaskMenu/
+├── Models/           # App state, Google Tasks models, ordering, and search
+├── Services/         # OAuth, Google Tasks API, Keychain, reminders, metrics, updates
+├── Views/            # AppKit popover, task editor, settings, and shared controls
+├── Utilities/        # Constants and date formatting
+├── Resources/        # Plist, entitlements, icons, and asset catalog
+├── WidgetSupport/    # Shared widget snapshots, refresh, completion, and deep links
+TaskMenuWidget/       # WidgetKit desktop and Notification Center extension
+TaskMenuTests/        # Unit tests and test doubles
+AppStorePreviews/     # Marketing and App Store preview sources
+scripts/             # Build metadata and release tooling
+docs/                # Public website, policies, support, and release guide
+project.yml          # XcodeGen build graph; edit this instead of the Xcode project
+```
+
+## Docs
+
+- [`CHANGELOG.md`](CHANGELOG.md) - version history and unreleased changes
+- [`AGENTS.md`](AGENTS.md) - context for coding agents and repository conventions
+- [`TaskMenu/README.md`](TaskMenu/README.md) - app architecture, lifecycle, and state flow
+- [`TaskMenuWidget/README.md`](TaskMenuWidget/README.md) - widget architecture and shared-source boundaries
+- [`TaskMenuTests/README.md`](TaskMenuTests/README.md) - test map and focused test selection
+- [`docs/RELEASING.md`](docs/RELEASING.md) - signing, packaging, Homebrew, and App Store distribution
+
+## Support
+
+- Website: [taskmenu.crazytan.dev](https://taskmenu.crazytan.dev/)
+- Direct Mac download: [latest GitHub release](https://github.com/crazytan/TaskMenu/releases/latest)
+- Help: [TaskMenu Support](https://taskmenu.crazytan.dev/support)
+- Bugs and feature requests: [GitHub Issues](https://github.com/crazytan/TaskMenu/issues)
+
 ## Contributing
 
-Contributions are welcome. If you have a bug report, feature request, or a focused improvement, open an issue or submit a pull request.
-
-Issues and feature requests: [GitHub Issues](https://github.com/crazytan/TaskMenu/issues)
-
-Maintainer release instructions live in [docs/RELEASING.md](docs/RELEASING.md).
+Contributions are welcome. Open an issue for a bug or feature request, or submit a pull request with a focused improvement. Follow the [build instructions](#build-from-source) above, start with [`AGENTS.md`](AGENTS.md), and read the folder-local `README.md` closest to the code you are changing.
 
 ## License
 
-GNU GPLv3
+TaskMenu is GPLv3 licensed. See [`LICENSE`](LICENSE) for details.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=crazytan/TaskMenu&type=Date)](https://www.star-history.com/#crazytan/TaskMenu&Date)
