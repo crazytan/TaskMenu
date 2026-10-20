@@ -163,8 +163,13 @@ final class TaskMenuAppDelegate: NSObject, NSApplicationDelegate {
         // ever touching the real container.
         let widgetSnapshotDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("TaskMenu.TestingWindow.WidgetSnapshot.\(UUID().uuidString)")
+        let legacyKeychain = InMemoryKeychainService()
         let state = AppState(
-            authService: GoogleAuthService(keychain: InMemoryKeychainService()),
+            authService: GoogleAuthService(
+                keychain: InMemoryKeychainService(),
+                legacyKeychain: legacyKeychain,
+                migration: KeychainMigration(legacyKeychain: legacyKeychain, sharedKeychain: nil)
+            ),
             api: isCapture ? DemoTasksAPI() : TestingWindowTasksAPI(),
             userDefaults: userDefaults,
             dueDateNotificationService: NoOpDueDateNotificationService(),

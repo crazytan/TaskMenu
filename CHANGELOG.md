@@ -18,6 +18,7 @@
 - OAuth sign-in now also writes to a shared Keychain group so the desktop widget can refresh tasks without opening TaskMenu. Existing sign-ins migrate to it automatically on first launch after upgrading; nothing else about sign-in changes.
 
 ### Fixed
+- Restore credential-free `--testing-window` launches and isolate their legacy Keychain and migration from real sign-in data.
 - Direct-download releases now install and select Developer ID provisioning profiles for both the app and widget, including after certificate replacement.
 - Allow the widget publisher isolation regression test to run against a signed host with a valid App Group identifier.
 

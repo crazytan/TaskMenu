@@ -23,6 +23,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - Store access tokens, refresh tokens, expiration, and signed-in account display metadata in Keychain through `KeychainServiceProtocol`. New writes always go to the current-location `keychain` (the shared access group in signed builds).
 - `validAccessToken()` is the gateway for API calls, declared by `AccessTokenProviding`. Do not let API clients read token properties directly.
 - Refresh-token request building and the definitive-rejection policy live in `GoogleTokenRefresher`, not in `GoogleAuthService` itself, so `WidgetGoogleAccessTokenProvider` shares the identical policy.
+- `GoogleAuthService` creates its token refresher lazily on the first refresh, so constructing it with in-memory storage does not require OAuth configuration. Testing-window launches inject both Keychain locations and a disabled migration coordinator.
 - Load the signed-in account email through Google's OpenID Connect userinfo endpoint after requesting `openid email`.
 - Callback parsing must validate scheme, path, state, Google error responses, and non-empty authorization code.
 

@@ -175,7 +175,9 @@ final class GoogleAuthService: Sendable {
     private let legacyKeychain: any KeychainServiceProtocol
     private let session: URLSession
     private let webAuthenticator: any WebAuthenticating
-    private let tokenRefresher: GoogleTokenRefresher
+    // Credential-free launches (including --testing-window) never refresh
+    // tokens, so do not resolve OAuth configuration until it is needed.
+    private lazy var tokenRefresher = GoogleTokenRefresher(session: session)
     private let presentationContextProvider = AuthenticationPresentationContextProvider()
 
     private(set) var accessToken: String?
@@ -214,7 +216,6 @@ final class GoogleAuthService: Sendable {
         self.legacyKeychain = legacyKeychain
         self.session = session
         self.webAuthenticator = webAuthenticator ?? ASWebAuthenticationSessionAuthenticator()
-        self.tokenRefresher = GoogleTokenRefresher(session: session)
 
         let migrationCoordinator = migration ?? KeychainMigration(
             legacyKeychain: legacyKeychain,
