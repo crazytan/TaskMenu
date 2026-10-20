@@ -7,27 +7,18 @@
 
 ## Unreleased
 
-### Changed
-- Reduce task-list headings from 15 pt to 14 pt for a more balanced appearance.
-- Replace the long side-by-side overflow option with a two-column toggle button beside Refresh, highlighted when enabled.
-- Redesign the website homepage with real app screenshots, a light native-Mac style, updated feature copy, and clearer download and installation instructions.
+## v1.7.0 (2026-10-19)
 
 ### Added
-- Link to the Mac App Store from both download areas on the website homepage.
-- Add a Reduce transparency switch in Settings for a solid, easier-to-read task popover background.
-- Add a configurable macOS desktop widget for viewing and completing Google Tasks, with live refresh and offline cached content.
+- Configurable macOS desktop widget for viewing and completing Google Tasks, with live refresh and offline cached content.
+- Reduce transparency setting for a solid, easier-to-read task popover.
 
-### Security
-- OAuth sign-in now also writes to a shared Keychain group so the desktop widget can refresh tasks without opening TaskMenu. Existing sign-ins migrate to it automatically on first launch after upgrading; nothing else about sign-in changes.
+### Changed
+- Smaller task-list headings for a more balanced appearance.
+- Two-column toggle beside Refresh, highlighted when enabled.
 
 ### Fixed
-- Preserve sign-in across app launches by keeping legacy Keychain migration cleanup separate from shared widget credentials.
-- Keep widget previews and task lists within their available height, with larger text and completion circles and an accurate “+N more” count.
-- Enable App Group registration for the app and widget in the generated Xcode project.
-- Detect missing Google Tasks permission during sign-in and recover existing sessions with a clear request to sign in again, instead of displaying a raw 403 scope error.
-- Restore credential-free `--testing-window` launches and isolate their legacy Keychain and migration from real sign-in data.
-- Direct-download releases now install and select Developer ID provisioning profiles for both the app and widget, including after certificate replacement.
-- Allow the widget publisher isolation regression test to run against a signed host with a valid App Group identifier.
+- Show a clear request to sign in again when Google Tasks permission is missing.
 
 ## v1.6.0 (2026-08-17)
 
