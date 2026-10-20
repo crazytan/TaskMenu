@@ -13,16 +13,29 @@ struct TaskListWidgetView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            header
-            content
-            Spacer(minLength: 0)
-            footer
+        ViewThatFits(in: .vertical) {
+            // Measure complete layouts, including due dates and the remainder
+            // footer. A family row budget alone cannot predict their height.
+            ForEach((0...rowCount).reversed(), id: \.self) { visibleCount in
+                VStack(alignment: .leading, spacing: 6) {
+                    header
+                    content(visibleCount: visibleCount)
+                    footer(hiddenRows: rowCount - visibleCount)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .containerBackground(for: .widget) {
             Color(nsColor: .windowBackgroundColor)
+        }
+    }
+
+    private var rowCount: Int {
+        switch entry.content.status {
+        case .live, .stale: entry.content.projection?.rows.count ?? 0
+        default: 0
         }
     }
 
@@ -34,13 +47,13 @@ struct TaskListWidgetView: View {
         if let deepLinkURL {
             Link(destination: deepLinkURL) {
                 Label(title, systemImage: "checklist")
-                    .font(.headline)
+                    .font(.system(size: 16, weight: .bold))
                     .lineLimit(1)
             }
             .accessibilityLabel("Open \(title) in TaskMenu")
         } else {
             Label(title, systemImage: "checklist")
-                .font(.headline)
+                .font(.system(size: 16, weight: .bold))
                 .lineLimit(1)
         }
     }
@@ -48,7 +61,7 @@ struct TaskListWidgetView: View {
     // MARK: Body by status
 
     @ViewBuilder
-    private var content: some View {
+    private func content(visibleCount: Int) -> some View {
         switch entry.content.status {
         case .signedOut:
             messageBody(systemImage: "person.crop.circle.badge.exclamationmark", text: "Open TaskMenu to sign in")
@@ -61,7 +74,7 @@ struct TaskListWidgetView: View {
                 if projection.rows.isEmpty {
                     messageBody(systemImage: "checkmark.circle", text: "Nothing due — nice work")
                 } else {
-                    rows(projection)
+                    rows(projection, visibleCount: visibleCount)
                 }
             } else {
                 messageBody(systemImage: "tray", text: "Open TaskMenu to load this list")
@@ -74,23 +87,23 @@ struct TaskListWidgetView: View {
         if let deepLinkURL {
             Link(destination: deepLinkURL) {
                 Label(text, systemImage: systemImage)
-                    .font(.subheadline)
+                    .font(.system(size: 14))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
             .accessibilityLabel(text)
         } else {
             Label(text, systemImage: systemImage)
-                .font(.subheadline)
+                .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }
     }
 
-    private func rows(_ projection: TaskWidgetProjectedList) -> some View {
+    private func rows(_ projection: TaskWidgetProjectedList, visibleCount: Int) -> some View {
         let listID = entry.content.listID ?? ""
         return VStack(alignment: .leading, spacing: 4) {
-            ForEach(projection.rows) { row in
+            ForEach(projection.rows.prefix(visibleCount)) { row in
                 TaskListWidgetRowView(row: row, listID: listID, deepLinkURL: deepLinkURL)
             }
         }
@@ -99,17 +112,24 @@ struct TaskListWidgetView: View {
     // MARK: Footer — "Last updated" (medium/large only) and "+N more".
 
     @ViewBuilder
-    private var footer: some View {
+    private func footer(hiddenRows: Int) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             if entry.family != .systemSmall, case .stale(let lastUpdated) = entry.content.status {
                 lastUpdatedText(lastUpdated)
             }
-            if let projection = entry.content.projection, projection.remainderCount > 0, let deepLinkURL {
-                Link(destination: deepLinkURL) {
-                    Text("+\(projection.remainderCount) more")
-                        .font(.caption)
+            let remainder = (entry.content.projection?.remainderCount ?? 0) + hiddenRows
+            if remainder > 0 {
+                if let deepLinkURL {
+                    Link(destination: deepLinkURL) {
+                        Text("+\(remainder) more")
+                            .font(.system(size: 12))
+                    }
+                    .accessibilityLabel("View \(remainder) more tasks in \(entry.content.listTitle ?? "this list") in TaskMenu")
+                } else {
+                    Text("+\(remainder) more")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
                 }
-                .accessibilityLabel("View \(projection.remainderCount) more tasks in \(entry.content.listTitle ?? "this list") in TaskMenu")
             }
         }
     }
@@ -123,7 +143,7 @@ struct TaskListWidgetView: View {
                 Text("Offline")
             }
         }
-        .font(.caption2)
+        .font(.system(size: 12))
         .foregroundStyle(.secondary)
     }
 }
@@ -140,7 +160,7 @@ private struct TaskListWidgetRowView: View {
         HStack(alignment: .top, spacing: 6) {
             Button(intent: CompleteTaskIntent(listID: listID, taskID: row.task.id, taskTitle: row.task.title)) {
                 Image(systemName: "circle")
-                    .imageScale(.medium)
+                    .font(.system(size: 18))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -155,12 +175,12 @@ private struct TaskListWidgetRowView: View {
     private var textContent: some View {
         let rowText = VStack(alignment: .leading, spacing: 1) {
             Text(row.task.title)
-                .font(.subheadline)
+                .font(.system(size: 14))
                 .lineLimit(1)
                 .truncationMode(.tail)
             if let dueText {
                 Text(dueText)
-                    .font(.caption2)
+                    .font(.system(size: 12))
                     .foregroundStyle(dueColor)
             }
         }

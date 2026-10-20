@@ -21,6 +21,7 @@
 - OAuth sign-in now also writes to a shared Keychain group so the desktop widget can refresh tasks without opening TaskMenu. Existing sign-ins migrate to it automatically on first launch after upgrading; nothing else about sign-in changes.
 
 ### Fixed
+- Keep widget previews and task lists within their available height, with larger text and completion circles and an accurate “+N more” count.
 - Enable App Group registration for the app and widget in the generated Xcode project.
 - Detect missing Google Tasks permission during sign-in and recover existing sessions with a clear request to sign in again, instead of displaying a raw 403 scope error.
 - Restore credential-free `--testing-window` launches and isolate their legacy Keychain and migration from real sign-in data.
