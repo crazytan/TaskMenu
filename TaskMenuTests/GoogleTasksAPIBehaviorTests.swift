@@ -155,6 +155,51 @@ final class GoogleTasksAPIBehaviorTests: XCTestCase {
         }
     }
 
+    func testListTaskListsRecognizesModernAndLegacyScopeErrors() async {
+        let bodies = [
+            #"{"error":{"details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT","domain":"googleapis.com"}]}}"#,
+            #"{"error":{"errors":[{"domain":"global","reason":"insufficientPermissions"}]}}"#,
+        ]
+        for body in bodies {
+            MockURLProtocol.requestHandler = { request in
+                let response = HTTPURLResponse(url: request.url!, statusCode: 403, httpVersion: nil, headerFields: nil)!
+                return (response, Data(body.utf8))
+            }
+            do {
+                _ = try await api.listTaskLists()
+                XCTFail("Expected insufficientScope")
+            } catch APIError.insufficientScope {
+                // A fresh consent flow is required.
+            } catch {
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    func testOtherForbiddenResponsesRemainServerErrors() async {
+        let bodies = [
+            #"{"error":{"errors":[{"domain":"usageLimits","reason":"dailyLimitExceeded"}]}}"#,
+            #"{"error":{"status":"PERMISSION_DENIED","message":"Workspace policy denied access"}}"#,
+            "ACCESS_TOKEN_SCOPE_INSUFFICIENT", // Do not search raw text.
+            "",
+        ]
+        for body in bodies {
+            MockURLProtocol.requestHandler = { request in
+                let response = HTTPURLResponse(url: request.url!, statusCode: 403, httpVersion: nil, headerFields: nil)!
+                return (response, Data(body.utf8))
+            }
+            do {
+                _ = try await api.listTaskLists()
+                XCTFail("Expected serverError")
+            } catch APIError.serverError(let code, let message) {
+                XCTAssertEqual(code, 403)
+                XCTAssertEqual(message, body)
+            } catch {
+                XCTFail("Unexpected error: \(error)")
+            }
+        }
+    }
+
     func testListTasksThrowsServerErrorOn500() async {
         MockURLProtocol.requestHandler = { request in
             let response = HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!

@@ -1453,6 +1453,9 @@ final class AppState {
             case .unauthorized:
                 errorMessage = "Session expired. Please sign in again."
                 signOut()
+            case .insufficientScope:
+                signOut()
+                errorMessage = GoogleAuthError.missingTasksPermission.localizedDescription
             case .networkError(let underlying):
                 errorMessage = "Network error: \(underlying.localizedDescription)"
             case .serverError(let code, let message):

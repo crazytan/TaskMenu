@@ -530,6 +530,59 @@ final class GoogleAuthServiceTests: XCTestCase {
         XCTAssertEqual(profileRequest.value(forHTTPHeaderField: "Authorization"), "Bearer new-access-token")
     }
 
+    func testSignInRejectsPartialConsentWithoutSavingTokensOrFetchingProfile() async throws {
+        for scope in ["openid email", "", Constants.googleTasksScope + ".readonly"] {
+            MockURLProtocol.reset()
+            // Stale credentials must not survive a partial-consent response.
+            try keychain.save(key: Constants.Keychain.refreshTokenKey, string: "old-refresh")
+            let webAuthenticator = MockWebAuthenticator { authURL, callbackScheme in
+                let state = try XCTUnwrap(queryItem("state", in: authURL))
+                return URL(string: "\(callbackScheme):\(Constants.googleRedirectPath)?code=auth-code-value&state=\(state)")!
+            }
+            MockURLProtocol.requestHandler = { request in
+                let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let body = try JSONSerialization.data(withJSONObject: [
+                    "access_token": "partial-access", "refresh_token": "partial-refresh",
+                    "expires_in": 3600, "scope": scope,
+                ])
+                return (response, body)
+            }
+            let auth = GoogleAuthService(keychain: keychain, session: MockURLProtocol.mockSession(), webAuthenticator: webAuthenticator)
+            do {
+                try await auth.signIn()
+                XCTFail("Expected missingTasksPermission")
+            } catch GoogleAuthError.missingTasksPermission {
+                XCTAssertFalse(auth.isSignedIn)
+                XCTAssertNil(auth.accessToken)
+                XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
+                XCTAssertNil(try keychain.readString(key: Constants.Keychain.accessTokenKey))
+                XCTAssertEqual(MockURLProtocol.requestLog.count, 1)
+            }
+        }
+    }
+
+    func testSignInAcceptsGrantedTasksScope() async throws {
+        let webAuthenticator = MockWebAuthenticator { authURL, callbackScheme in
+            let state = try XCTUnwrap(queryItem("state", in: authURL))
+            return URL(string: "\(callbackScheme):\(Constants.googleRedirectPath)?code=auth-code-value&state=\(state)")!
+        }
+        MockURLProtocol.requestHandler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let json: String
+            if request.url?.absoluteString == Constants.googleTokenURL {
+                json = #"{"access_token":"full-access","refresh_token":"full-refresh","expires_in":3600,"scope":"email https://www.googleapis.com/auth/tasks openid"}"#
+            } else {
+                json = #"{"email":"tan@example.com"}"#
+            }
+            return (response, Data(json.utf8))
+        }
+        let auth = GoogleAuthService(keychain: keychain, session: MockURLProtocol.mockSession(), webAuthenticator: webAuthenticator)
+        try await auth.signIn()
+        XCTAssertTrue(auth.isSignedIn)
+        XCTAssertEqual(try keychain.readString(key: Constants.Keychain.refreshTokenKey), "full-refresh")
+        XCTAssertEqual(auth.accountProfile?.email, "tan@example.com")
+    }
+
     func testSignInReportsGoogleTokenExchangeError() async throws {
         let webAuthenticator = MockWebAuthenticator { authURL, callbackScheme in
             let state = try XCTUnwrap(queryItem("state", in: authURL))

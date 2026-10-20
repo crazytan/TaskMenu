@@ -24,6 +24,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 - `validAccessToken()` is the gateway for API calls, declared by `AccessTokenProviding`. Do not let API clients read token properties directly.
 - Refresh-token request building and the definitive-rejection policy live in `GoogleTokenRefresher`, not in `GoogleAuthService` itself, so `WidgetGoogleAccessTokenProvider` shares the identical policy.
 - `GoogleAuthService` creates its token refresher lazily on the first refresh, so constructing it with in-memory storage does not require OAuth configuration. Testing-window launches inject both Keychain locations and a disabled migration coordinator.
+- Reject an explicit token-exchange `scope` that omits full Google Tasks access before saving credentials or loading the profile. When `scope` is omitted, the Tasks API remains the permission guard.
 - Load the signed-in account email through Google's OpenID Connect userinfo endpoint after requesting `openid email`.
 - Callback parsing must validate scheme, path, state, Google error responses, and non-empty authorization code.
 
@@ -38,6 +39,7 @@ Services isolate external systems and side effects from views. Keep protocols na
 
 - Keep `GoogleTasksAPI` actor-isolated and conforming to `TasksAPIProtocol`.
 - Use typed model decoding for responses. Avoid hand-parsing JSON except for small request bodies where the current code already uses dictionaries.
+- Map structured 403 scope errors (`ACCESS_TOKEN_SCOPE_INSUFFICIENT` or legacy global `insufficientPermissions`) to `APIError.insufficientScope`; preserve other 403 responses as server errors. `AppState` clears the unusable session and asks the user to grant Tasks access.
 - Preserve pagination for `listTasks` and `listTaskLists`; both loop on `nextPageToken` with `maxResults=100`.
 - `createTaskList(title:)` posts `{"title": …}` to `/users/@me/lists` and decodes the returned `TaskList`.
 - `listTasks` does not request assigned tasks with `showAssigned` today. Add that intentionally if assigned Workspace tasks become product scope.

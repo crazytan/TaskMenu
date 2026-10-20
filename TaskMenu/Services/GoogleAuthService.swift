@@ -14,6 +14,7 @@ enum GoogleAuthError: LocalizedError, Sendable {
     case secureRandomGenerationFailed(OSStatus)
     case tokenExchangeFailed(String)
     case unableToStartAuthenticationSession
+    case missingTasksPermission
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +32,8 @@ enum GoogleAuthError: LocalizedError, Sendable {
             return "Google token exchange failed: \(message)"
         case .unableToStartAuthenticationSession:
             return "Unable to start the Google sign-in session."
+        case .missingTasksPermission:
+            return "Google Tasks access was not granted. Please sign in again and allow access to your tasks."
         }
     }
 }
@@ -362,6 +365,15 @@ final class GoogleAuthService: Sendable {
         try validateTokenResponse(response, data: data)
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
 
+        // Google supports partial consent. A successful token exchange alone
+        // does not prove the user granted Tasks access. Older responses may
+        // omit scope; the Tasks API's scope-error handling covers that case.
+        if let scope = tokenResponse.scope,
+           !scope.split(whereSeparator: { $0.isWhitespace }).contains(Substring(Constants.googleTasksScope)) {
+            signOut()
+            throw GoogleAuthError.missingTasksPermission
+        }
+
         accessToken = tokenResponse.accessToken
         refreshToken = tokenResponse.refreshToken ?? refreshToken
         tokenExpiration = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn))
@@ -611,12 +623,14 @@ private struct TokenResponse: Codable {
     let refreshToken: String?
     let expiresIn: Int
     let tokenType: String?
+    let scope: String?
 
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
         case tokenType = "token_type"
+        case scope
     }
 }
 

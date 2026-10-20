@@ -574,6 +574,29 @@ final class AppStateBehaviorTests: XCTestCase {
         XCTAssertTrue(state.errorMessage!.contains("Session expired"))
     }
 
+    func testMissingTasksScopeAtBootstrapSignsOutAndExplainsRecovery() async throws {
+        stubResponse(statusCode: 403, json: #"{"error":{"code":403,"details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT","domain":"googleapis.com"}]}}"#)
+
+        await state.bootstrapSignedInState()
+
+        XCTAssertFalse(state.isSignedIn)
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertTrue(state.taskLists.isEmpty)
+        XCTAssertEqual(state.errorMessage, GoogleAuthError.missingTasksPermission.localizedDescription)
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.refreshTokenKey))
+        XCTAssertNil(try keychain.readString(key: Constants.Keychain.accessTokenKey))
+    }
+
+    func testUnrelatedForbiddenErrorPreservesSession() async throws {
+        stubResponse(statusCode: 403, json: #"{"error":{"code":403,"errors":[{"domain":"usageLimits","reason":"dailyLimitExceeded"}]}}"#)
+
+        await state.bootstrapSignedInState()
+
+        XCTAssertTrue(state.isSignedIn)
+        XCTAssertEqual(try keychain.readString(key: Constants.Keychain.refreshTokenKey), "test-refresh-token")
+        XCTAssertTrue(state.errorMessage?.contains("403") == true)
+    }
+
     func testHandleErrorServerErrorSetsMessage() async {
         state.selectedListId = "list1"
 

@@ -2,6 +2,7 @@ import Foundation
 
 enum APIError: Error, Sendable {
     case unauthorized
+    case insufficientScope
     case networkError(URLError)
     case serverError(Int, String?)
     case decodingError(Error)
@@ -165,6 +166,8 @@ actor GoogleTasksAPI: TasksAPIProtocol {
             return data
         case 401:
             throw APIError.unauthorized
+        case 403 where (try? JSONDecoder().decode(GoogleTasksErrorResponse.self, from: data))?.isInsufficientScope == true:
+            throw APIError.insufficientScope
         default:
             let message = String(data: data, encoding: .utf8)
             throw APIError.serverError(httpResponse.statusCode, message)
@@ -188,5 +191,26 @@ actor GoogleTasksAPI: TasksAPIProtocol {
         ]
 
         return try JSONSerialization.data(withJSONObject: body)
+    }
+}
+
+/// Match Google's machine-readable scope errors, never arbitrary 403 messages
+/// (which can also describe quotas, Workspace policy, or resource permissions).
+private struct GoogleTasksErrorResponse: Decodable {
+    let error: ErrorBody
+
+    var isInsufficientScope: Bool {
+        error.details?.contains { $0.reason == "ACCESS_TOKEN_SCOPE_INSUFFICIENT" } == true
+            || error.errors?.contains { $0.domain == "global" && $0.reason == "insufficientPermissions" } == true
+    }
+
+    struct ErrorBody: Decodable {
+        let details: [Reason]?
+        let errors: [Reason]?
+    }
+
+    struct Reason: Decodable {
+        let domain: String?
+        let reason: String?
     }
 }
